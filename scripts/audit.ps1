@@ -1,5 +1,5 @@
 # ==============================================================================
-#         NSDL WORKSTATION SYSTEM INFRASTRUCTURE SCRIPT (WINDOWS)
+#         INFRAPULSE WORKSTATION SYSTEM INFRASTRUCTURE SCRIPT (WINDOWS)
 # ==============================================================================
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -11,7 +11,6 @@ function Get-SafeString ($val, $fallback="Unknown") {
 }
 
 $executionDateTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-$consentText = "We provide approval to NSDL e-Governance Infrastructure Ltd.(NSDL e-Gov) to capture the details regarding the System details and share the details with NSDL e-Gov."
 
 Write-Host "Collecting Workstation System Data..." -ForegroundColor Cyan
 
@@ -262,7 +261,7 @@ $moboSerial = Get-SafeString $mobo.SerialNumber
 $assetTag = Get-SafeString $enclosure.SMBIOSAssetTag
 if (!$assetTag -or $assetTag -match 'N/A|No Asset|Default|Fill By OEM|To Be Filled') { $assetTag = Get-SafeString $moboSerial }
 if (!$assetTag -or $assetTag -match 'N/A|No Asset|Default|Fill By OEM|To Be Filled') { $assetTag = Get-SafeString $serialNumber }
-if (!$assetTag -or $assetTag -match 'N/A|No Asset|Default|Fill By OEM|To Be Filled') { $assetTag = "NSDL-AST-" + $env:COMPUTERNAME }
+if (!$assetTag -or $assetTag -match 'N/A|No Asset|Default|Fill By OEM|To Be Filled') { $assetTag = "AST-" + $env:COMPUTERNAME }
 
 $deviceType = "Desktop"
 try {
@@ -362,6 +361,8 @@ try {
             subnet_mask          = Get-SafeString $subnetMask "255.255.255.0"
             mtu                  = $mtuVal
             dns_servers          = Get-SafeString $dnsServers
+            dns_domain           = Get-SafeString $a.DNSDomain "N/A"
+            dhcp_server          = Get-SafeString $a.DHCPServer "N/A"
             wifi_ssid            = Get-SafeString $wifiSsid
             wifi_router_distance = Get-SafeString $wifiDistanceStr
         }
@@ -850,7 +851,6 @@ try {
 # ---------------------------------------------------------
 $data = @{
     execution_datetime    = $executionDateTime
-    consent               = $consentText
     computer_name         = $computer
     current_user          = $currentUser
     description           = $osDescription
@@ -906,6 +906,7 @@ $data = @{
         
         installed_ram     = $ramTotalStr
         ram_slots         = $ramSlots
+        max_ram_capacity  = "64.00 GB (Estimated)"
         
         mobo_manufacturer = $moboManufacturer
         mobo_product      = $moboProduct

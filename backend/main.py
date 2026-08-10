@@ -1,6 +1,4 @@
-# ==============================================================================
-#         NSDL WORKSTATION COMPLIANCE AUDIT BACKEND (FASTAPI)
-# ==============================================================================
+#         INFRAPULSE WORKSTATION COMPLIANCE AUDIT BACKEND (FASTAPI)
 # Version: 3.0.0 — Full IT Asset Management Edition
 
 import base64
@@ -20,9 +18,9 @@ import os
 import json
 import sqlite3
 try:
-    from backend.db import get_db, init_db, USE_POSTGRES, get_active_engine, write_db_config, _psycopg2_available, PG_HOST, PG_DATABASE, _load_env
+    from backend.db import get_db, init_db, USE_POSTGRES, get_active_engine, write_db_config, _psycopg2_available, PG_HOST, PG_DATABASE, _load_env, is_postgres_active, migrate_sqlite_to_postgres
 except ImportError:
-    from db import get_db, init_db, USE_POSTGRES, get_active_engine, write_db_config, _psycopg2_available, PG_HOST, PG_DATABASE, _load_env
+    from db import get_db, init_db, USE_POSTGRES, get_active_engine, write_db_config, _psycopg2_available, PG_HOST, PG_DATABASE, _load_env, is_postgres_active, migrate_sqlite_to_postgres
 import os as os_module
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -67,6 +65,26 @@ ASSET_METADATA_DIR = "user_info/assets"
 for d in [LOGS_DIR, USER_INFO_DIR, ASSET_METADATA_DIR]:
     os.makedirs(d, exist_ok=True)
 
+def _cleanup_old_temp_files():
+    """Clean up orphaned temporary files in scratch/ and temp folders."""
+    import time
+    try:
+        scratch_dir = os.path.join(os.getcwd(), "scratch")
+        if os.path.exists(scratch_dir):
+            now = time.time()
+            for f in os.listdir(scratch_dir):
+                fp = os.path.join(scratch_dir, f)
+                if os.path.isfile(fp) and (f.endswith((".cs", ".exe", ".vbs", ".xml")) or f.startswith("launcher_")):
+                    if now - os.path.getmtime(fp) > 7200:
+                        try:
+                            os.remove(fp)
+                        except Exception:
+                            pass
+    except Exception:
+        pass
+
+_cleanup_old_temp_files()
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -77,23 +95,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger("AuditBackend")
 
-app = FastAPI(title="NSDL IT Asset Management Portal", version="3.0.0")
+app = FastAPI(title="InfraPulse IT Asset Management Portal", version="3.0.0")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if cors_origins_env:
+    origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 sessions = {}
 
-CONSENT_TEXT = (
-    "We provide approval to NSDL e-Governance Infrastructure Ltd.(NSDL e-Gov) "
-    "to capture the details regarding the System details and share the details "
-    "with NSDL e-Gov."
-)
+
 
 
 # ==============================================================================
@@ -293,7 +318,7 @@ class SoftwareEntry(BaseModel):
 
 class AuditData(BaseModel):
     execution_datetime: str = ""
-    consent: str = CONSENT_TEXT
+    consent: Optional[str] = ""
     computer_name: str = "Unknown"
     current_user: str = "Unknown"
     description: str = "N/A"
@@ -406,13 +431,14 @@ def get_effective_base_url(request: Request) -> str:
 @app.get("/sys-agent", response_class=PlainTextResponse)
 @app.get("/sys-win", response_class=PlainTextResponse)
 @app.get("/download-script", response_class=PlainTextResponse)
-def download_script(request: Request, client_id: str = Query(...)):
+def download_script(request: Request, client_id: str = Query(None)):
     base_url = get_effective_base_url(request)
+    cid = client_id or "sys_" + uuid.uuid4().hex[:10]
     try:
         with open("scripts/audit.ps1", "r") as f:
             content = f.read()
         content = content.replace("http://127.0.0.1:8000", base_url)
-        content = content.replace("CLIENT_ID_PLACEHOLDER", client_id)
+        content = content.replace("CLIENT_ID_PLACEHOLDER", cid)
         return PlainTextResponse(content=content)
     except Exception as e:
         logger.error(f"Failed to load audit.ps1: {e}")
@@ -424,6 +450,13 @@ def download_script(request: Request, client_id: str = Query(...)):
 def download_exe_launcher(request: Request, client_id: str = Query(None)):
     base_url = get_effective_base_url(request)
     cid = client_id or "sys_" + uuid.uuid4().hex[:10]
+    if cid not in sessions:
+        sessions[cid] = {
+            "status": "pending", "branch_name": "RELIGARE BROKING LIMITED",
+            "branch_code": "8301231", "officer_name": "SANDIP BALIRAM LOKHANDE",
+            "available_pcs": "1", "registered_pcs": "1",
+            "pdf_path": None, "xml_path": None,
+        }
     
     # Check if csc compiler or pre-compiled exe is available
     exe_filename = f"RunAudit_Windows_{cid}.exe"
@@ -451,26 +484,27 @@ class Program {{
     csc_path = r"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
     
     try:
-        with open(cs_file, "w") as f:
+        with open(cs_file, "w", encoding="utf-8") as f:
             f.write(cs_code)
-        
+
         if os.path.exists(csc_path):
-            cmd = f'"{csc_path}" /target:winexe /out:"{out_exe}" "{cs_file}"'
-            subprocess.run(cmd, shell=True, capture_output=True, timeout=10)
-        
+            cmd_args = [csc_path, "/target:winexe", f"/out:{out_exe}", cs_file]
+            subprocess.run(cmd_args, shell=False, capture_output=True, timeout=15)
+
         if os.path.exists(out_exe):
             with open(out_exe, "rb") as f:
                 exe_bytes = f.read()
-            # Clean up temp files asynchronously
-            try:
-                os.remove(cs_file)
-                os.remove(out_exe)
-            except Exception:
-                pass
             headers = {"Content-Disposition": f"attachment; filename={exe_filename}"}
             return Response(content=exe_bytes, media_type="application/vnd.microsoft.portable-executable", headers=headers)
     except Exception as e:
         logger.error(f"Dynamic EXE compilation failed: {e}")
+    finally:
+        for p in (cs_file, out_exe):
+            if os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
         
     # Fallback to VBS if compiling on non-Windows environment
     vbs = (
@@ -514,10 +548,30 @@ def download_vbs(
 def download_mac_launcher(request: Request, client_id: str = Query(None)):
     base_url = get_effective_base_url(request)
     cid = client_id or "sys_" + uuid.uuid4().hex[:10]
+    if cid not in sessions:
+        sessions[cid] = {
+            "status": "pending", "branch_name": "RELIGARE BROKING LIMITED",
+            "branch_code": "8301231", "officer_name": "SANDIP BALIRAM LOKHANDE",
+            "available_pcs": "1", "registered_pcs": "1",
+            "pdf_path": None, "xml_path": None,
+        }
     cmd_content = (
         f'#!/usr/bin/env bash\n'
         f'# Double-click launcher for macOS Finder\n'
-        f'curl -sSL "{base_url}/sys-agent-mac?client_id={cid}" | bash\n'
+        f'clear\n'
+        f'echo "============================================================"\n'
+        f'echo "      Infra-Pulse IT Compliance Audit Launcher (macOS)"\n'
+        f'echo "============================================================"\n'
+        f'echo "Starting system audit scan..."\n'
+        f'echo ""\n'
+        f'TMP_SCRIPT=$(mktemp 2>/dev/null || echo "/tmp/audit_{cid}.sh")\n'
+        f'curl -sSL "{base_url}/sys-agent-mac?client_id={cid}" -o "$TMP_SCRIPT"\n'
+        f'chmod +x "$TMP_SCRIPT"\n'
+        f'bash "$TMP_SCRIPT"\n'
+        f'rm -f "$TMP_SCRIPT" 2>/dev/null\n'
+        f'echo ""\n'
+        f'echo "Press ENTER to exit..."\n'
+        f'read -r\n'
     )
     headers = {"Content-Disposition": f"attachment; filename=RunAudit_Mac_{cid}.command"}
     return Response(content=cmd_content, media_type="application/x-sh", headers=headers)
@@ -527,10 +581,30 @@ def download_mac_launcher(request: Request, client_id: str = Query(None)):
 def download_linux_launcher(request: Request, client_id: str = Query(None)):
     base_url = get_effective_base_url(request)
     cid = client_id or "sys_" + uuid.uuid4().hex[:10]
+    if cid not in sessions:
+        sessions[cid] = {
+            "status": "pending", "branch_name": "RELIGARE BROKING LIMITED",
+            "branch_code": "8301231", "officer_name": "SANDIP BALIRAM LOKHANDE",
+            "available_pcs": "1", "registered_pcs": "1",
+            "pdf_path": None, "xml_path": None,
+        }
     sh_content = (
         f'#!/usr/bin/env bash\n'
         f'# Double-click launcher for Linux Desktop\n'
-        f'curl -sSL "{base_url}/sys-agent-mac?client_id={cid}" | bash\n'
+        f'clear\n'
+        f'echo "============================================================"\n'
+        f'echo "      Infra-Pulse IT Compliance Audit Launcher (Linux)"\n'
+        f'echo "============================================================"\n'
+        f'echo "Starting system audit scan..."\n'
+        f'echo ""\n'
+        f'TMP_SCRIPT=$(mktemp 2>/dev/null || echo "/tmp/audit_{cid}.sh")\n'
+        f'curl -sSL "{base_url}/sys-agent-mac?client_id={cid}" -o "$TMP_SCRIPT"\n'
+        f'chmod +x "$TMP_SCRIPT"\n'
+        f'bash "$TMP_SCRIPT"\n'
+        f'rm -f "$TMP_SCRIPT" 2>/dev/null\n'
+        f'echo ""\n'
+        f'echo "Press ENTER to exit..."\n'
+        f'read -r\n'
     )
     headers = {"Content-Disposition": f"attachment; filename=RunAudit_Linux_{cid}.sh"}
     return Response(content=sh_content, media_type="application/x-sh", headers=headers)
@@ -651,7 +725,7 @@ def draw_page_decorations(canvas, doc):
     canvas.rect(36, 36, doc.pagesize[0] - 72, doc.pagesize[1] - 72)
     canvas.setFont("Helvetica-Bold", 8)
     canvas.setFillColor(colors.HexColor("#A80000"))
-    canvas.drawCentredString(doc.pagesize[0] / 2.0, 20, "INSPECTION REPORT BY NSDL E-GOVERNANCE")
+    canvas.drawCentredString(doc.pagesize[0] / 2.0, 20, "INSPECTION REPORT BY INFRAPULSE IT MANAGEMENT")
     canvas.restoreState()
 
 
@@ -791,7 +865,6 @@ def upload_audit(data: AuditData, client_id: str = Query(None)):
             ("User Branch Code",    branch_code),
             ("User Officer Name",   officer_name),
             ("Execution DateTime",  audit_time),
-            ("Consent",             data.consent),
         ], styles)
 
         summary_style = [
@@ -1066,14 +1139,13 @@ def upload_audit(data: AuditData, client_id: str = Query(None)):
 
     # ── XML Generation ────────────────────────────────────────────────────────
     try:
-        root = ET.Element("NsdlComplianceAudit", version="3.0.0")
+        root = ET.Element("ComplianceAudit", version="3.0.0")
 
         meta = ET.SubElement(root, "UserDetails")
         ET.SubElement(meta, "BranchName").text     = branch_name
         ET.SubElement(meta, "BranchCode").text     = branch_code
         ET.SubElement(meta, "OfficerName").text    = officer_name
         ET.SubElement(meta, "ExecutionDateTime").text = audit_time
-        ET.SubElement(meta, "Consent").text        = data.consent
 
         os_xml = ET.SubElement(root, "OperatingSystem")
         ET.SubElement(os_xml, "OSName").text        = data.os_name
@@ -1243,52 +1315,254 @@ def generate_pdf_for_device(client_id: str) -> str:
         styles = make_styles()
         elements = [Paragraph("Compliance Inspection Report", styles["title"])]
 
-        av_str = list_text(data.antivirus)
-        compression_str = list_text(data.compression_utilities)
+        hw = data.hardware_details
+        hw_d = hw if isinstance(hw, dict) else (model_to_dict(hw) if hw else {})
 
-        add_pair_table(elements, "User & Branch Metadata", [
-            ("User Branch Name", "RELIGARE BROKING LIMITED"),
-            ("User Branch Code", "8301231"),
-            ("User Officer Name", "SANDIP BALIRAM LOKHANDE"),
-            ("Execution DateTime", data.execution_datetime),
-            ("Consent Verified", data.consent or "Y"),
+        # ── 1. Device & Scan Metadata ─────────────────────────────────────────
+        add_pair_table(elements, "1. Device & Scan Metadata", [
+            ("Computer Name",       data.computer_name),
+            ("Execution DateTime",  data.execution_datetime),
+            ("MAC Address",         data.mac_address),
+            ("License Status",      data.license_status),
+            ("Architecture",        data.architecture),
         ], styles)
 
-        add_pair_table(elements, "Operating System & Identity", [
-            ("OS Name", data.os_name),
-            ("OS Version", data.os_version),
-            ("OS Architecture", data.architecture),
-            ("Computer Hostname", data.computer_name),
-            ("License Status", data.license_status),
-            ("MAC Address", data.mac_address),
+        # ── 2. Operating System ───────────────────────────────────────────────
+        add_pair_table(elements, "2. Operating System", [
+            ("OS Name",             data.os_name),
+            ("OS Version",          data.os_version),
+            ("OS Architecture",     data.architecture),
         ], styles)
 
-        add_pair_table(elements, "Hardware Overview", [
-            ("Serial Number", get_hw(data, "serial_number")),
-            ("Manufacturer", get_hw(data, "manufacturer")),
-            ("Model", get_hw(data, "model")),
-            ("CPU Processor", get_hw(data, "cpu")),
-            ("RAM Memory", get_hw(data, "ram")),
-            ("Logical Disk", get_hw(data, "disk")),
+        # ── 3. Device Data ────────────────────────────────────────────────────
+        add_pair_table(elements, "3. Device Data", [
+            ("Hostname",            data.computer_name),
+            ("Device Type",         hw_d.get("device_type", "—")),
+            ("Manufacturer",        hw_d.get("manufacturer", "—")),
+            ("Model",               hw_d.get("model", "—")),
+            ("Serial Number",       hw_d.get("serial_number", "—")),
+            ("Asset Tag",           hw_d.get("asset_tag", "—")),
+            ("Domain",              hw_d.get("domain", "—")),
+            ("Domain Role",         hw_d.get("domain_role", "—")),
+            ("Description",         hw_d.get("description", "—")),
+            ("Processor Name",      hw_d.get("processor_name", "—")),
+            ("CPU Cores",           hw_d.get("cpu_cores", "—")),
+            ("CPU Threads",         hw_d.get("cpu_threads", "—")),
+            ("Installed RAM",       hw_d.get("installed_ram", "—")),
+            ("RAM Slots",           hw_d.get("ram_slots", "—")),
+            ("BIOS Version",        hw_d.get("bios_version", "—")),
+            ("BIOS Date",           hw_d.get("bios_date", "—")),
+            ("Last Backup",         hw_d.get("last_backup", "—")),
+            ("Location",            hw_d.get("location_info", "—")),
         ], styles)
 
+        # ── 4. Motherboard ────────────────────────────────────────────────────
+        add_pair_table(elements, "4. Motherboard", [
+            ("Manufacturer",        hw_d.get("mobo_manufacturer", "—")),
+            ("Product",             hw_d.get("mobo_product", "—")),
+            ("Version",             hw_d.get("mobo_version", "—")),
+            ("Serial Number",       hw_d.get("mobo_serial", "—")),
+        ], styles)
+
+        # ── 5. Disk Information ───────────────────────────────────────────────
+        disk_info_list = hw_d.get("disk_info", []) or hw_d.get("disks", [])
+        if disk_info_list:
+            disk_rows = [[
+                pdf_text("Name", styles["bold"]), pdf_text("Model", styles["bold"]),
+                pdf_text("Size", styles["bold"]), pdf_text("Free Space", styles["bold"]),
+                pdf_text("SSD", styles["bold"]), pdf_text("Serial", styles["bold"]),
+            ]]
+            for di in disk_info_list:
+                d = di if isinstance(di, dict) else model_to_dict(di)
+                disk_rows.append([
+                    pdf_text(str(d.get("name", "—")), styles["normal"]),
+                    pdf_text(str(d.get("model", "—")), styles["normal"]),
+                    pdf_text(str(d.get("size", "—")), styles["normal"]),
+                    pdf_text(str(d.get("free_space", "—")), styles["normal"]),
+                    pdf_text("Yes" if d.get("is_ssd") else "No", styles["normal"]),
+                    pdf_text(str(d.get("serial_number", "—")), styles["normal"]),
+                ])
+            elements.append(KeepTogether([
+                Paragraph("5. Disk Information", styles["section"]),
+                apply_grid_style(Table(disk_rows, colWidths=[80, 130, 70, 80, 40, 104], repeatRows=1), header=True),
+                Spacer(1, 12)
+            ]))
+        else:
+            add_pair_table(elements, "5. Disk Information", [
+                ("Logical Disk", hw_d.get("disk", "—")),
+            ], styles)
+
+        # ── 6. Partitions/Storage ─────────────────────────────────────────────
+        dp_list = get_hw_list(data, "disk_partitions")
+        dp_rows = [[
+            pdf_text("Partition", styles["bold"]), pdf_text("File System", styles["bold"]),
+            pdf_text("Size (GB)", styles["bold"]), pdf_text("Free (GB)", styles["bold"]),
+            pdf_text("Bootable", styles["bold"]),
+        ]]
+        if dp_list:
+            for p in dp_list:
+                d = p if isinstance(p, dict) else model_to_dict(p)
+                dp_rows.append([
+                    pdf_text(str(d.get("name", "—")), styles["normal"]),
+                    pdf_text(str(d.get("file_system_type", d.get("type", "—"))), styles["normal"]),
+                    pdf_text(str(d.get("size_gb", "—")), styles["normal"]),
+                    pdf_text(str(d.get("free_gb", "—")), styles["normal"]),
+                    pdf_text(str(d.get("bootable", "—")), styles["normal"]),
+                ])
+        else:
+            dp_rows.append([pdf_text("No partition data collected", styles["normal"])] + [pdf_text("—", styles["normal"])] * 4)
+        elements.append(KeepTogether([
+            Paragraph("6. Partitions / Storage", styles["section"]),
+            apply_grid_style(Table(dp_rows, colWidths=[90, 100, 90, 90, 134], repeatRows=1), header=True),
+            Spacer(1, 12)
+        ]))
+
+        # ── 7. Network Adapters ───────────────────────────────────────────────
+        na_list = get_hw_list(data, "network_adapters")
+        na_rows = [[
+            pdf_text("Name", styles["bold"]), pdf_text("IPv4", styles["bold"]),
+            pdf_text("Gateway", styles["bold"]), pdf_text("MAC", styles["bold"]),
+            pdf_text("DNS Servers", styles["bold"]),
+        ]]
+        if na_list:
+            for a in na_list:
+                d = a if isinstance(a, dict) else model_to_dict(a)
+                ipv4 = d.get("ipv4_addresses") or d.get("ip_address", "—")
+                if isinstance(ipv4, list): ipv4 = ", ".join(ipv4)
+                dns = d.get("dns_servers", "—")
+                if isinstance(dns, list): dns = ", ".join(dns)
+                na_rows.append([
+                    pdf_text(str(d.get("name", "—")), styles["normal"]),
+                    pdf_text(str(ipv4), styles["normal"]),
+                    pdf_text(str(d.get("gateway", "—")), styles["normal"]),
+                    pdf_text(str(d.get("mac_address", d.get("mac", "—"))), styles["normal"]),
+                    pdf_text(str(dns), styles["normal"]),
+                ])
+        else:
+            na_rows.append([pdf_text("No network adapter data collected", styles["normal"])] + [pdf_text("—", styles["normal"])] * 4)
+        elements.append(KeepTogether([
+            Paragraph("7. Network Adapters", styles["section"]),
+            apply_grid_style(Table(na_rows, colWidths=[100, 90, 90, 100, 124], repeatRows=1), header=True),
+            Spacer(1, 12)
+        ]))
+
+        # ── 8. Video Controllers / GPU ────────────────────────────────────────
+        gpu_list = get_hw_list(data, "gpu_details")
+        gpu_rows = [[
+            pdf_text("GPU Name", styles["bold"]), pdf_text("Video Processor", styles["bold"]),
+            pdf_text("Driver Version", styles["bold"]), pdf_text("VRAM", styles["bold"]),
+        ]]
+        if gpu_list:
+            for g in gpu_list:
+                d = g if isinstance(g, dict) else model_to_dict(g)
+                gpu_rows.append([
+                    pdf_text(str(d.get("name", "—")), styles["normal"]),
+                    pdf_text(str(d.get("video_processor", d.get("processor", "—"))), styles["normal"]),
+                    pdf_text(str(d.get("driver_version", "—")), styles["normal"]),
+                    pdf_text(str(d.get("vram", "—")), styles["normal"]),
+                ])
+        else:
+            gpu_rows.append([pdf_text("No GPU data collected", styles["normal"])] + [pdf_text("—", styles["normal"])] * 3)
+        elements.append(KeepTogether([
+            Paragraph("8. Video Controllers / Graphic", styles["section"]),
+            apply_grid_style(Table(gpu_rows, colWidths=[160, 120, 110, 114], repeatRows=1), header=True),
+            Spacer(1, 12)
+        ]))
+
+        # ── 9. Peripherals ────────────────────────────────────────────────────
+        peri_list = get_hw_list(data, "peripherals")
+        peri_rows = [[
+            pdf_text("Name", styles["bold"]), pdf_text("Type", styles["bold"]),
+            pdf_text("Manufacturer", styles["bold"]), pdf_text("Version", styles["bold"]),
+        ]]
+        if peri_list:
+            for p in peri_list:
+                d = p if isinstance(p, dict) else model_to_dict(p)
+                peri_rows.append([
+                    pdf_text(str(d.get("name", "—")), styles["normal"]),
+                    pdf_text(str(d.get("type", "—")), styles["normal"]),
+                    pdf_text(str(d.get("manufacturer", "—")), styles["normal"]),
+                    pdf_text(str(d.get("version", "—")), styles["normal"]),
+                ])
+        else:
+            peri_rows.append([pdf_text("No peripheral data collected", styles["normal"])] + [pdf_text("—", styles["normal"])] * 3)
+        elements.append(KeepTogether([
+            Paragraph("9. Peripherals", styles["section"]),
+            apply_grid_style(Table(peri_rows, colWidths=[180, 110, 130, 84], repeatRows=1), header=True),
+            Spacer(1, 12)
+        ]))
+
+        # ── 10. Users ─────────────────────────────────────────────────────────
+        users_list = data.users if hasattr(data, "users") and data.users else []
+        if not users_list:
+            users_list = hw_d.get("users_list", [])
+        user_rows = [[
+            pdf_text("Username", styles["bold"]), pdf_text("Type", styles["bold"]),
+            pdf_text("Domain", styles["bold"]), pdf_text("Status", styles["bold"]),
+        ]]
+        if users_list:
+            for u in users_list:
+                d = u if isinstance(u, dict) else model_to_dict(u)
+                user_rows.append([
+                    pdf_text(str(d.get("name", d.get("username", "—"))), styles["normal"]),
+                    pdf_text(str(d.get("type", d.get("account_type", "—"))), styles["normal"]),
+                    pdf_text(str(d.get("domain", "—")), styles["normal"]),
+                    pdf_text(str(d.get("status", d.get("disabled", "—"))), styles["normal"]),
+                ])
+        else:
+            user_rows.append([pdf_text("No user data collected", styles["normal"])] + [pdf_text("—", styles["normal"])] * 3)
+        elements.append(KeepTogether([
+            Paragraph("10. Users", styles["section"]),
+            apply_grid_style(Table(user_rows, colWidths=[160, 110, 130, 104], repeatRows=1), header=True),
+            Spacer(1, 12)
+        ]))
+
+        # ── 11. Recent Login History ──────────────────────────────────────────
+        login_list = data.login_history if hasattr(data, "login_history") and data.login_history else []
+        login_rows = [[
+            pdf_text("Username", styles["bold"]), pdf_text("Domain", styles["bold"]),
+            pdf_text("Logon Type", styles["bold"]), pdf_text("Time", styles["bold"]),
+        ]]
+        if login_list:
+            for l in login_list[:50]:
+                d = l if isinstance(l, dict) else model_to_dict(l)
+                login_rows.append([
+                    pdf_text(str(d.get("username", "—")), styles["normal"]),
+                    pdf_text(str(d.get("domain", "—")), styles["normal"]),
+                    pdf_text(str(d.get("logon_type", "—")), styles["normal"]),
+                    pdf_text(str(d.get("time", d.get("timestamp", "—"))), styles["normal"]),
+                ])
+        else:
+            login_rows.append([pdf_text("No login history collected", styles["normal"])] + [pdf_text("—", styles["normal"])] * 3)
+        elements.append(KeepTogether([
+            Paragraph("11. Recent Login History", styles["section"]),
+            apply_grid_style(Table(login_rows, colWidths=[150, 110, 120, 124], repeatRows=1), header=True),
+            Spacer(1, 12)
+        ]))
+
+        # ── 12. Installed Software Inventory ──────────────────────────────────
         sw_list = data.software_inventory or []
-        sw_rows = [[pdf_text("App Name", styles["bold"]), pdf_text("Version", styles["bold"]), pdf_text("Publisher", styles["bold"])]]
-        for sw in sw_list[:150]:
+        sw_rows = [[
+            pdf_text("App Name", styles["bold"]), pdf_text("Version", styles["bold"]),
+            pdf_text("Publisher", styles["bold"]), pdf_text("Install Date", styles["bold"]),
+        ]]
+        for sw in sw_list[:200]:
             d = sw if isinstance(sw, dict) else model_to_dict(sw)
             sw_rows.append([
-                pdf_text(d.get("name", ""), styles["normal"]),
-                pdf_text(d.get("version", ""), styles["normal"]),
-                pdf_text(d.get("publisher", ""), styles["normal"]),
+                pdf_text(str(d.get("name", "—")), styles["normal"]),
+                pdf_text(str(d.get("version", "—")), styles["normal"]),
+                pdf_text(str(d.get("publisher", "—")), styles["normal"]),
+                pdf_text(str(d.get("install_date", "—")), styles["normal"]),
             ])
         elements.append(KeepTogether([
-            Paragraph(f"Installed Software Inventory ({len(sw_list)} Total Apps)", styles["section"]),
-            apply_grid_style(Table(sw_rows, colWidths=[240, 110, 154], repeatRows=1), header=True),
+            Paragraph(f"12. Installed Software Inventory ({len(sw_list)} Total Apps)", styles["section"]),
+            apply_grid_style(Table(sw_rows, colWidths=[200, 90, 150, 64], repeatRows=1), header=True),
             Spacer(1, 12)
         ]))
 
         doc.build(elements, onFirstPage=draw_page_decorations, onLaterPages=draw_page_decorations)
         return pdf_path
+
     except Exception as err:
         logger.error(f"Failed to dynamically build PDF for {client_id}: {err}")
         return None
@@ -1428,7 +1702,16 @@ def list_audited_devices():
                                 elif "Apple" in mfr:
                                     mfr = "Apple"
                                 mdl_clean = mdl.split('_')[0].strip()
-                                if mdl_clean.lower().startswith(mfr.lower()):
+                                # Reject disk/SSD model strings masquerading as laptop model names
+                                mdl_lower = mdl_clean.lower()
+                                is_disk_model = any(x in mdl_lower for x in [
+                                    'gb', 'tb', 'nvme', 'ssd', 'hdd', 'nand', 'mzvl', 'kioxia',
+                                    'samsung mz', 'wd', 'seagate', 'toshiba', 'micron', 'crucial',
+                                    'sandisk', 'evmnv', 'pm9', 'pm98', '512', '256', '128', '1tb', '2tb'
+                                ])
+                                if is_disk_model:
+                                    pass  # skip — leave model_name empty, fallback to computer_name
+                                elif mdl_clean.lower().startswith(mfr.lower()):
                                     model_name = mdl_clean
                                 else:
                                     model_name = f"{mfr} {mdl_clean}".strip()
@@ -1591,6 +1874,14 @@ def get_device_diff(device_id: str):
 
 # ==============================================================================
 @app.get("/api/download-device-pdf/{device_id}")
+def api_download_device_pdf(device_id: str, action: str = Query("download")):
+    fp = generate_pdf_for_device(device_id)
+    if not fp or not os.path.exists(fp):
+        raise HTTPException(status_code=404, detail=f"No audit report found for device '{device_id}'.")
+    clean = device_id.replace(":", "_").replace(" ", "_")
+    disposition = "inline" if action == "view" else "attachment"
+    return FileResponse(fp, media_type="application/pdf", filename=f"AuditReport_{clean}.pdf", content_disposition_type=disposition)
+
 def download_device_pdf(device_id: str):
     """Find the latest PDF report for a given device_id and return it as a download."""
     best_pdf = None
@@ -1996,14 +2287,18 @@ def network_scan_stream(request: NetworkScanRequest):
 
         discovered_set = set()
 
-        # Step 1: Fast ICMP Ping Sweep
+        # Step 1: Fast ICMP Ping Sweep (Cross-Platform)
         def ping_host(ip_str: str):
             try:
-                subprocess.run(["ping", "-n", "1", "-w", "300", ip_str], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.8)
+                if platform.system() == "Windows":
+                    cmd = ["ping", "-n", "1", "-w", "300", ip_str]
+                else:
+                    cmd = ["ping", "-c", "1", "-W", "1", ip_str]
+                subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1.0, shell=False)
             except Exception:
                 pass
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=128) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
             executor.map(ping_host, [str(h) for h in hosts])
 
         # Step 2: Parallel Port Scan & Stream Discovered Devices as they Pop Up!
@@ -2031,7 +2326,7 @@ def network_scan_stream(request: NetworkScanRequest):
                 return enrich_dev(dev)
             return None
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
             futures = {executor.submit(scan_and_yield, h): h for h in hosts}
             for future in concurrent.futures.as_completed(futures):
                 res = future.result()
@@ -2092,6 +2387,15 @@ def _run_cmd(cmd: str):
     """Run a shell command and return (stdout, returncode)."""
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=20, shell=True)
+        return r.stdout, r.returncode
+    except Exception as e:
+        return str(e), -1
+
+
+def _run_cmd_args(args: list):
+    """Run a command using an argument list without shell=True for security."""
+    try:
+        r = subprocess.run(args, capture_output=True, text=True, timeout=20, shell=False)
         return r.stdout, r.returncode
     except Exception as e:
         return str(e), -1
@@ -2587,7 +2891,7 @@ $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNoti
 $notifier.Show($toast)
 
 Write-Host "==============================================" -ForegroundColor Cyan
-Write-Host "    NSDL IT COMPLIANCE & SECURITY AUDIT       " -ForegroundColor Cyan
+Write-Host "    INFRAPULSE IT COMPLIANCE & SECURITY AUDIT   " -ForegroundColor Cyan
 Write-Host "==============================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "A mandatory IT security audit has been initiated."
@@ -2724,6 +3028,7 @@ class LifecycleData(BaseModel):
     mac_address: str
     computer_name: str = ""
     owner: str = ""
+    location: str = ""
     vendor: str = ""
     status: str = "Active"
     warranty_start: str = ""
@@ -2752,16 +3057,16 @@ def save_lifecycle(data: LifecycleData):
     with get_db(DB_PATH) as conn:
         conn.execute('''
             INSERT INTO asset_lifecycle
-                (mac_address, computer_name, owner, vendor, status, warranty_start, warranty_end,
+                (mac_address, computer_name, owner, location, vendor, status, warranty_start, warranty_end,
                  warranty_notes, warranty_provider, purchase_price, purchase_date, supplier, po_number, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(mac_address) DO UPDATE SET
-                computer_name=excluded.computer_name, owner=excluded.owner, vendor=excluded.vendor,
+                computer_name=excluded.computer_name, owner=excluded.owner, location=excluded.location, vendor=excluded.vendor,
                 status=excluded.status, warranty_start=excluded.warranty_start, warranty_end=excluded.warranty_end,
                 warranty_notes=excluded.warranty_notes, warranty_provider=excluded.warranty_provider,
                 purchase_price=excluded.purchase_price, purchase_date=excluded.purchase_date,
                 supplier=excluded.supplier, po_number=excluded.po_number, updated_at=excluded.updated_at
-        ''', (data.mac_address, data.computer_name, data.owner, data.vendor, data.status,
+        ''', (data.mac_address, data.computer_name, data.owner, data.location, data.vendor, data.status,
               data.warranty_start, data.warranty_end, data.warranty_notes, data.warranty_provider,
               data.purchase_price, data.purchase_date, data.supplier, data.po_number, now))
         conn.commit()
@@ -2896,7 +3201,19 @@ def set_db_engine(data: DbEngineRequest):
     if env_override:
         raise HTTPException(status_code=400, detail="DB_ENGINE env var is set — remove it to allow UI switching.")
     write_db_config(mode)
+    try:
+        init_db(DB_PATH)
+    except Exception as e:
+        logger.warning(f"Engine switched to {mode}, but init_db failed: {e}")
     return {"status": "success", "active_engine": mode}
+
+@app.post("/api/settings/migrate-db")
+def trigger_db_migration():
+    """Migrate all data from local SQLite database (audits.db) into active PostgreSQL instance."""
+    res = migrate_sqlite_to_postgres(DB_PATH)
+    if res.get("status") == "error":
+        raise HTTPException(status_code=400, detail=res.get("message"))
+    return res
 
 @app.get("/api/osquery/status")
 def osquery_status():
@@ -2928,7 +3245,7 @@ DEVICE_DATA_25_FIELDS_SQL = """SELECT
     (SELECT COUNT(*) FROM memory_devices) || ' Slots' AS "Memory Slot Count",
     ROUND(CAST(si.physical_memory AS FLOAT) / 1073741824.0, 2) || ' GB' AS "Current Memory Size",
     COALESCE((SELECT user FROM logged_in_users WHERE user != '' LIMIT 1), (SELECT username FROM users LIMIT 1), 'Administrator') AS "Last User to Log In",
-    CASE WHEN ch.smbios_tag != '' AND ch.smbios_tag != 'No Asset Tag' THEN ch.smbios_tag ELSE 'NSDL-AST-' || si.hostname END AS "Asset Tag",
+    CASE WHEN ch.smbios_tag != '' AND ch.smbios_tag != 'No Asset Tag' THEN ch.smbios_tag ELSE 'AST-' || si.hostname END AS "Asset Tag",
     datetime(t.unix_time - u.total_seconds, 'unixepoch') AS "Last Boot Time",
     datetime(t.unix_time, 'unixepoch') AS "Last Scan Datetime",
     datetime(t.unix_time - u.total_seconds, 'unixepoch') AS "First Seen Datetime"
@@ -2994,7 +3311,7 @@ def get_remote_telemetry_payload(client_id: str, telemetry_type: str):
             {"field": "Memory Slot Count", "value": "2 Slots (1 Populated, 16 GB DDR4)"},
             {"field": "Current Memory Size", "value": "16.0 GB RAM"},
             {"field": "Last User to Log In", "value": f"{hostname}\\User"},
-            {"field": "Asset Tag", "value": f"NSDL-REMOTE-{serial[:8]}"},
+            {"field": "Asset Tag", "value": f"REMOTE-{serial[:8]}"},
             {"field": "Last Boot Time", "value": "2026-08-07 08:30:15"},
             {"field": "Last Scan Datetime", "value": ts},
             {"field": "First Seen Datetime", "value": ts}
@@ -3407,12 +3724,12 @@ class RemoteAuditPayload(BaseModel):
 @app.get("/api/osquery/collector.ps1")
 def download_remote_collector_ps1(request: Request):
     base_url = str(request.base_url).rstrip('/')
-    script_content = f"""# NSDL Remote Laptop osquery Telemetry Collector
+    script_content = f"""# Remote Laptop osquery Telemetry Collector
 $ErrorActionPreference = "SilentlyContinue"
 $ServerUrl = "{base_url}/api/osquery/submit-remote-audit"
 
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host " 🚀 NSDL Compliance Portal - Remote osquery Collector" -ForegroundColor Yellow
+Write-Host " 🚀 InfraPulse Portal - Remote osquery Collector" -ForegroundColor Yellow
 Write-Host " Target Cloud Server: $ServerUrl" -ForegroundColor Gray
 Write-Host "==========================================================" -ForegroundColor Cyan
 

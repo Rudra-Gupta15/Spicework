@@ -1,5 +1,5 @@
 # ==============================================================================
-#         NSDL WORKSTATION OSQUERY ENGINE INTEGRATION
+#         INFRAPULSE WORKSTATION OSQUERY ENGINE INTEGRATION
 # ==============================================================================
 # Executes system compliance queries via osqueryi CLI & formats output to
 # standard Infra-Pulse AuditPayload structure.
@@ -178,7 +178,7 @@ def collect_osquery_compliance_payload() -> Dict[str, Any]:
         "installed_ram": ram_gb,
         "ram_slots": "N/A",
         "serial_number": sys_row.get("hardware_serial", "Unknown"),
-        "asset_tag": f"NSDL-AST-{sys_row.get('hostname', 'NODE')}",
+        "asset_tag": f"AST-{sys_row.get('hostname', 'NODE')}",
         "device_type": "Desktop/Laptop",
         "manufacturer": sys_row.get("hardware_vendor", "Unknown"),
         "model": sys_row.get("hardware_model", "Unknown"),
@@ -292,7 +292,6 @@ def collect_osquery_compliance_payload() -> Dict[str, Any]:
     payload["current_user"] = sys_row.get("hostname", "Admin")
     payload["location"] = "osquery Managed Location"
     payload["execution_datetime"] = "Just Now"
-    payload["consent_text"] = "Captured via osquery SQL Telemetry Engine"
     payload["peripherals"] = []
     payload["usb_history"] = []
     payload["login_history"] = []

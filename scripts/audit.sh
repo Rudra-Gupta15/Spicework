@@ -1,13 +1,12 @@
 #!/bin/bash
 # ==============================================================================
-#        NSDL WORKSTATION SYSTEM INFRASTRUCTURE SCRIPT (macOS / Linux)
+#        INFRAPULSE WORKSTATION SYSTEM INFRASTRUCTURE SCRIPT (macOS / Linux)
 # ==============================================================================
 # Version: 3.0.0 — Full IT Asset Management Edition
 
 echo "Collecting Workstation System Data..."
 
 EXECUTION_DATETIME=$(date +"%Y-%m-%d %H:%M:%S")
-CONSENT_TEXT="We provide approval to NSDL e-Governance Infrastructure Ltd.(NSDL e-Gov) to capture the details regarding the System details and share the details with NSDL e-Gov."
 COMPUTER_NAME=$(hostname)
 
 # ── OS Detection ──────────────────────────────────────────────────────────────
@@ -467,15 +466,62 @@ if [ "$PYTHON3_OK" = "true" ]; then
         DISK_PARTITIONS_JSON=$(python3 - <<'PYEOF'
 import subprocess, json
 try:
-    r = subprocess.run(['diskutil', 'list'], capture_output=True, text=True, timeout=10)
     partitions = []
-    for line in r.stdout.splitlines():
-        parts = line.split()
-        if parts and parts[0].isdigit():
-            name = parts[-1] if len(parts) > 1 else "Unknown"
-            ptype = parts[1] if len(parts) > 1 else "Unknown"
-            size  = " ".join(parts[3:5]) if len(parts) >= 5 else "Unknown"
-            partitions.append({"name": name, "type": ptype, "size_gb": size, "bootable": "Unknown", "health": "Healthy", "ssd_hdd": "SSD"})
+    mounts = {}
+    r_df = subprocess.run(['df', '-h'], capture_output=True, text=True, timeout=5)
+    if r_df.returncode == 0:
+        for line in r_df.stdout.splitlines()[1:]:
+            parts = line.split()
+            if len(parts) >= 6 and parts[0].startswith('/dev/'):
+                dev = parts[0].replace('/dev/', '')
+                size = parts[1]
+                used = parts[2]
+                avail = parts[3]
+                mount = " ".join(parts[5:])
+                mounts[dev] = {"size": size, "free": avail, "mount": mount}
+
+    r_du = subprocess.run(['diskutil', 'list'], capture_output=True, text=True, timeout=5)
+    if r_du.returncode == 0:
+        for line in r_du.stdout.splitlines():
+            parts = line.strip().split()
+            if not parts: continue
+            idx_str = parts[0].rstrip(':')
+            if idx_str.isdigit():
+                ident = parts[-1]
+                ptype = parts[1] if len(parts) > 1 else "APFS"
+                name_parts = parts[2:-2] if len(parts) > 4 else []
+                name = " ".join(name_parts) if name_parts else ident
+                if not name or name in ["-", "Scheme"]: name = ident
+                
+                m_info = mounts.get(ident, {})
+                size_gb = m_info.get("size", " ".join(parts[-3:-1]) if len(parts) >= 4 else "Unknown")
+                free_gb = m_info.get("free", "Unknown")
+                mount_pt = m_info.get("mount", "")
+                is_boot = "Yes" if (mount_pt == "/" or "Macintosh" in name) else "No"
+                
+                if not ptype.startswith("GUID_") and not ptype.startswith("APFS_Container"):
+                    partitions.append({
+                        "name": name,
+                        "type": ptype,
+                        "size_gb": size_gb if ("B" in size_gb) else f"{size_gb} GB",
+                        "free_gb": free_gb if ("B" in free_gb or free_gb == "Unknown") else f"{free_gb} GB",
+                        "bootable": is_boot,
+                        "health": "Healthy",
+                        "ssd_hdd": "SSD"
+                    })
+
+    if not partitions:
+        for dev, m_info in mounts.items():
+            partitions.append({
+                "name": m_info["mount"] if m_info["mount"] else dev,
+                "type": "APFS",
+                "size_gb": m_info["size"],
+                "free_gb": m_info["free"],
+                "bootable": "Yes" if m_info["mount"] == "/" else "No",
+                "health": "Healthy",
+                "ssd_hdd": "SSD"
+            })
+            
     print(json.dumps(partitions))
 except:
     print("[]")
@@ -1227,7 +1273,6 @@ hw = {
 
 payload = {
     "execution_datetime":    safe("""$EXECUTION_DATETIME"""),
-    "consent":               """$CONSENT_TEXT""",
     "computer_name":         safe("""$COMPUTER_NAME"""),
     "description":           safe("""$DESCRIPTION"""),
     "domain":                safe("""$DOMAIN"""),
@@ -1264,7 +1309,7 @@ PYEOF
 else
     # Pure-bash minimal JSON fallback — escapes double-quotes only
     esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
-    JSON="{\"execution_datetime\":\"$(esc "$EXECUTION_DATETIME")\",\"consent\":\"$(esc "$CONSENT_TEXT")\",\"computer_name\":\"$(esc "$COMPUTER_NAME")\",\"current_user\":\"$(esc "$USER")\",\"os_name\":\"$(esc "$OS_NAME")\",\"os_version\":\"$(esc "$OS_VERSION")\",\"os_build\":\"Unknown\",\"last_boot\":\"Unknown\",\"uptime\":\"Unknown\",\"architecture\":\"$(esc "$ARCHITECTURE")\",\"license_status\":\"$(esc "$LICENSE_STATUS")\",\"firewall\":\"Unknown\",\"bitlocker\":\"Not Applicable\",\"secure_boot\":\"Unknown\",\"tpm\":\"Not Applicable\",\"hotfixes\":[],\"mac_address\":\"$(esc "$MAC_ADDRESS")\",\"drive_name\":\"No CD Unit Found\",\"compression_utilities\":[\"tar\",\"gzip\"],\"antivirus\":[\"Built-in OS Protections\"],\"printers\":[],\"hardware_details\":{\"cpu\":\"$(esc "$CPU")\",\"ram\":\"$(esc "$RAM")\",\"disk\":\"$(esc "$DISK")\",\"serial_number\":\"$(esc "$SERIAL_NUMBER")\",\"manufacturer\":\"$(esc "$MANUFACTURER")\",\"model\":\"$(esc "$MODEL_NAME")\",\"architecture\":\"$(esc "$ARCHITECTURE")\",\"processor_name\":\"$(esc "$CPU")\",\"installed_ram\":\"$(esc "$RAM")\",\"gpu_details\":[],\"network_adapters\":[],\"peripherals\":[],\"disk_partitions\":[]},\"network_details\":[{\"ip_address\":\"$(esc "$IP_ADDRESS")\",\"gateway\":\"Unknown\",\"mac\":\"$(esc "$MAC_ADDRESS")\"}],\"user_accounts\":[{\"name\":\"$(esc "$USER")\",\"disabled\":\"False\"}],\"software_inventory\":[],\"login_history\":[]}"
+    JSON="{\"execution_datetime\":\"$(esc "$EXECUTION_DATETIME")\",\"computer_name\":\"$(esc "$COMPUTER_NAME")\",\"current_user\":\"$(esc "$USER")\",\"os_name\":\"$(esc "$OS_NAME")\",\"os_version\":\"$(esc "$OS_VERSION")\",\"os_build\":\"Unknown\",\"last_boot\":\"Unknown\",\"uptime\":\"Unknown\",\"architecture\":\"$(esc "$ARCHITECTURE")\",\"license_status\":\"$(esc "$LICENSE_STATUS")\",\"firewall\":\"Unknown\",\"bitlocker\":\"Not Applicable\",\"secure_boot\":\"Unknown\",\"tpm\":\"Not Applicable\",\"hotfixes\":[],\"mac_address\":\"$(esc "$MAC_ADDRESS")\",\"drive_name\":\"No CD Unit Found\",\"compression_utilities\":[\"tar\",\"gzip\"],\"antivirus\":[\"Built-in OS Protections\"],\"printers\":[],\"hardware_details\":{\"cpu\":\"$(esc "$CPU")\",\"ram\":\"$(esc "$RAM")\",\"disk\":\"$(esc "$DISK")\",\"serial_number\":\"$(esc "$SERIAL_NUMBER")\",\"manufacturer\":\"$(esc "$MANUFACTURER")\",\"model\":\"$(esc "$MODEL_NAME")\",\"architecture\":\"$(esc "$ARCHITECTURE")\",\"processor_name\":\"$(esc "$CPU")\",\"installed_ram\":\"$(esc "$RAM")\",\"gpu_details\":[],\"network_adapters\":[],\"peripherals\":[],\"disk_partitions\":[]},\"network_details\":[{\"ip_address\":\"$(esc "$IP_ADDRESS")\",\"gateway\":\"Unknown\",\"mac\":\"$(esc "$MAC_ADDRESS")\"}],\"user_accounts\":[{\"name\":\"$(esc "$USER")\",\"disabled\":\"False\"}],\"software_inventory\":[],\"login_history\":[]}"
 fi
 
 # Server URL & Client ID Resolution
