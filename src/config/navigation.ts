@@ -1,0 +1,110 @@
+import {
+  Boxes,
+  Clock,
+  FileText,
+  Funnel,
+  Monitor,
+  Search,
+  Settings,
+  UserRound,
+} from "lucide-react";
+
+import type { NavItem } from "@/types/navigation";
+
+/**
+ * Single source of truth for the app's navigation.
+ * The sidebar, the routes and the page header (Navbar) are all generated
+ * from this array — add an entry here and the whole app picks it up.
+ */
+export const NAVIGATION: NavItem[] = [
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: Monitor,
+    path: "/dashboard",
+    subtitle: "Overview of your network health, tickets and assets.",
+  },
+  {
+    id: "inventory",
+    label: "Inventory",
+    icon: Boxes,
+    children: [
+      {
+        id: "hardware",
+        label: "Hardware",
+        path: "/inventory/hardware",
+        subtitle:
+          "Track hardware devices, warranties, and maintenance across your network.",
+      },
+      {
+        id: "software",
+        label: "Software",
+        path: "/inventory/software",
+        subtitle: "Track installed software, licenses and renewals.",
+      },
+      {
+        id: "cloud-assets",
+        label: "Cloud Assets",
+        path: "/inventory/cloud-assets",
+        subtitle: "Monitor cloud subscriptions, instances and spend.",
+      },
+      {
+        id: "network-wifi",
+        label: "Network WiFi",
+        path: "/inventory/network-wifi",
+        subtitle: "Manage access points, SSIDs and connected clients.",
+      },
+      {
+        id: "ticket",
+        label: "Ticket",
+        path: "/inventory/ticket",
+        subtitle: "Review tickets raised against inventory items.",
+      },
+    ],
+  },
+  {
+    id: "filters",
+    label: "Filters",
+    icon: Funnel,
+    path: "/filters",
+    subtitle: "Build and manage reusable inventory filters.",
+  },
+  {
+    id: "reports",
+    label: "Reports",
+    icon: FileText,
+    path: "/reports",
+    subtitle: "Generate and schedule reports across your organisation.",
+  },
+  {
+    id: "log",
+    label: "Log",
+    icon: Clock,
+    path: "/log",
+    subtitle: "Audit every scan, sync and change made to your assets.",
+  },
+  {
+    id: "saved-search",
+    label: "Saved Search",
+    icon: Search,
+    path: "/saved-search",
+    subtitle: "Re-run the searches your team uses most.",
+  },
+  {
+    id: "agent",
+    label: "Agent",
+    icon: UserRound,
+    path: "/agent",
+    subtitle: "Deploy and monitor collector agents on your devices.",
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    icon: Settings,
+    path: "/settings",
+    subtitle: "Configure your organisation, users and integrations.",
+  },
+];
+
+/** Where "/" redirects to. */
+export const DEFAULT_ROUTE = "/inventory/hardware";

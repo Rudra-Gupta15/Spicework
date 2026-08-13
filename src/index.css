@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+/* -------------------------------------------------------------------------
+ * Design tokens — single source of truth for the whole app.
+ * Every colour/size below is exposed to Tailwind as a utility
+ * (e.g. `bg-sidebar`, `text-brand`, `w-sidebar`), so components never
+ * hard-code hex values.
+ * ---------------------------------------------------------------------- */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+
+  /* Brand — Spiceworks orange */
+  --color-brand-50: #fef4ec;
+  --color-brand-100: #fde3cd;
+  --color-brand-400: #f58f45;
+  --color-brand-500: #ef7a22;
+  --color-brand-600: #dd6a12;
+  --color-brand: var(--color-brand-500);
+
+  /* Navy — sidebar + headings */
+  --color-navy-50: #eef1f7;
+  --color-navy-200: #c2cade;
+  --color-navy-300: #9aa6c2;
+  --color-navy-600: #2a3c6e;
+  --color-navy-700: #1f2f5c;
+  --color-navy-800: #1b294f;
+  --color-navy-900: #16234b;
+
+  /* Auth screens use a slightly lighter, bluer navy than the sidebar */
+  --color-navy-400: #38558c;
+  --color-navy-500: #2a477d;
+  --color-auth-panel: #1b3a68;
+
+  /* Semantic aliases */
+  --color-sidebar: var(--color-navy-900);
+  --color-sidebar-hover: var(--color-navy-700);
+  --color-sidebar-border: #263a6b;
+  --color-sidebar-muted: var(--color-navy-200);
+  --color-surface: #ffffff;
+  --color-canvas: #f7f8fa;
+  --color-heading: #16234b;
+  --color-muted: #6b7280;
+  --color-line: #e6e8ee;
+  --color-field: #d5dbe5;
+
+  /* Status */
+  --color-status-online: #16a34a;
+  --color-status-offline: #dc2626;
+  --color-status-maintenance: #d97706;
+  --color-status-info: #2563eb;
+  --color-status-neutral: #94a3b8;
+
+  /* Categorical chart hues — fixed order, validated for colour-vision
+     deficiency separation (OKLab ΔE ≥ 8 on every adjacent pair).
+     Never cycle or re-order these per filter. */
+  --color-chart-1: #2563eb;
+  --color-chart-2: #d97706;
+  --color-chart-3: #0d9488;
+  --color-chart-4: #7c3aed;
+  --color-chart-5: #db2777;
+  /* Single-series / magnitude hue */
+  --color-chart-bar: #2f6bde;
+
+  /* Layout metrics */
+  --spacing-sidebar: 250px;
+
+  /* Elevation */
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-[15px] text-heading antialiased;
+  }
+
+  /* Slim scrollbar for the sidebar / scroll areas */
+  .scrollbar-slim {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-navy-600) transparent;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    background-color: var(--color-navy-600);
+    border-radius: 9999px;
+  }
+}
