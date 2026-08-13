@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
 
+import { CustomizeColumnsModal } from "@/components/hardware/CustomizeColumnsModal";
 import { HardwareFilters } from "@/components/hardware/HardwareFilters";
 import { HardwareTable } from "@/components/hardware/HardwareTable";
 import { Navbar } from "@/components/layout/Navbar";
 import { Card, Pagination, StatCard } from "@/components/ui";
 import {
+  DEFAULT_COLUMNS,
   DEFAULT_FILTERS,
   HARDWARE_DEVICES,
   HARDWARE_STATS,
@@ -12,13 +14,16 @@ import {
   filterDevices,
   isFiltered,
 } from "@/data/hardware";
-import type { HardwareFilterState } from "@/types/hardware";
+import { useDisclosure } from "@/hooks/useDisclosure";
+import type { HardwareColumnKey, HardwareFilterState } from "@/types/hardware";
 
 const PAGE_SIZE = 6;
 
 const HardwarePage = () => {
   const [filters, setFilters] = useState<HardwareFilterState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
+  const [columns, setColumns] = useState<HardwareColumnKey[]>(DEFAULT_COLUMNS);
+  const customize = useDisclosure();
 
   const handleFilterChange = useCallback(
     (patch: Partial<HardwareFilterState>) => {
@@ -52,7 +57,11 @@ const HardwarePage = () => {
           ))}
         </section>
 
-        <HardwareFilters filters={filters} onChange={handleFilterChange} />
+        <HardwareFilters
+          filters={filters}
+          onChange={handleFilterChange}
+          onCustomizeView={customize.open}
+        />
 
         <Card className="p-5">
           <h2 className="text-base font-bold text-heading">
@@ -60,7 +69,7 @@ const HardwarePage = () => {
           </h2>
 
           <div className="mt-4">
-            <HardwareTable devices={visible} />
+            <HardwareTable devices={visible} visibleColumns={columns} />
           </div>
 
           <Pagination
@@ -73,6 +82,13 @@ const HardwarePage = () => {
           />
         </Card>
       </div>
+
+      <CustomizeColumnsModal
+        isOpen={customize.isOpen}
+        onClose={customize.close}
+        value={columns}
+        onApply={setColumns}
+      />
     </>
   );
 };

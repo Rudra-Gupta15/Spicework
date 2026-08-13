@@ -1,7 +1,11 @@
 import { CalendarClock, Monitor, Wifi, WifiOff } from "lucide-react";
 
 import type { StatMetric } from "@/types/ui";
-import type { HardwareDevice, HardwareFilterState } from "@/types/hardware";
+import type {
+  HardwareColumnKey,
+  HardwareDevice,
+  HardwareFilterState,
+} from "@/types/hardware";
 
 /** Mock data — swap these exports for API responses later. */
 
@@ -27,6 +31,32 @@ export const HARDWARE_STATS: StatMetric[] = [
 /** Reported device count — the table only holds the current page of it. */
 export const TOTAL_DEVICES = 612;
 
+/**
+ * Every column the inventory table can render. Drives both the table and
+ * the "Customize Columns" dialog, so the two can never disagree.
+ */
+export const HARDWARE_COLUMNS: {
+  key: HardwareColumnKey;
+  label: string;
+  /** Shown before the user customises anything. */
+  visibleByDefault: boolean;
+}[] = [
+  { key: "name", label: "Device Name", visibleByDefault: true },
+  { key: "type", label: "Type", visibleByDefault: true },
+  { key: "manufacturer", label: "Manufacturer", visibleByDefault: true },
+  { key: "serialNumber", label: "Serial Number", visibleByDefault: true },
+  { key: "status", label: "Status", visibleByDefault: true },
+  { key: "lastScan", label: "Last Scan", visibleByDefault: true },
+  { key: "ipAddress", label: "IP Address", visibleByDefault: false },
+  { key: "osVersion", label: "OS Version", visibleByDefault: false },
+  { key: "location", label: "Location", visibleByDefault: false },
+  { key: "assignedTo", label: "Assigned To", visibleByDefault: false },
+];
+
+export const DEFAULT_COLUMNS: HardwareColumnKey[] = HARDWARE_COLUMNS.filter(
+  (column) => column.visibleByDefault,
+).map((column) => column.key);
+
 export const HARDWARE_DEVICES: HardwareDevice[] = [
   {
     id: "asus-rog",
@@ -36,6 +66,10 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     serialNumber: "SN-G14-2024-0847",
     status: "ONLINE",
     lastScan: "Jul 30 2026",
+    ipAddress: "192.168.1.22",
+    osVersion: "Windows 11 Pro",
+    location: "HQ - Floor 2",
+    assignedTo: "Alex Rivera",
   },
   {
     id: "dell-latitude",
@@ -45,6 +79,10 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     serialNumber: "SN-DL5420-3891",
     status: "OFFLINE",
     lastScan: "Jul 28 2026",
+    ipAddress: "192.168.1.45",
+    osVersion: "Windows 10 Pro",
+    location: "HQ - Floor 1",
+    assignedTo: "Priya Sharma",
   },
   {
     id: "macbook-pro",
@@ -54,6 +92,10 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     serialNumber: "SN-MBP-M3-7742",
     status: "ONLINE",
     lastScan: "Jul 29 2026",
+    ipAddress: "192.168.1.62",
+    osVersion: "macOS 14.5",
+    location: "Remote",
+    assignedTo: "Jane Doe",
   },
   {
     id: "hp-laserjet",
@@ -63,6 +105,10 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     serialNumber: "SN-HP-LJ-5523",
     status: "ONLINE",
     lastScan: "Jul 25 2026",
+    ipAddress: "192.168.1.90",
+    osVersion: "Firmware 4.2.1",
+    location: "HQ - Print Room",
+    assignedTo: "Unassigned",
   },
   {
     id: "cisco-catalyst",
@@ -72,6 +118,10 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     serialNumber: "SN-CC9200-1104",
     status: "MAINTENANCE",
     lastScan: "Jul 20 2026",
+    ipAddress: "10.0.1.4",
+    osVersion: "IOS XE 17.9",
+    location: "Data Centre A",
+    assignedTo: "Network Team",
   },
   {
     id: "laptop-bml",
@@ -81,6 +131,10 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     serialNumber: "NHQ97SI0011211CD8E3400",
     status: "ONLINE",
     lastScan: "Jul 30 2026",
+    ipAddress: "192.168.1.118",
+    osVersion: "Windows 11 Home",
+    location: "Branch - Pune",
+    assignedTo: "Rohit Mehta",
   },
 ];
 

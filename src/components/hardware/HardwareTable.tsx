@@ -1,38 +1,52 @@
 import { useMemo } from "react";
 
 import { DataTable, type Column } from "@/components/ui";
-import type { HardwareDevice } from "@/types/hardware";
+import { HARDWARE_COLUMNS } from "@/data/hardware";
+import type { HardwareColumnKey, HardwareDevice } from "@/types/hardware";
+
+/** Per-column presentation; anything not listed uses the plain default. */
+const COLUMN_STYLES: Partial<
+  Record<HardwareColumnKey, Pick<Column<HardwareDevice>, "render" | "wrap" | "cellClassName">>
+> = {
+  name: {
+    render: (device) => (
+      <span className="font-semibold text-heading">{device.name}</span>
+    ),
+  },
+  serialNumber: {
+    wrap: true,
+    cellClassName: "max-w-[150px] font-semibold break-all",
+  },
+  type: { cellClassName: "text-muted" },
+  manufacturer: { cellClassName: "text-muted" },
+  status: { cellClassName: "text-muted" },
+  lastScan: { cellClassName: "text-muted" },
+  ipAddress: { cellClassName: "text-muted" },
+  osVersion: { cellClassName: "text-muted" },
+  location: { cellClassName: "text-muted" },
+  assignedTo: { cellClassName: "text-muted" },
+};
 
 interface HardwareTableProps {
   devices: HardwareDevice[];
+  /** Keys to render, in registry order. */
+  visibleColumns: HardwareColumnKey[];
 }
 
-export const HardwareTable = ({ devices }: HardwareTableProps) => {
+export const HardwareTable = ({
+  devices,
+  visibleColumns,
+}: HardwareTableProps) => {
   const columns = useMemo<Column<HardwareDevice>[]>(
-    () => [
-      {
-        key: "name",
-        header: "Device Name",
-        render: (device) => (
-          <span className="font-semibold text-heading">{device.name}</span>
-        ),
-      },
-      { key: "type", header: "Type", cellClassName: "text-muted" },
-      {
-        key: "manufacturer",
-        header: "Manufacturer",
-        cellClassName: "text-muted",
-      },
-      {
-        key: "serialNumber",
-        header: "Serial Number",
-        wrap: true,
-        cellClassName: "max-w-[150px] font-semibold break-all",
-      },
-      { key: "status", header: "Status", cellClassName: "text-muted" },
-      { key: "lastScan", header: "Last Scan", cellClassName: "text-muted" },
-    ],
-    [],
+    () =>
+      HARDWARE_COLUMNS.filter((column) =>
+        visibleColumns.includes(column.key),
+      ).map((column) => ({
+        key: column.key,
+        header: column.label,
+        ...COLUMN_STYLES[column.key],
+      })),
+    [visibleColumns],
   );
 
   return (
