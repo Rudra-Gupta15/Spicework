@@ -1,28 +1,38 @@
 import { useCallback, useState } from "react";
 
 import { Button, Checkbox, Modal } from "@/components/ui";
-import { DEFAULT_COLUMNS, HARDWARE_COLUMNS } from "@/data/hardware";
-import type { HardwareColumnKey } from "@/types/hardware";
 
-interface CustomizeColumnsModalProps {
+/** One entry of a table's column registry. */
+export interface ColumnOption<Key extends string> {
+  key: Key;
+  label: string;
+}
+
+interface CustomizeColumnsModalProps<Key extends string> {
   isOpen: boolean;
   onClose: () => void;
+  /** Every column the table can show, in display order. */
+  columns: readonly ColumnOption<Key>[];
+  /** Selection restored by the Reset button. */
+  defaultColumns: Key[];
   /** Columns currently shown in the table. */
-  value: HardwareColumnKey[];
-  onApply: (columns: HardwareColumnKey[]) => void;
+  value: Key[];
+  onApply: (columns: Key[]) => void;
 }
 
 /**
- * Column picker for the inventory table. Edits happen on a draft, so closing
- * without pressing Apply leaves the table untouched.
+ * Column picker shared by the inventory tables. Edits happen on a draft, so
+ * closing without pressing Apply leaves the table untouched.
  */
-export const CustomizeColumnsModal = ({
+export const CustomizeColumnsModal = <Key extends string>({
   isOpen,
   onClose,
+  columns,
+  defaultColumns,
   value,
   onApply,
-}: CustomizeColumnsModalProps) => {
-  const [draft, setDraft] = useState<HardwareColumnKey[]>(value);
+}: CustomizeColumnsModalProps<Key>) => {
+  const [draft, setDraft] = useState<Key[]>(value);
 
   /* Re-seed the draft from the live value each time the dialog opens. */
   const [wasOpen, setWasOpen] = useState(isOpen);
@@ -31,7 +41,7 @@ export const CustomizeColumnsModal = ({
     if (isOpen) setDraft(value);
   }
 
-  const toggle = useCallback((key: HardwareColumnKey, checked: boolean) => {
+  const toggle = useCallback((key: Key, checked: boolean) => {
     setDraft((current) =>
       checked ? [...current, key] : current.filter((item) => item !== key),
     );
@@ -40,12 +50,12 @@ export const CustomizeColumnsModal = ({
   const handleApply = useCallback(() => {
     /* Keep the registry's order rather than click order. */
     onApply(
-      HARDWARE_COLUMNS.filter((column) => draft.includes(column.key)).map(
-        (column) => column.key,
-      ),
+      columns
+        .filter((column) => draft.includes(column.key))
+        .map((column) => column.key),
     );
     onClose();
-  }, [draft, onApply, onClose]);
+  }, [columns, draft, onApply, onClose]);
 
   return (
     <Modal
@@ -55,7 +65,11 @@ export const CustomizeColumnsModal = ({
       description="Select columns to display in the table"
       footer={
         <>
-          <Button variant="outline" size="sm" onClick={() => setDraft(DEFAULT_COLUMNS)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDraft(defaultColumns)}
+          >
             Reset
           </Button>
           <Button
@@ -70,7 +84,7 @@ export const CustomizeColumnsModal = ({
       }
     >
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-        {HARDWARE_COLUMNS.map((column) => (
+        {columns.map((column) => (
           <Checkbox
             key={column.key}
             variant="row"

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { TrendingDown, TrendingUp } from "lucide-react";
 
 import { cn } from "@/lib/cn";
@@ -16,11 +17,16 @@ const ICON_TONES: Record<Tone, string> = {
 
 /** KPI tile: label, hero number and an optional period-over-period delta. */
 export const StatCard = ({ metric }: { metric: StatMetric }) => {
-  const { label, value, icon: Icon, tone, delta } = metric;
+  const { label, value, icon: Icon, tone, delta, to } = metric;
   const TrendIcon = delta?.direction === "up" ? TrendingUp : TrendingDown;
 
-  return (
-    <Card className="p-[18px]">
+  const tile = (
+    <Card
+      className={cn(
+        "h-full p-[18px]",
+        to && "transition-colors hover:border-brand",
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
         <p className="text-[13px] font-medium text-heading">{label}</p>
         <span
@@ -51,5 +57,17 @@ export const StatCard = ({ metric }: { metric: StatMetric }) => {
         )}
       </div>
     </Card>
+  );
+
+  if (!to) return tile;
+
+  return (
+    <Link
+      to={to}
+      aria-label={`${label}: ${value}`}
+      className="block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+    >
+      {tile}
+    </Link>
   );
 };

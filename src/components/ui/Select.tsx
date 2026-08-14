@@ -22,6 +22,13 @@ interface SelectProps {
   variant?: "bordered" | "bare";
   /** Which edge the panel is anchored to. */
   align?: "left" | "right";
+  /** Stretches the trigger and panel to the column width — form layouts. */
+  fullWidth?: boolean;
+  /** Shown in place of the value while nothing is selected. */
+  placeholder?: string;
+  /** Validation state — matches the red border `Input` uses. */
+  error?: boolean;
+  id?: string;
   "aria-label"?: string;
   className?: string;
 }
@@ -39,6 +46,10 @@ export const Select = ({
   leading,
   variant = "bordered",
   align = "left",
+  fullWidth = false,
+  placeholder,
+  error = false,
+  id,
   className,
   ...props
 }: SelectProps) => {
@@ -91,22 +102,30 @@ export const Select = ({
   );
 
   return (
-    <div ref={containerRef} className="relative inline-block">
+    <div
+      ref={containerRef}
+      className={cn("relative", fullWidth ? "block w-full" : "inline-block")}
+    >
       <button
+        id={id}
         ref={triggerRef}
         type="button"
         onClick={toggle}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-invalid={error ? true : undefined}
         aria-label={props["aria-label"]}
         className={cn(
           "group inline-flex items-center gap-1.5 rounded-lg transition-colors",
           "focus-visible:ring-2 focus-visible:ring-auth-panel/25 focus-visible:outline-none",
           CONTROL_SIZES[size],
-          variant === "bordered"
-            ? "border border-field bg-surface px-2.5 hover:border-navy-300"
-            : "px-2 hover:bg-canvas",
-          isOpen && variant === "bordered" && "border-auth-panel",
+          variant === "bordered" &&
+            (error
+              ? "border border-status-offline bg-surface px-2.5"
+              : "border border-field bg-surface px-2.5 hover:border-navy-300"),
+          variant === "bare" && "px-2 hover:bg-canvas",
+          isOpen && variant === "bordered" && !error && "border-auth-panel",
+          fullWidth && "w-full justify-between px-3.5",
           className,
         )}
       >
@@ -114,8 +133,16 @@ export const Select = ({
 
         {label && <span className="whitespace-nowrap text-muted">{label}</span>}
 
-        <span className="max-w-[140px] truncate font-semibold text-heading">
-          {value}
+        <span
+          className={cn(
+            "truncate",
+            fullWidth
+              ? "flex-1 text-left font-normal"
+              : "max-w-[140px] font-semibold",
+            value ? "text-heading" : "text-navy-300",
+          )}
+        >
+          {value || placeholder}
         </span>
 
         <ChevronDown
@@ -132,7 +159,10 @@ export const Select = ({
         <MenuPanel
           role="listbox"
           align={align}
-          className="max-h-64 w-max max-w-[260px] min-w-full overflow-y-auto"
+          className={cn(
+            "max-h-64 min-w-full overflow-y-auto",
+            fullWidth ? "w-full" : "w-max max-w-[260px]",
+          )}
           onKeyDown={handleKeyDown}
         >
           {options.map((option, index) => (

@@ -9,6 +9,14 @@ import AuthLayout from "@/layout/AuthLayout";
 
 const DashboardPage = lazy(() => import("@/pages/Dashboard"));
 const HardwarePage = lazy(() => import("@/pages/Hardware"));
+const HardwareDetailPage = lazy(() => import("@/pages/HardwareDetail"));
+const SoftwarePage = lazy(() => import("@/pages/Software"));
+const SoftwareDetailPage = lazy(() => import("@/pages/SoftwareDetail"));
+const SoftwareAssetsPage = lazy(() => import("@/pages/SoftwareAssets"));
+const CloudAssetsPage = lazy(() => import("@/pages/CloudAssets"));
+const NetworkWifiPage = lazy(() => import("@/pages/NetworkWifi"));
+const CloudAssetDetailPage = lazy(() => import("@/pages/CloudAssetDetail"));
+const CloudAssetEditPage = lazy(() => import("@/pages/CloudAssetEdit"));
 const LoginPage = lazy(() => import("@/pages/Login"));
 const AuthComingSoon = lazy(() => import("@/pages/AuthComingSoon"));
 const NotFoundPage = lazy(() => import("@/pages/NotFound"));
@@ -21,6 +29,9 @@ const NotFoundPage = lazy(() => import("@/pages/NotFound"));
 const PAGES: Record<string, ComponentType> = {
   "/dashboard": DashboardPage,
   "/inventory/hardware": HardwarePage,
+  "/inventory/software": SoftwarePage,
+  "/inventory/cloud-assets": CloudAssetsPage,
+  "/inventory/network-wifi": NetworkWifiPage,
 };
 
 /** Flattened `{ path, label }` list derived from the navigation config. */
@@ -62,6 +73,30 @@ export const AppRoutes = () => (
             />
           );
         })}
+
+        {/* Detail screens hang off their list route, so the sidebar entry
+            stays active while they are open. */}
+        <Route
+          path="/inventory/hardware/:deviceId"
+          element={<HardwareDetailPage />}
+        />
+        {/* Static segment is ranked above `:deviceId`, so it wins. */}
+        <Route
+          path="/inventory/software/assets"
+          element={<SoftwareAssetsPage />}
+        />
+        <Route
+          path="/inventory/software/:deviceId"
+          element={<SoftwareDetailPage />}
+        />
+        <Route
+          path="/inventory/cloud-assets/:serviceId"
+          element={<CloudAssetDetailPage />}
+        />
+        <Route
+          path="/inventory/cloud-assets/:serviceId/edit"
+          element={<CloudAssetEditPage />}
+        />
 
         <Route path="*" element={<NotFoundPage />} />
       </Route>

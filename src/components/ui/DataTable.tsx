@@ -6,7 +6,7 @@ export interface Column<T> {
   key: string;
   header: string;
   /** Defaults to `String(row[key])` when omitted. */
-  render?: (row: T) => ReactNode;
+  render?: (row: T, index: number) => ReactNode;
   align?: "left" | "right" | "center";
   /** Allows the cell to wrap onto multiple lines (long serials, notes…). */
   wrap?: boolean;
@@ -33,6 +33,8 @@ interface DataTableProps<T> {
   uppercaseHeaders?: boolean;
   /** Tighter rows and smaller type — for wide, column-heavy tables. */
   dense?: boolean;
+  /** Makes rows interactive — fires on click and on Enter/Space. */
+  onRowClick?: (row: T) => void;
   emptyMessage?: string;
   className?: string;
 }
@@ -48,6 +50,7 @@ export const DataTable = <T,>({
   bordered = false,
   uppercaseHeaders = false,
   dense = false,
+  onRowClick,
   emptyMessage = "Nothing to show yet.",
   className,
 }: DataTableProps<T>) => (
@@ -92,10 +95,25 @@ export const DataTable = <T,>({
             </td>
           </tr>
         ) : (
-          rows.map((row) => (
+          rows.map((row, index) => (
             <tr
               key={rowKey(row)}
-              className="border-b border-line last:border-0 hover:bg-canvas/60"
+              role={onRowClick ? "button" : undefined}
+              tabIndex={onRowClick ? 0 : undefined}
+              onClick={onRowClick && (() => onRowClick(row))}
+              onKeyDown={
+                onRowClick &&
+                ((event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  onRowClick(row);
+                })
+              }
+              className={cn(
+                "border-b border-line last:border-0 hover:bg-canvas/60",
+                onRowClick &&
+                  "cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand",
+              )}
             >
               {columns.map((column) => (
                 <td
@@ -110,7 +128,7 @@ export const DataTable = <T,>({
                   )}
                 >
                   {column.render
-                    ? column.render(row)
+                    ? column.render(row, index)
                     : String((row as Record<string, unknown>)[column.key] ?? "")}
                 </td>
               ))}

@@ -16,6 +16,8 @@ export interface StatMetric {
   value: string;
   icon: LucideIcon;
   tone: Tone;
+  /** Makes the whole tile a link to the drill-down list. */
+  to?: string;
   delta?: {
     value: string;
     direction: "up" | "down";

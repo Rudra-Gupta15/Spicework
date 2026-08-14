@@ -12,15 +12,20 @@ import type { NavItem } from "@/types/navigation";
 import { SidebarFooter } from "./SidebarFooter";
 import { SidebarNavItem } from "./SidebarNavItem";
 
+/** Matches the route and anything nested under it (detail pages, tabs…). */
+const matches = (path: string | undefined, pathname: string): boolean =>
+  path !== undefined &&
+  (pathname === path || pathname.startsWith(`${path}/`));
+
 /** True when the item, or any of its children, matches the current path. */
 const isItemActive = (item: NavItem, pathname: string): boolean =>
-  item.path === pathname ||
-  (item.children?.some((child) => child.path === pathname) ?? false);
+  matches(item.path, pathname) ||
+  (item.children?.some((child) => matches(child.path, pathname)) ?? false);
 
 /** Group that should be open for a given path (none when nothing matches). */
 const activeGroupId = (pathname: string): string | null =>
   NAVIGATION.find(
-    (item) => item.children?.some((child) => child.path === pathname),
+    (item) => item.children?.some((child) => matches(child.path, pathname)),
   )?.id ?? null;
 
 interface SidebarProps {

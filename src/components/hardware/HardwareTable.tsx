@@ -1,41 +1,36 @@
 import { useMemo } from "react";
 
-import { DataTable, type Column } from "@/components/ui";
+import { DataTable, PRIMARY_CELL, type Column } from "@/components/ui";
 import { HARDWARE_COLUMNS } from "@/data/hardware";
 import type { HardwareColumnKey, HardwareDevice } from "@/types/hardware";
 
-/** Per-column presentation; anything not listed uses the plain default. */
+/**
+ * Per-column presentation; anything not listed uses the table default.
+ * Only the device name is emphasised — the same rule every other table
+ * in the app follows.
+ */
 const COLUMN_STYLES: Partial<
   Record<HardwareColumnKey, Pick<Column<HardwareDevice>, "render" | "wrap" | "cellClassName">>
 > = {
-  name: {
-    render: (device) => (
-      <span className="font-semibold text-heading">{device.name}</span>
-    ),
-  },
+  name: { cellClassName: PRIMARY_CELL },
   serialNumber: {
     wrap: true,
-    cellClassName: "max-w-[150px] font-semibold break-all",
+    cellClassName: "max-w-[150px] break-all",
   },
-  type: { cellClassName: "text-muted" },
-  manufacturer: { cellClassName: "text-muted" },
-  status: { cellClassName: "text-muted" },
-  lastScan: { cellClassName: "text-muted" },
-  ipAddress: { cellClassName: "text-muted" },
-  osVersion: { cellClassName: "text-muted" },
-  location: { cellClassName: "text-muted" },
-  assignedTo: { cellClassName: "text-muted" },
 };
 
 interface HardwareTableProps {
   devices: HardwareDevice[];
   /** Keys to render, in registry order. */
   visibleColumns: HardwareColumnKey[];
+  /** Opens the device detail screen. */
+  onSelect?: (device: HardwareDevice) => void;
 }
 
 export const HardwareTable = ({
   devices,
   visibleColumns,
+  onSelect,
 }: HardwareTableProps) => {
   const columns = useMemo<Column<HardwareDevice>[]>(
     () =>
@@ -54,8 +49,8 @@ export const HardwareTable = ({
       columns={columns}
       rows={devices}
       rowKey={(device) => device.id}
+      onRowClick={onSelect}
       bordered
-      dense
       uppercaseHeaders
       emptyMessage="No devices match the current filters."
     />

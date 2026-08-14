@@ -12,6 +12,9 @@ const SIZES: Record<ModalSize, string> = {
   lg: "max-w-[720px]",
 };
 
+/** `bar` is the navy title bar; `plain` keeps the header on the surface. */
+type ModalVariant = "bar" | "plain";
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -21,6 +24,7 @@ interface ModalProps {
   /** Right-aligned action row pinned to the bottom. */
   footer?: ReactNode;
   size?: ModalSize;
+  variant?: ModalVariant;
   children: ReactNode;
 }
 
@@ -35,6 +39,7 @@ export const Modal = ({
   description,
   footer,
   size = "sm",
+  variant = "bar",
   children,
 }: ModalProps) => {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -74,32 +79,68 @@ export const Modal = ({
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          "relative w-full overflow-hidden rounded-lg bg-surface shadow-2xl outline-none",
+          "relative w-full overflow-hidden bg-surface shadow-2xl outline-none",
+          variant === "bar" ? "rounded-lg" : "rounded-xl",
           SIZES[size],
         )}
       >
-        <header className="flex items-center justify-between gap-3 bg-auth-panel px-5 py-3.5">
-          <h2 className="text-[17px] font-bold text-white">{title}</h2>
+        <header
+          className={cn(
+            "flex items-center justify-between gap-3",
+            variant === "bar"
+              ? "bg-auth-panel px-5 py-3.5"
+              : "px-6 pt-6 pb-1",
+          )}
+        >
+          <h2
+            className={cn(
+              "text-[17px] font-bold",
+              variant === "bar" ? "text-white" : "text-heading",
+            )}
+          >
+            {title}
+          </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-white/85 transition-colors hover:bg-white/20 hover:text-white focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
+            className={cn(
+              "grid h-7 w-7 place-items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-none",
+              variant === "bar"
+                ? "bg-white/10 text-white/85 hover:bg-white/20 hover:text-white focus-visible:ring-white/50"
+                : "border border-line text-muted hover:bg-canvas hover:text-heading focus-visible:ring-navy-300/50",
+            )}
           >
             <X className="h-4 w-4" strokeWidth={2.2} />
           </button>
         </header>
 
         {description && (
-          <p className="border-b border-line px-5 py-3 text-[13px] text-muted">
+          <p
+            className={cn(
+              "text-[13px] text-muted",
+              variant === "bar"
+                ? "border-b border-line px-5 py-3"
+                : "px-6 pt-1",
+            )}
+          >
             {description}
           </p>
         )}
 
-        <div className="px-5 py-4">{children}</div>
+        <div className={variant === "bar" ? "px-5 py-4" : "px-6 pt-4"}>
+          {children}
+        </div>
 
         {footer && (
-          <div className="flex items-center justify-end gap-3 border-t border-line bg-canvas px-5 py-3.5">
+          <div
+            className={cn(
+              "flex items-center gap-3",
+              variant === "bar"
+                ? "justify-end border-t border-line bg-canvas px-5 py-3.5"
+                : "px-6 pt-5 pb-6",
+            )}
+          >
             {footer}
           </div>
         )}

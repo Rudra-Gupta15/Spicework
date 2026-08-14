@@ -9,13 +9,17 @@ import { Card, Pagination, StatCard } from "@/components/ui";
 import {
   DEFAULT_COLUMNS,
   DEFAULT_FILTERS,
-  HARDWARE_COLUMNS,
   HARDWARE_DEVICES,
-  HARDWARE_STATS,
-  TOTAL_DEVICES,
   filterDevices,
   isFiltered,
 } from "@/data/hardware";
+import {
+  DEFAULT_SOFTWARE_COLUMNS,
+  SOFTWARE_COLUMNS,
+  SOFTWARE_STATS,
+  TOTAL_SOFTWARE_DEVICES,
+  type SoftwareColumnKey,
+} from "@/data/software";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import type {
   HardwareColumnKey,
@@ -23,13 +27,17 @@ import type {
   HardwareFilterState,
 } from "@/types/hardware";
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 5;
 
-const HardwarePage = () => {
+const SoftwarePage = () => {
   const navigate = useNavigate();
   const [filters, setFilters] = useState<HardwareFilterState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
-  const [columns, setColumns] = useState<HardwareColumnKey[]>(DEFAULT_COLUMNS);
+  const [columns] = useState<HardwareColumnKey[]>(DEFAULT_COLUMNS);
+  /* Picker selection — the software column set from the design. */
+  const [softwareColumns, setSoftwareColumns] = useState<SoftwareColumnKey[]>(
+    DEFAULT_SOFTWARE_COLUMNS,
+  );
   const customize = useDisclosure();
 
   const handleFilterChange = useCallback(
@@ -41,7 +49,7 @@ const HardwarePage = () => {
   );
 
   const openDevice = useCallback(
-    (device: HardwareDevice) => navigate(`/inventory/hardware/${device.id}`),
+    (device: HardwareDevice) => navigate(`/inventory/software/${device.id}`),
     [navigate],
   );
 
@@ -56,15 +64,15 @@ const HardwarePage = () => {
   );
 
   /* Unfiltered, the list is one page of the full estate. */
-  const total = isFiltered(filters) ? devices.length : TOTAL_DEVICES;
+  const total = isFiltered(filters) ? devices.length : TOTAL_SOFTWARE_DEVICES;
 
   return (
     <>
-      <Navbar />
+      <Navbar subtitle="Track hardware devices, warranties, and maintenance across your network." />
 
       <div className="mt-6 space-y-5">
         <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {HARDWARE_STATS.map((metric) => (
+          {SOFTWARE_STATS.map((metric) => (
             <StatCard key={metric.id} metric={metric} />
           ))}
         </section>
@@ -76,17 +84,11 @@ const HardwarePage = () => {
         />
 
         <Card className="p-5">
-          <h2 className="text-base font-bold text-heading">
-            Hardware Inventory
-          </h2>
-
-          <div className="mt-4">
-            <HardwareTable
-              devices={visible}
-              visibleColumns={columns}
-              onSelect={openDevice}
-            />
-          </div>
+          <HardwareTable
+            devices={visible}
+            visibleColumns={columns}
+            onSelect={openDevice}
+          />
 
           <Pagination
             className="mt-5"
@@ -102,13 +104,13 @@ const HardwarePage = () => {
       <CustomizeColumnsModal
         isOpen={customize.isOpen}
         onClose={customize.close}
-        columns={HARDWARE_COLUMNS}
-        defaultColumns={DEFAULT_COLUMNS}
-        value={columns}
-        onApply={setColumns}
+        columns={SOFTWARE_COLUMNS}
+        defaultColumns={DEFAULT_SOFTWARE_COLUMNS}
+        value={softwareColumns}
+        onApply={setSoftwareColumns}
       />
     </>
   );
 };
 
-export default HardwarePage;
+export default SoftwarePage;

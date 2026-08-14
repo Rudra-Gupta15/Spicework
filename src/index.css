@@ -46,7 +46,14 @@
 
   /* Status */
   --color-status-online: #16a34a;
+  /* Emerald accent — network scanning surfaces */
+  --color-signal-50: #e9f8f1;
+  --color-signal-100: #cdeee0;
+  --color-signal-500: #10b981;
+  --color-signal-600: #0d9668;
   --color-status-offline: #dc2626;
+  --color-status-offline-50: #fdecec;
+  --color-status-offline-600: #b91c1c;
   --color-status-maintenance: #d97706;
   --color-status-info: #2563eb;
   --color-status-neutral: #94a3b8;
