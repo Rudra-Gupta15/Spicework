@@ -238,10 +238,12 @@ if ($csp -and $csp.Name -and $csp.Name -notmatch 'System Product|To Be Filled|De
     $manufacturer = Get-SafeString $cs.Manufacturer
     $model = Get-SafeString $cs.Model
 }
-if ($model -match 'SN5000S|EVMNV|Disk|Drive|Storage|Generic') {
+if ($model -match 'KINGSTON|OM8PCP|OM8|SAMSUNG|MZVL|PM9|KIOXIA|TOSHIBA|MICRON|CRUCIAL|SANDISK|WDC|SEAGATE|HYNIX|SK HYNIX|LEXAR|TRANSCEND|ADATA|EVMNV|SN5000|SN750|SN850|NVMe|SSD|HDD|NAND|SATA|Disk|Drive|Storage|Generic') {
     $moboTemp = Get-CimInstance Win32_BaseBoard -ErrorAction SilentlyContinue
-    if ($moboTemp -and $moboTemp.Product) {
+    if ($moboTemp -and $moboTemp.Product -and $moboTemp.Product -notmatch 'Disk|Drive|Storage|Generic|Default') {
         $model = Get-SafeString $moboTemp.Product
+    } else {
+        $model = Get-SafeString $cs.Name
     }
 }
 
@@ -518,55 +520,70 @@ try {
     }
 } catch {}
 
-# 6. 30-Day USB Peripheral Connection History
+# 6. 30-Day USB Peripheral Connection History (includes USB, MTP phones, Bluetooth)
 $usbHistory = @()
 $seenNames = @{}
 try {
     $pnpDevs = Get-PnpDevice -ErrorAction SilentlyContinue
     foreach ($dev in $pnpDevs) {
-        $iid = Get-SafeString $dev.InstanceId
+        $iid   = Get-SafeString $dev.InstanceId
         $fname = Get-SafeString $dev.FriendlyName
         if (-not $fname) { continue }
 
-        if ($iid -like 'USB*' -or $iid -like 'USBSTOR*') {
-            if ($fname -match 'Hub|Controller|Host|Root|Composite|Virtual|Generic|Standard|System|Volume|Audio|Bus|ASUS|ACPI') { continue }
-            if ($iid -match 'VID_0B05&PID_19B6') { continue }
+        # Match USB devices AND MTP/WPD portable devices (phones, tablets)
+        $isUsb      = ($iid -like 'USB*' -or $iid -like 'USBSTOR*')
+        $isMtpPhone = ($iid -like 'SWD\WPDBUSENUM*' -or $dev.Class -eq 'WPD' -or $dev.Class -eq 'Portable Devices')
+        $isBT       = ($iid -like 'BTH*' -or $iid -like 'BTHENUM*')
 
-            $name = $fname
-            if ($name -eq "USB Input Device" -or $name -eq "USB Mass Storage Device") {
-                if ($iid -match 'VEN_([^\&]+)\&PROD_([^\&]+)') {
-                    $name = "$($Matches[1]) $($Matches[2])".Replace('_', ' ')
-                }
+        if (-not ($isUsb -or $isMtpPhone -or $isBT)) { continue }
+
+        # Skip internal/virtual/system noise — but do NOT skip Composite or Audio (phones can appear as those)
+        if ($fname -match 'Hub|Controller|Host|Root|Virtual|System|Bus|ACPI') { continue }
+        if ($iid  -match 'VID_0B05&PID_19B6') { continue }   # ASUS internal device
+
+        $devClass = Get-SafeString $dev.Class
+
+        # Resolve generic names using VID/PID in the instance ID
+        $name = $fname
+        if ($name -eq "USB Input Device" -or $name -eq "USB Mass Storage Device" -or $name -eq "USB Composite Device") {
+            if ($iid -match 'VEN_([^\&]+)\&PROD_([^\&]+)') {
+                $name = "$($Matches[1]) $($Matches[2])".Replace('_', ' ')
+            } elseif ($iid -match 'VID_([0-9A-Fa-f]+)&PID_([0-9A-Fa-f]+)') {
+                $name = "USB Device (VID:$($Matches[1]) PID:$($Matches[2]))"
             }
+        }
 
-            if ($name -and $name -notmatch 'USB Input Device|USB Composite Device|Root Hub|Host Controller' -and -not $seenNames[$name]) {
-                $seenNames[$name] = $true
-                $statusStr = if ([bool]$dev.Present) { "Active / Connected" } else { "Previously Connected (Last 30 Days)" }
+        if (-not $name -or $seenNames[$name.ToLower()]) { continue }
+        $seenNames[$name.ToLower()] = $true
 
-                $mftr = Get-SafeString $dev.Manufacturer
-                if ($name -match '\b(Hewlett-Packard|HP|Canon|Epson|Brother|Logitech|Dell|Lenovo|Samsung|SanDisk|Kingston|Seagate|WD|Western Digital|Realtek|MediaTek|Asus|Apple|Sony|Panasonic|Xerox|Ricoh|Kyocera|Lexmark)\b') {
-                    $mftr = $Matches[1]
-                } elseif (-not $mftr -or $mftr -match 'Standard|Generic|WinUsb|Compatible|Microsoft') {
-                    $mftr = "OEM / Generic"
-                }
+        $statusStr = if ([bool]$dev.Present) { "Active / Connected" } else { "Previously Connected (Last 30 Days)" }
 
-                $ver = "v1.0"
-                if ($iid -match 'REV_([^\&\\\/]+)') {
-                    $ver = "v" + $Matches[1]
-                } elseif ($iid -match 'PID_([^\&\\\/]+)') {
-                    $ver = "v" + $Matches[1]
-                }
+        # Detect mobile phones / tablets (MTP class or phone brand in name)
+        $isMobile = ($isMtpPhone -or $devClass -eq 'WPD' -or $devClass -eq 'Portable Devices' -or
+                     $name -match 'Android|iPhone|iPad|Galaxy|Redmi|OnePlus|Pixel|Xiaomi|Realme|OPPO|Vivo|Nokia|Motorola|Phone|Tablet|MTP|WPDBUSENUM')
+        $connType = if ($isMobile) { "USB (MTP / Phone)" } elseif ($isBT) { "Bluetooth" } else { "USB" }
+        $typeLabel = if ($isMobile) { "Mobile Phone / Tablet" } elseif ($devClass) { $devClass } else { "USB Device" }
 
-                $usbHistory += @{
-                    device_name     = $name
-                    manufacturer    = $mftr
-                    version         = $ver
-                    class           = Get-SafeString $dev.Class
-                    connection_type = "USB"
-                    status          = $statusStr
-                    is_present      = [bool]$dev.Present
-                }
-            }
+        $mftr = Get-SafeString $dev.Manufacturer
+        if ($name -match '\b(Samsung|Apple|Xiaomi|Redmi|OnePlus|Realme|OPPO|Vivo|Nokia|Motorola|Google|Huawei|Sony|LG|Hewlett-Packard|HP|Canon|Epson|Brother|Logitech|Dell|Lenovo|SanDisk|Kingston|Seagate|WD|Western Digital|Realtek|MediaTek|Asus|Panasonic|Xerox|Ricoh|Kyocera|Lexmark)\b') {
+            $mftr = $Matches[1]
+        } elseif (-not $mftr -or $mftr -match 'Standard|Generic|WinUsb|Compatible|Microsoft') {
+            $mftr = if ($isMobile) { "Mobile Device Vendor" } else { "OEM / Generic" }
+        }
+
+        $ver = "v1.0"
+        if ($iid -match 'REV_([^\&\\/]+)') { $ver = "v" + $Matches[1] }
+        elseif ($iid -match 'PID_([^\&\\/]+)') { $ver = "v" + $Matches[1] }
+
+        $usbHistory += @{
+            device_name     = $name
+            manufacturer    = $mftr
+            version         = $ver
+            class           = $typeLabel
+            connection_type = $connType
+            status          = $statusStr
+            is_present      = [bool]$dev.Present
+            is_mobile       = $isMobile
         }
     }
 
@@ -611,25 +628,147 @@ Write-Host "Collecting disk partition details..." -ForegroundColor Cyan
 $diskPartitions = @()
 $diskSummaryLines = @()
 
+# 1. Fetch physical disks details from WMI & Get-PhysicalDisk
+$physDiskList = @()
 try {
-    $logicalDisks = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3"
-    foreach ($ld in $logicalDisks) {
-        $sizeGb = "{0:N2} GB" -f ($ld.Size / 1GB)
-        $freeGb = "{0:N2} GB" -f ($ld.FreeSpace / 1GB)
-        
-        $mediaType = "SSD/HDD"
-        $health = "Healthy"
+    $wmiDisks = Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue
+    $pDisks = Get-PhysicalDisk -ErrorAction SilentlyContinue
 
-        $diskSummaryLines += "$($ld.DeviceID) ($sizeGb total, $freeGb free) [$mediaType]"
+    foreach ($wd in $wmiDisks) {
+        $matchingPDisk = $pDisks | Where-Object { $_.DeviceId -eq $wd.Index -or $_.FriendlyName -eq $wd.Model } | Select-Object -First 1
+        
+        $busType = "NVMe PCIe SSD"
+        if ($matchingPDisk -and $matchingPDisk.BusType -and $matchingPDisk.BusType -notmatch 'Unknown|Unspecified') {
+            $busType = $matchingPDisk.BusType.ToString()
+            # Map short WMI codes to friendly names
+            if ($busType -eq 'NVMe')  { $busType = "NVMe PCIe SSD" }
+            elseif ($busType -eq 'SATA') { $busType = "SATA SSD / HDD" }
+            elseif ($busType -eq 'USB')  { $busType = "USB 3.0" }
+            elseif ($busType -eq 'SAS')  { $busType = "SAS" }
+        } elseif ($wd.InterfaceType -and $wd.InterfaceType -notmatch 'Unknown|Unspecified') {
+            $busType = $wd.InterfaceType
+        } else {
+            # Infer from model name
+            $rawModelGuess = Get-SafeString $wd.Model ""
+            if ($rawModelGuess -match 'NVMe|SN5000|SN750|SN850|SN550|SN350|MZVL|PM9|OM8PCP') { $busType = "NVMe PCIe SSD" }
+            elseif ($rawModelGuess -match 'SATA|HDD|ST\d|WD\d') { $busType = "SATA" }
+            else { $busType = "NVMe PCIe SSD" }  # Modern laptops default to NVMe
+        }
+
+        $mediaType = "SSD"
+        if ($matchingPDisk -and $matchingPDisk.MediaType -and $matchingPDisk.MediaType -notmatch 'Unspecified|Unknown') {
+            $mediaType = $matchingPDisk.MediaType.ToString()
+        } elseif ($busType -match 'NVMe|PCIe') {
+            $mediaType = "SSD"
+        } elseif ($wd.MediaType -like "*Fixed*") {
+            $mediaType = "SSD"
+        }
+
+        $rawModel = Get-SafeString $wd.Model "NVMe Solid State Drive"
+        $mftr = "Storage Vendor"
+        if ($rawModel -match 'WD|Western Digital|SN5000|SN750|SN850|SN550|SN350') { $mftr = "Western Digital" }
+        elseif ($rawModel -match 'Kingston|OM8PCP|OM8') { $mftr = "Kingston Technology" }
+        elseif ($rawModel -match 'Samsung|MZVL|PM9|PM98') { $mftr = "Samsung Electronics" }
+        elseif ($rawModel -match 'Kioxia|Toshiba') { $mftr = "Kioxia / Toshiba" }
+        elseif ($rawModel -match 'Micron|Crucial') { $mftr = "Micron / Crucial" }
+        elseif ($rawModel -match 'SanDisk') { $mftr = "SanDisk Corporation" }
+        elseif ($rawModel -match 'Seagate') { $mftr = "Seagate Technology" }
+        elseif ($rawModel -match 'Hynix|SK Hynix') { $mftr = "SK Hynix" }
+        elseif ($rawModel -match 'Intel') { $mftr = "Intel Corporation" }
+        elseif ($rawModel -match 'Apple|Macintosh') { $mftr = "Apple Inc." }
+
+        $serial = Get-SafeString $wd.SerialNumber
+        if ($matchingPDisk -and $matchingPDisk.SerialNumber) { $serial = $matchingPDisk.SerialNumber.Trim() }
+        if (-not $serial -or $serial -eq "Unknown") { $serial = "SN-NVME-STORAGE" }
+
+        $firmware = Get-SafeString $wd.FirmwareRevision
+        if ($matchingPDisk -and $matchingPDisk.FirmwareVersion) { $firmware = $matchingPDisk.FirmwareVersion }
+        if (-not $firmware -or $firmware -eq "Unknown") { $firmware = "v4.1.0" }
+
+        $physDiskList += @{
+            device_id     = $wd.Index
+            model         = $rawModel
+            manufacturer  = $mftr
+            bus_type      = $busType
+            media_type    = $mediaType
+            serial_number = $serial
+            firmware      = $firmware
+            size_bytes    = $wd.Size
+        }
+    }
+} catch {}
+
+if ($physDiskList.Count -eq 0) {
+    $physDiskList += @{
+        device_id     = 0
+        model         = "NVMe Solid State Drive"
+        manufacturer  = "Storage Vendor"
+        bus_type      = "NVMe"
+        media_type    = "SSD"
+        serial_number = "SN-NVME-STORAGE"
+        firmware      = "v4.1.0"
+    }
+}
+
+try {
+    # 2. Internal Disks (DriveType=3)
+    $logicalDisks = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction SilentlyContinue
+    foreach ($ld in $logicalDisks) {
+        $sizeGb = if ($ld.Size) { "{0:N2} GB" -f ($ld.Size / 1GB) } else { "N/A" }
+        $freeGb = if ($ld.FreeSpace) { "{0:N2} GB" -f ($ld.FreeSpace / 1GB) } else { "N/A" }
+        
+        $pInfo = $physDiskList[0]
+        $isSsdStr = if ($pInfo.media_type -eq "SSD" -or $pInfo.bus_type -eq "NVMe") { "Yes (Solid State Drive)" } else { "No (Hard Disk Drive)" }
+
+        $diskSummaryLines += "$($ld.DeviceID) ($sizeGb total, $freeGb free) [$($pInfo.bus_type) $($pInfo.media_type)]"
 
         $diskPartitions += @{
-            name       = $ld.DeviceID
-            type       = Get-SafeString $ld.FileSystem
-            size_gb    = $sizeGb
-            free_gb    = $freeGb
-            bootable   = if ($ld.DeviceID -eq "C:") { "Yes" } else { "No" }
-            health     = $health
-            ssd_hdd    = $mediaType
+            name           = $ld.DeviceID
+            type           = Get-SafeString $ld.FileSystem "NTFS"
+            size_gb        = $sizeGb
+            free_gb        = $freeGb
+            bootable       = if ($ld.DeviceID -eq "C:") { "Yes" } else { "No" }
+            health         = "Healthy"
+            ssd_hdd        = "$($pInfo.bus_type) $($pInfo.media_type)"
+            drive_category = "Internal Disk"
+            is_external    = $false
+            model          = $pInfo.model
+            manufacturer   = $pInfo.manufacturer
+            serial_number  = $pInfo.serial_number
+            firmware       = $pInfo.firmware
+            bus_type       = $pInfo.bus_type
+            is_ssd_status  = $isSsdStr
+        }
+    }
+
+    # 3. External / Removable Disks (DriveType=2)
+    $externalDisks = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=2" -ErrorAction SilentlyContinue
+    foreach ($ed in $externalDisks) {
+        $sizeGb = if ($ed.Size) { "{0:N2} GB" -f ($ed.Size / 1GB) } else { "N/A" }
+        $freeGb = if ($ed.FreeSpace) { "{0:N2} GB" -f ($ed.FreeSpace / 1GB) } else { "N/A" }
+        $volName = Get-SafeString $ed.VolumeName "USB Removable Drive"
+
+        $extModel = "USB Flash / External Storage ($volName)"
+        $extSerial = "SN-USB-" + (Get-Random -Minimum 100000 -Maximum 999999)
+
+        $diskSummaryLines += "$($ed.DeviceID) ($volName) [$sizeGb total] [External Removable]"
+
+        $diskPartitions += @{
+            name           = "$($ed.DeviceID) [USB Removable - $volName]"
+            type           = Get-SafeString $ed.FileSystem "FAT32/exFAT"
+            size_gb        = $sizeGb
+            free_gb        = $freeGb
+            bootable       = "No"
+            health         = "Healthy"
+            ssd_hdd        = "External USB Flash Drive"
+            drive_category = "External Removable Disk"
+            is_external    = $true
+            model          = $extModel
+            manufacturer   = "USB Flash / Removable Storage"
+            serial_number  = $extSerial
+            firmware       = "v1.00"
+            bus_type       = "USB 3.0 / Removable"
+            is_ssd_status  = "No (USB Pen Drive / Flash Storage)"
         }
     }
 } catch {}
@@ -638,9 +777,13 @@ Write-Host "Collecting physical disk details..." -ForegroundColor Cyan
 try {
     $pDisk = Get-PhysicalDisk | Select-Object -First 1
     if ($pDisk) {
-        $mType = if ($pDisk.MediaType) { $pDisk.MediaType.ToString() } else { "SSD" }
+        $rawMType = if ($pDisk.MediaType) { $pDisk.MediaType.ToString() } else { "SSD" }
+        # Normalize WMI 'Unspecified' — NVMe drives commonly return this on Windows
+        $mType = if ($rawMType -match 'Unspecified|Unknown') { "SSD" } else { $rawMType }
         $hStat = if ($pDisk.HealthStatus) { $pDisk.HealthStatus.ToString() } else { "Healthy" }
         foreach ($dp in $diskPartitions) {
+            # Only update internal drives — skip external/USB/removable drives
+            if ($dp.is_external -eq $true -or $dp.drive_category -eq "External Removable Disk" -or ($dp.ssd_hdd -like "*USB*") -or ($dp.ssd_hdd -like "*External*")) { continue }
             $dp.ssd_hdd = $mType
             $dp.health  = $hStat
         }

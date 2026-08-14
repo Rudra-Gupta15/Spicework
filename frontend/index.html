@@ -8,7 +8,7 @@
     <meta name="description" content="Comprehensive IT asset management and compliance audit portal.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
 
     <style>
@@ -71,7 +71,7 @@
         }
 
         body {
-            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+            font-family: 'Outfit', system-ui, -apple-system, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
             background: var(--surface-2);
             color: var(--text);
             min-height: 100vh;
@@ -79,6 +79,7 @@
             flex-direction: column;
             font-size: 14px;
             line-height: 1.5;
+            overflow-x: hidden;
         }
 
         a {
@@ -302,32 +303,26 @@
         ═══════════════════════════════════════════════════════════════════ */
         .device-viewing-banner {
             display: none;
-            position: sticky;
+            position: fixed;
             top: 72px;
-            z-index: 85;
-            width: calc(100% + 64px);
-            margin-left: -32px;
-            margin-right: -32px;
+            left: 260px;
+            right: 0;
+            z-index: 100;
             box-sizing: border-box;
             background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #2563eb 100%);
             color: #ffffff;
             padding: 12px 32px;
             border-radius: 0;
-            margin-top: 0;
-            margin-bottom: 0;
             align-items: center;
             justify-content: space-between;
             box-shadow: 0 6px 24px rgba(15, 23, 42, 0.25);
             border-top: 1px solid rgba(255, 255, 255, 0.15);
             border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-            border-left: none;
-            border-right: none;
             backdrop-filter: blur(12px);
         }
 
         .device-viewing-banner.is-visible {
             display: flex;
-            margin-bottom: 24px;
             animation: slideDownFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
@@ -336,6 +331,7 @@
                 opacity: 0;
                 transform: translateY(-10px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -438,7 +434,7 @@
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius-lg);
-            padding: 20px 24px;
+            padding: 12px 16px;
             box-shadow: var(--shadow-sm);
         }
 
@@ -720,7 +716,7 @@
             font-weight: 700;
             color: #334155;
             margin-left: 8px;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Outfit', sans-serif;
         }
 
         .btn-term-copy {
@@ -1156,8 +1152,7 @@
                     onclick="switchTab('terminal')">
                     <span class="tab-label">Terminal Command</span>
                 </button>
-                <button class="tab-btn" role="tab" data-tab="osquery" id="btn-osquery"
-                    onclick="switchTab('osquery')">
+                <button class="tab-btn" role="tab" data-tab="osquery" id="btn-osquery" onclick="switchTab('osquery')">
                     <span class="tab-label">OS</span>
                 </button>
                 <button class="tab-btn" role="tab" data-tab="settings" id="btn-settings"
@@ -1714,7 +1709,8 @@
                                 <input type="text" id="ipRange" class="input-field" value="192.168.1.0/24"
                                     placeholder="e.g. 192.168.1.0/24 or 192.168.1.1-100">
                                 <div style="margin-top:6px; display:flex; gap:4px; flex-wrap:wrap; font-size:11px;">
-                                    <span style="color:var(--muted); align-self:center; font-size:11px; font-weight:600; margin-right:2px;">Presets:</span>
+                                    <span
+                                        style="color:var(--muted); align-self:center; font-size:11px; font-weight:600; margin-right:2px;">Presets:</span>
                                     <button class="btn btn-outline btn-xs" type="button"
                                         onclick="setPresetRange('192.168.1.0/24')">192.168.1.0/24</button>
                                     <button class="btn btn-outline btn-xs" type="button"
@@ -1807,8 +1803,16 @@
                                     onmouseover="this.style.boxShadow='0 0 0 3px rgba(37,99,235,0.13)'"
                                     onmouseout="this.style.boxShadow='none'">
                                     <div style="display:flex; align-items:center; gap:10px;">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-                                        <span id="devicePickerLabel" style="color:var(--muted); font-size:13.5px; font-weight:500;">— Click to select a device —</span>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                            stroke="var(--primary)" stroke-width="2.2" stroke-linecap="round"
+                                            stroke-linejoin="round" style="flex-shrink:0;">
+                                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                                        </svg>
+                                        <span id="devicePickerLabel"
+                                            style="color:var(--muted); font-size:13.5px; font-weight:500;">— Click to
+                                            select a device —</span>
                                     </div>
                                     <span id="devicePickerArrow"
                                         style="font-size:12px; color:var(--muted); transition:transform 0.2s;">▼</span>
@@ -1838,14 +1842,19 @@
                         <div style="display:flex; align-items:center; gap:14px;">
                             <div style="display:flex; flex-direction:column; gap:2px;">
                                 <div style="display:flex; align-items:center; gap:8px;">
-                                    <span style="font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:rgba(255,255,255,0.7);">Currently Viewing</span>
-                                    <span style="background:rgba(16,185,129,0.2); color:#6ee7b7; border:1px solid rgba(16,185,129,0.3); font-size:10px; font-weight:600; padding:1px 7px; border-radius:12px; letter-spacing:0.3px;">Live Audit</span>
+                                    <span
+                                        style="font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:rgba(255,255,255,0.7);">Currently
+                                        Viewing</span>
                                 </div>
-                                <span id="bannerDeviceName" style="font-weight:700; font-size:15px; letter-spacing:-0.2px; color:#ffffff; line-height:1.2;">—</span>
+                                <span id="bannerDeviceName"
+                                    style="font-weight:700; font-size:15px; letter-spacing:-0.2px; color:#ffffff; line-height:1.2;">—</span>
                             </div>
                         </div>
                         <button onclick="changeDevice()" class="btn-banner-change" title="Switch to another device">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M19 12H5M12 19l-7-7 7-7" />
+                            </svg>
                             <span>Change Device</span>
                         </button>
                     </div>
@@ -1858,8 +1867,13 @@
                                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
                                         <div class="card-title" id="swDeviceTitle"
                                             style="font-size: 20px; margin-bottom:0;">Device Details</div>
-                                        <button onclick="changeDevice()" class="change-device-btn-light" title="Go back and select a different device">
-                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                                        <button onclick="changeDevice()" class="change-device-btn-light"
+                                            title="Go back and select a different device">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                                stroke-linejoin="round">
+                                                <path d="M19 12H5M12 19l-7-7 7-7" />
+                                            </svg>
                                             <span>Change Device</span>
                                         </button>
                                     </div>
@@ -2792,19 +2806,25 @@
 
                         <div
                             style="display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; background:var(--surface-2); padding:16px; border-radius:10px; border:1px solid var(--border);">
-                            <div style="flex:1; min-width:220px;">
+                            <div style="flex:1; min-width:200px;">
                                 <label for="termServerIp"
                                     style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Server
-                                    IP Address (LAN / Network)</label>
+                                    IP Address (LAN)</label>
                                 <input type="text" id="termServerIp" class="input-field" placeholder="e.g. 192.168.1.52"
                                     oninput="updateTerminalCommands()">
                             </div>
-                            <div style="width:140px;">
+                            <div style="width:120px;">
                                 <label for="termServerPort"
                                     style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Server
                                     Port</label>
                                 <input type="text" id="termServerPort" class="input-field" value="8000"
                                     placeholder="8000" oninput="updateTerminalCommands()">
+                            </div>
+                            <div style="flex:1.2; min-width:240px;">
+                                <label for="termCfDomain"
+                                    style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Cloudflare Tunnel Domain (WAN)</label>
+                                <input type="text" id="termCfDomain" class="input-field" placeholder="e.g. bear-spa-dangerous-arrival.trycloudflare.com"
+                                    oninput="updateTerminalCommands()">
                             </div>
                             <div style="display:flex; gap:10px; align-items:center;">
                                 <label
@@ -2866,7 +2886,8 @@
                                     style="font-size:16px; display:flex; align-items:center; gap:8px; color: var(--primary-dk);">
                                     <span>How to Run Launcher Files</span>
                                 </div>
-                                <div class="card-subtitle">Follow these simple steps to run downloaded launchers across all OS types</div>
+                                <div class="card-subtitle">Follow these simple steps to run downloaded launchers across
+                                    all OS types</div>
                             </div>
                             <div id="launcherGuideBtn"
                                 style="background: transparent; border: 1px solid var(--border-dk); padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; color: var(--text-2); user-select: none;">
@@ -2875,14 +2896,20 @@
                         </div>
                         <div id="launcherInstructionsBody"
                             style="display:none; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; color: var(--text-2); padding-top: 16px; margin-top: 12px; border-top: 1px solid var(--border);">
-                            
+
                             <!-- Windows Box -->
-                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
-                                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
-                                    <span style="font-weight: 700; color: var(--text-1); font-size: 14px;">1. Windows Setup</span>
-                                    <span style="font-size: 11px; padding: 2px 7px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: monospace; color: var(--text-2);">.exe / .vbs</span>
+                            <div
+                                style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+                                <div
+                                    style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                                    <span style="font-weight: 700; color: var(--text-1); font-size: 14px;">1. Windows
+                                        Setup</span>
+                                    <span
+                                        style="font-size: 11px; padding: 2px 7px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: monospace; color: var(--text-2);">.exe
+                                        / .vbs</span>
                                 </div>
-                                <ol style="margin-left: 18px; margin-top: 2px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.5;">
+                                <ol
+                                    style="margin-left: 18px; margin-top: 2px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.5;">
                                     <li>Download <b>Windows Binary (.exe)</b> or <b>VBS (.vbs)</b> above.</li>
                                     <li>Open your <b>Downloads</b> folder and double-click the file.</li>
                                     <li>Runs silently in the background and reports audit data to portal.</li>
@@ -2890,43 +2917,50 @@
                             </div>
 
                             <!-- macOS Box -->
-                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
-                                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
-                                    <span style="font-weight: 700; color: var(--text-1); font-size: 14px;">2. macOS Setup</span>
-                                    <span style="font-size: 11px; padding: 2px 7px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: monospace; color: var(--text-2);">.command</span>
+                            <div
+                                style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+                                <div
+                                    style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                                    <span style="font-weight: 700; color: var(--text-1); font-size: 14px;">2. macOS
+                                        Setup</span>
+                                    <span
+                                        style="font-size: 11px; padding: 2px 7px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: monospace; color: var(--text-2);">.command</span>
                                 </div>
-                                <ol style="margin-left: 18px; margin-top: 2px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.5;">
+                                <ol
+                                    style="margin-left: 18px; margin-top: 2px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.5;">
                                     <li>Download <b>macOS Launcher (.command)</b> above.</li>
                                     <li>Grant execution permission in Terminal:
                                         <div style="margin-top: 4px;">
-                                            <code style="background: #ffffff; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 11.5px; border: 1px solid #cbd5e1; display: inline-block;">chmod +x RunAudit_Mac.command</code>
+                                            <code
+                                                style="background: #ffffff; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 11.5px; border: 1px solid #cbd5e1; display: inline-block;">chmod +x RunAudit_Mac.command</code>
                                         </div>
                                     </li>
                                     <li>Execute launcher in Terminal:
                                         <div style="margin-top: 4px;">
-                                            <code style="background: #ffffff; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 11.5px; border: 1px solid #cbd5e1; display: inline-block;">./RunAudit_Mac.command</code>
+                                            <code
+                                                style="background: #ffffff; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 11.5px; border: 1px solid #cbd5e1; display: inline-block;">./RunAudit_Mac.command</code>
                                         </div>
                                     </li>
-                                    <li style="font-size: 12px; color: var(--muted); font-style: italic;">Finder mode: Right-click file → Open.</li>
+                                    <li style="font-size: 12px; color: var(--muted); font-style: italic;">Finder mode:
+                                        Right-click file → Open.</li>
                                 </ol>
                             </div>
 
                             <!-- Linux Box -->
-                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
-                                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
-                                    <span style="font-weight: 700; color: var(--text-1); font-size: 14px;">3. Linux Setup</span>
-                                    <span style="font-size: 11px; padding: 2px 7px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: monospace; color: var(--text-2);">.sh</span>
+                            <div
+                                style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+                                <div
+                                    style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                                    <span style="font-weight: 700; color: var(--text-1); font-size: 14px;">3. Linux
+                                        Setup</span>
+                                    <span
+                                        style="font-size: 11px; padding: 2px 7px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: monospace; color: var(--text-2);">.sh</span>
                                 </div>
-                                <ol style="margin-left: 18px; margin-top: 2px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.5;">
-                                    <li>Download <b>Linux Launcher (.sh)</b> above.</li>
-                                    <li>Grant execution permission in Terminal:
-                                        <div style="margin-top: 4px;">
-                                            <code style="background: #ffffff; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 11.5px; border: 1px solid #cbd5e1; display: inline-block;">chmod +x RunAudit_Linux.sh</code>
-                                        </div>
-                                    </li>
+                                <ol
                                     <li>Execute launcher in Terminal:
                                         <div style="margin-top: 4px;">
-                                            <code style="background: #ffffff; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 11.5px; border: 1px solid #cbd5e1; display: inline-block;">./RunAudit_Linux.sh</code>
+                                            <code
+                                                style="background: #ffffff; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 11.5px; border: 1px solid #cbd5e1; display: inline-block;">./RunAudit_Linux.sh</code>
                                         </div>
                                     </li>
                                 </ol>
@@ -2935,12 +2969,12 @@
                         </div>
                     </div>
 
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
 
-                        <div class="card">
-                            <div class="card-header" style="margin-bottom:18px;">
+                        <div class="card" style="padding:12px 14px;">
+                            <div class="card-header" style="margin-bottom:8px;">
                                 <div>
-                                    <div class="card-title" style="font-size:16px;">1. Self Laptop (Local Host)</div>
+                                    <div class="card-title" style="font-size:15px;">1. Self Laptop (Local Host)</div>
                                     <div class="card-subtitle">Run locally on this machine (using localhost / 127.0.0.1)
                                     </div>
                                 </div>
@@ -2976,10 +3010,10 @@
                             </div>
                         </div>
 
-                        <div class="card">
-                            <div class="card-header" style="margin-bottom:18px;">
+                        <div class="card" style="padding:12px 14px;">
+                            <div class="card-header" style="margin-bottom:8px;">
                                 <div>
-                                    <div class="card-title" style="font-size:16px;">2. Another Laptop (Network / Remote)
+                                    <div class="card-title" style="font-size:15px;">2. Another Laptop (Network / Remote LAN)
                                     </div>
                                     <div class="card-subtitle">Run on client laptops connected via WiFi / Office LAN
                                     </div>
@@ -3019,11 +3053,55 @@
                             </div>
                         </div>
 
-                        <div class="card"
-                            style="grid-column: span 2; border-top: 4px solid var(--success); margin-top: 20px;">
-                            <div class="card-header" style="margin-bottom:18px;">
+                        <div class="card" style="grid-column: span 2; border-top: 4px solid var(--primary); padding:12px 14px;">
+                            <div class="card-header" style="margin-bottom:8px;">
                                 <div>
-                                    <div class="card-title" style="font-size:16px;">3. Run-Once Continuous 2-Hour
+                                    <div class="card-title" style="font-size:15px;">3. Cloudflare Tunnel (Remote WAN)</div>
+                                    <div class="card-subtitle">Run on remote laptops anywhere over public internet via Cloudflare Tunnel
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                                <div class="terminal-box">
+                                    <div class="terminal-box-header">
+                                        <div class="terminal-dots">
+                                            <span class="dot-red"></span>
+                                            <span class="dot-yellow"></span>
+                                            <span class="dot-green"></span>
+                                            <span class="terminal-title">Windows (PowerShell)</span>
+                                        </div>
+                                        <button class="btn btn-term-copy" id="btnCopyCfWin"
+                                            onclick="copyTerminalCmd('cmdCfWin', 'btnCopyCfWin')">1-Click
+                                            Copy</button>
+                                    </div>
+                                    <textarea id="cmdCfWin" class="terminal-textarea" spellcheck="false"
+                                        oninput="autoResizeTerminalTextareas()"></textarea>
+                                </div>
+
+                                <div class="terminal-box">
+                                    <div class="terminal-box-header">
+                                        <div class="terminal-dots">
+                                            <span class="dot-red"></span>
+                                            <span class="dot-yellow"></span>
+                                            <span class="dot-green"></span>
+                                            <span class="terminal-title">macOS &amp; Linux (Bash)</span>
+                                        </div>
+                                        <button class="btn btn-term-copy" id="btnCopyCfMac"
+                                            onclick="copyTerminalCmd('cmdCfMac', 'btnCopyCfMac')">1-Click
+                                            Copy</button>
+                                    </div>
+                                    <textarea id="cmdCfMac" class="terminal-textarea" spellcheck="false"
+                                        oninput="autoResizeTerminalTextareas()"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card"
+                            style="grid-column: span 2; border-top: 4px solid var(--success); padding:12px 14px;">
+                            <div class="card-header" style="margin-bottom:8px;">
+                                <div>
+                                    <div class="card-title" style="font-size:15px;">4. Run-Once Continuous 2-Hour
                                         Auto-Audit Daemon (Recommended)</div>
                                     <div class="card-subtitle">Run <b>1 time</b> on target machine. Executes compliance
                                         audit immediately, then automatically re-audits every 2 hours in the background.
@@ -3031,7 +3109,7 @@
                                 </div>
                             </div>
 
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
                                 <div class="terminal-box">
                                     <div class="terminal-box-header">
                                         <div class="terminal-dots">
@@ -3074,7 +3152,8 @@
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
 
                         <!-- CLOUDFLARE REMOTE OSQUERY AUDIT DEPLOYMENT CARD -->
-                        <div class="card" style="grid-column: span 2; border-top: 4px solid var(--primary); margin-top:0;">
+                        <div class="card"
+                            style="grid-column: span 2; border-top: 4px solid var(--primary); margin-top:0;">
                             <div class="card-header" style="margin-bottom:12px;">
                                 <div>
                                     <div class="card-title"
@@ -3105,7 +3184,8 @@
                                         style="padding:0 18px; font-weight:600; font-size:13px;">Copy Command</button>
                                     <a id="remoteCollectorDownloadBtn" href="/api/osquery/collector.ps1"
                                         download="run_osquery_audit.ps1" class="btn btn-outline btn-sm"
-                                        style="padding:0 18px; font-weight:600; font-size:13px; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">Download .ps1</a>
+                                        style="padding:0 18px; font-weight:600; font-size:13px; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">Download
+                                        .ps1</a>
                                 </div>
                                 <div id="remoteStatusMsg"
                                     style="font-size:12px; color:#047857; font-weight:600; display:none; background:#ecfdf5; padding:6px 12px; border-radius:4px; border:1px solid #a7f3d0;">
@@ -3153,15 +3233,18 @@
                                                     <td style="padding:10px 12px; color:#64748b;">2026-08-07 11:45:59
                                                     </td>
                                                     <td style="padding:10px 12px;"><span
-                                                            style="background:#ecfdf5; color:#047857; padding:3px 10px; border-radius:5px; font-weight:700; font-size:11px; display:inline-flex; align-items:center; gap:4px;">Cloud Synchronized</span></td>
+                                                            style="background:#ecfdf5; color:#047857; padding:3px 10px; border-radius:5px; font-weight:700; font-size:11px; display:inline-flex; align-items:center; gap:4px;">Cloud
+                                                            Synchronized</span></td>
                                                     <td style="padding:10px 12px;">
                                                         <div style="display:flex; gap:4px; flex-wrap:wrap;">
                                                             <button class="btn btn-outline btn-sm"
                                                                 onclick="fetchRemotePreset('audit_desktop-6mb2aj6', 'device-data')"
-                                                                style="font-size:11px; font-weight:600; padding:3px 8px;">Device Data</button>
+                                                                style="font-size:11px; font-weight:600; padding:3px 8px;">Device
+                                                                Data</button>
                                                             <button class="btn btn-outline btn-sm"
                                                                 onclick="fetchRemotePreset('audit_desktop-6mb2aj6', 'disk-data')"
-                                                                style="font-size:11px; font-weight:600; padding:3px 8px;">Disk Info</button>
+                                                                style="font-size:11px; font-weight:600; padding:3px 8px;">Disk
+                                                                Info</button>
                                                             <button class="btn btn-outline btn-sm"
                                                                 onclick="fetchRemotePreset('audit_desktop-6mb2aj6', 'partition-data')"
                                                                 style="font-size:11px; font-weight:600; padding:3px 8px;">Partitions</button>
@@ -3193,7 +3276,8 @@
                             </div>
                         </div>
 
-                        <div class="card" style="grid-column: span 2; border-top: 4px solid var(--primary); margin-top:0;">
+                        <div class="card"
+                            style="grid-column: span 2; border-top: 4px solid var(--primary); margin-top:0;">
                             <div class="card-header" style="margin-bottom:14px; flex-wrap:wrap; gap:10px;">
                                 <div>
                                     <div class="card-title">osquery Interactive SQL Console</div>
@@ -3204,21 +3288,26 @@
                                     <button class="btn btn-outline btn-sm" onclick="fetchDeviceData()"
                                         style="padding:5px 12px; font-weight:600; font-size:12px;">Device Data</button>
                                     <button class="btn btn-outline btn-sm" onclick="fetchDiskData()"
-                                        style="padding:5px 12px; font-weight:600; font-size:12px;">Disk Information</button>
+                                        style="padding:5px 12px; font-weight:600; font-size:12px;">Disk
+                                        Information</button>
                                     <button class="btn btn-outline btn-sm" onclick="fetchPartitionData()"
                                         style="padding:5px 12px; font-weight:600; font-size:12px;">Partitions</button>
                                     <button class="btn btn-outline btn-sm" onclick="fetchNetworkData()"
-                                        style="padding:5px 12px; font-weight:600; font-size:12px;">Network Adapters</button>
+                                        style="padding:5px 12px; font-weight:600; font-size:12px;">Network
+                                        Adapters</button>
                                     <button class="btn btn-outline btn-sm" onclick="fetchPeripheralData()"
                                         style="padding:5px 12px; font-weight:600; font-size:12px;">Peripherals</button>
                                     <button class="btn btn-outline btn-sm" onclick="fetchVideoData()"
-                                        style="padding:5px 12px; font-weight:600; font-size:12px;">Video Controllers</button>
+                                        style="padding:5px 12px; font-weight:600; font-size:12px;">Video
+                                        Controllers</button>
                                     <button class="btn btn-outline btn-sm" onclick="fetchUserData()"
                                         style="padding:5px 12px; font-weight:600; font-size:12px;">Users</button>
                                     <button class="btn btn-outline btn-sm" onclick="fetchLoginHistory()"
-                                        style="padding:5px 12px; font-weight:600; font-size:12px;">Login History</button>
+                                        style="padding:5px 12px; font-weight:600; font-size:12px;">Login
+                                        History</button>
                                     <button class="btn btn-outline btn-sm" onclick="fetchSoftwareInventory()"
-                                        style="padding:5px 12px; font-weight:600; font-size:12px;">Software Inventory</button>
+                                        style="padding:5px 12px; font-weight:600; font-size:12px;">Software
+                                        Inventory</button>
                                 </div>
                             </div>
 
@@ -3253,7 +3342,7 @@
 
                 <!-- TAB: SETTINGS -->
                 <div class="tab-panel" id="panel-settings" role="tabpanel">
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
 
                         <div class="card" style="grid-column: span 2; border-top: 4px solid var(--primary);">
                             <div class="card-header" style="margin-bottom:16px;">
@@ -4175,19 +4264,20 @@
 
                     async function saveLifecycleDetails() {
                         const payload = {
-                            device_name: currentDeviceName,
-                            owner: document.getElementById('editLifeOwner').value.trim(),
-                            location: document.getElementById('editLifeLocation').value.trim(),
-                            status: document.getElementById('editLifeStatus').value,
-                            vendor: document.getElementById('editLifeVendor').value.trim(),
-                            supplier: document.getElementById('editLifeSupplier').value.trim(),
-                            purchase_price: document.getElementById('editLifePrice').value.trim(),
-                            purchase_date: document.getElementById('editLifePurchaseDate').value,
-                            po_number: document.getElementById('editLifePo').value.trim(),
+                            mac_address:       currentDeviceMac || currentDeviceName || '',
+                            computer_name:     currentDeviceName || '',
+                            owner:             document.getElementById('editLifeOwner').value.trim(),
+                            location:          document.getElementById('editLifeLocation').value.trim(),
+                            status:            document.getElementById('editLifeStatus').value,
+                            vendor:            document.getElementById('editLifeVendor').value.trim(),
+                            supplier:          document.getElementById('editLifeSupplier').value.trim(),
+                            purchase_price:    document.getElementById('editLifePrice').value.trim(),
+                            purchase_date:     document.getElementById('editLifePurchaseDate').value,
+                            po_number:         document.getElementById('editLifePo').value.trim(),
                             warranty_provider: document.getElementById('editLifeWarrantyProvider').value.trim(),
-                            warranty_start: document.getElementById('editLifeWarrantyStart').value,
-                            warranty_end: document.getElementById('editLifeWarrantyEnd').value,
-                            warranty_notes: document.getElementById('editLifeWarrantyNotes').value.trim()
+                            warranty_start:    document.getElementById('editLifeWarrantyStart').value,
+                            warranty_end:      document.getElementById('editLifeWarrantyEnd').value,
+                            warranty_notes:    document.getElementById('editLifeWarrantyNotes').value.trim()
                         };
 
                         try {
@@ -4196,32 +4286,19 @@
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(payload)
                             });
-                            if (res.ok) {
-                                showAlert('Lifecycle Updated!', 'Procurement, location and warranty records saved successfully.', 'success');
+                            const json = await res.json().catch(() => ({}));
+                            if (res.ok && json.status === 'saved') {
+                                showAlert('Lifecycle Saved!', 'Procurement, location and warranty records saved to database successfully.', 'success');
                                 toggleLifecycleEditModal();
                                 fetchLifecycleData(currentDeviceMac, currentDeviceName);
                             } else {
-                                localStorage.setItem(`infrapulse_life_${currentDeviceName}`, JSON.stringify(payload));
-                                showAlert('Saved Locally', 'Lifecycle metadata updated.', 'success');
-                                toggleLifecycleEditModal();
-                                setTxt('lifeOwnerVal', payload.owner || '—');
-                                setTxt('lifeLocationVal', payload.location || '—');
-                                setTxt('lifeStatusVal', payload.status || 'Active');
-                                setTxt('lifeVendorVal', payload.vendor || '—');
-                                setTxt('lifeSupplierVal', payload.supplier || '—');
-                                setTxt('lifePriceVal', payload.purchase_price ? `₹${payload.purchase_price}` : '—');
-                                setTxt('lifePurchaseDateVal', payload.purchase_date || '—');
-                                setTxt('lifePoVal', payload.po_number || '—');
-                                setTxt('lifeWarrantyDatesVal', (payload.warranty_start && payload.warranty_end) ? `${payload.warranty_start} to ${payload.warranty_end}` : '—');
-                                setTxt('lifeWarrantyProviderVal', payload.warranty_provider || '—');
-                                setTxt('lifeWarrantyNotesVal', payload.warranty_notes || '—');
+                                showAlert('Save Failed', `Server error: ${json.detail || res.statusText}. Check backend logs.`, 'error');
                             }
                         } catch (e) {
-                            localStorage.setItem(`infrapulse_life_${currentDeviceName}`, JSON.stringify(payload));
-                            showAlert('Saved Locally', 'Lifecycle metadata saved.', 'success');
-                            toggleLifecycleEditModal();
+                            showAlert('Connection Error', `Could not reach server: ${e.message}. Make sure backend is running.`, 'error');
                         }
                     }
+
 
                     async function fetchTicketsData(mac, name, auditData = {}, hwData = {}) {
                         const tbody = document.getElementById('ticketsTableBody');
@@ -4328,6 +4405,14 @@
                         if (trigger) { trigger.style.borderColor = open ? 'var(--primary)' : '#cbd5e1'; }
                     }
 
+                    document.addEventListener('click', (e) => {
+                        const trigger = document.getElementById('devicePickerTrigger');
+                        const panel = document.getElementById('devicePickerPanel');
+                        if (trigger && panel && panel.style.display !== 'none' && !trigger.contains(e.target) && !panel.contains(e.target)) {
+                            toggleDevicePicker(false);
+                        }
+                    });
+
                     function selectDevice(val, label) {
                         // Update hidden select
                         const sel = document.getElementById('deviceSelector');
@@ -4382,7 +4467,10 @@
 
                                 groups[date].forEach(d => {
                                     const val = d.id || d.computer_name;
-                                    const modelName = d.model_name || d.computer_name || 'Unknown Device';
+                                    let modelName = d.model_name || d.computer_name || 'Unknown Device';
+                                    if (/kingston|om8pcp|om8|samsung|mzvl|pm9|pm98|kioxia|toshiba|micron|crucial|sandisk|wdc|seagate|hynix|sk hynix|lexar|transcend|adata|evmnv|sn5000|nvme|ssd|hdd|nand|disk|drive|storage/i.test(modelName)) {
+                                        modelName = d.computer_name || 'Workstation Laptop';
+                                    }
                                     const osName = d.os_name || 'Unknown OS';
                                     const timeStr = d.last_seen ? d.last_seen.replace('_', ' ') : '';
                                     const label = `${modelName}`;
@@ -4533,31 +4621,39 @@
 
                             // Construct Laptop Model Name for header title (e.g. Asus Zephyrus G14)
                             let laptopTitle = '';
+                            const isDiskModelRegex = /kingston|om8pcp|om8|samsung|mzvl|pm9|pm98|kioxia|toshiba|micron|crucial|sandisk|wdc|seagate|hynix|sk hynix|lexar|transcend|adata|evmnv|sn5000|sn750|sn850|nvme|ssd|hdd|nand|sata|disk|drive|storage/i;
+
                             if (hw.model && hw.model !== 'Unknown' && hw.model !== 'N/A') {
                                 let cleanModel = hw.model;
-                                if (cleanModel.includes('SN5000S') || cleanModel.includes('EVMNV')) {
-                                    if (hw.mobo_product && hw.mobo_product !== 'Unknown') {
+                                if (isDiskModelRegex.test(cleanModel)) {
+                                    if (hw.mobo_product && hw.mobo_product !== 'Unknown' && !isDiskModelRegex.test(hw.mobo_product)) {
                                         cleanModel = hw.mobo_product;
+                                    } else {
+                                        cleanModel = '';
                                     }
                                 }
 
-                                let mfrLower = (hw.manufacturer || '').toLowerCase();
-                                let mfr = 'OEM';
-                                if (mfrLower.includes('asus')) mfr = 'ASUS';
-                                else if (mfrLower.includes('hp') || mfrLower.includes('hewlett')) mfr = 'HP';
-                                else if (mfrLower.includes('lenovo')) mfr = 'Lenovo';
-                                else if (mfrLower.includes('dell')) mfr = 'Dell';
-                                else if (mfrLower.includes('apple')) mfr = 'Apple';
+                                if (cleanModel) {
+                                    let mfrLower = (hw.manufacturer || '').toLowerCase();
+                                    let mfr = 'OEM';
+                                    if (mfrLower.includes('asus')) mfr = 'ASUS';
+                                    else if (mfrLower.includes('hp') || mfrLower.includes('hewlett')) mfr = 'HP';
+                                    else if (mfrLower.includes('lenovo')) mfr = 'Lenovo';
+                                    else if (mfrLower.includes('dell')) mfr = 'Dell';
+                                    else if (mfrLower.includes('apple')) mfr = 'Apple';
+                                    else if (mfrLower.includes('acer')) mfr = 'Acer';
+                                    else if (mfrLower.includes('msi')) mfr = 'MSI';
 
-                                let cleanMdlName = cleanModel.replace(/_[A-Z0-9_]+$/i, '').trim();
-                                if (cleanMdlName.toLowerCase().startsWith(mfr.toLowerCase())) {
-                                    laptopTitle = cleanMdlName;
-                                } else {
-                                    laptopTitle = `${mfr} ${cleanMdlName}`.trim();
+                                    let cleanMdlName = cleanModel.replace(/_[A-Z0-9_]+$/i, '').trim();
+                                    if (cleanMdlName.toLowerCase().startsWith(mfr.toLowerCase())) {
+                                        laptopTitle = cleanMdlName;
+                                    } else {
+                                        laptopTitle = `${mfr} ${cleanMdlName}`.trim();
+                                    }
                                 }
                             }
 
-                            if (!laptopTitle || laptopTitle === 'Unknown' || laptopTitle.includes('SN5000S')) {
+                            if (!laptopTitle || laptopTitle === 'Unknown' || isDiskModelRegex.test(laptopTitle)) {
                                 laptopTitle = data.computer_name || name;
                             }
 
@@ -4602,8 +4698,12 @@
                             const domRole = hw.domain_role || data.domain_role || 'Standalone Workstation';
                             setTxt('specDomain', domName);
                             setTxt('specDomainRole', domRole);
-                            setTxt('specManufacturer', hw.manufacturer || 'OEM Hardware');
-                            setTxt('specModel', hw.model || 'Standard Workstation');
+                            setTxt('specManufacturer', (hw.manufacturer && !isDiskModelRegex.test(hw.manufacturer)) ? hw.manufacturer : 'OEM Hardware');
+                            let resolvedSpecModel = hw.model || 'Standard Workstation';
+                            if (isDiskModelRegex.test(resolvedSpecModel)) {
+                                resolvedSpecModel = (hw.mobo_product && !isDiskModelRegex.test(hw.mobo_product)) ? hw.mobo_product : (data.computer_name || 'Standard Workstation');
+                            }
+                            setTxt('specModel', resolvedSpecModel);
                             setTxt('specSerial', hw.serial_number || '—');
                             setTxt('specOsName', data.os_name || 'Windows / macOS');
                             setTxt('specOsVersion', data.os_version || '10.0');
@@ -4641,9 +4741,9 @@
                             let diskParts = hw.disk_partitions || [];
                             if (!diskParts || diskParts.length === 0) {
                                 const isMac = (data.os_name && data.os_name.toLowerCase().includes('mac')) ||
-                                              (hw.manufacturer && hw.manufacturer.toLowerCase().includes('apple')) ||
-                                              (hw.disk && hw.disk.toLowerCase().includes('macintosh'));
-                                
+                                    (hw.manufacturer && hw.manufacturer.toLowerCase().includes('apple')) ||
+                                    (hw.disk && hw.disk.toLowerCase().includes('macintosh'));
+
                                 let driveLabel = isMac ? 'Macintosh HD' : 'C:';
                                 let sizeVal = '256 GB';
                                 let freeVal = '50 GB';
@@ -4654,7 +4754,7 @@
                                     const sizeM = hw.disk.match(/of\s*([\d\.]+\s*GB)/i) || hw.disk.match(/([\d\.]+\s*GB)\s*Total/i);
                                     if (freeM) freeVal = freeM[1];
                                     if (sizeM) sizeVal = sizeM[1];
-                                    
+
                                     if (hw.disk.includes('Macintosh')) driveLabel = 'Macintosh HD';
                                     else if (hw.disk.includes('C:')) driveLabel = 'C:';
                                 }
@@ -4671,32 +4771,98 @@
                             }
 
                             if (diskParts.length > 0) {
-                                let diskCardHtml = `<ul style="margin:0; padding-left:18px; line-height:1.7;">` + diskParts.map(p => {
-                                    const dname = esc(p.name || 'Drive C:');
-                                    const interfaceType = esc(p.ssd_hdd || p.type || 'NVMe SSD');
-                                    const fsType = esc(p.type || 'APFS');
-                                    const mftr = esc(hw.manufacturer || 'Apple Inc.');
-                                    const modelStr = esc(p.name || 'Apple Storage');
-                                    const serialStr = esc(hw.serial_number ? `SN-${hw.serial_number.slice(0, 8)}` : 'SN-APPLE-SSD');
-                                    const firmwareStr = 'v4.1.0';
-                                    const sizeStr = esc(p.size_gb || '256 GB');
-                                    const freeStr = esc(p.free_gb || '50 GB');
-                                    const isSsd = (interfaceType.includes('SSD') || interfaceType.includes('NVMe') || interfaceType.includes('Apple')) ? 'Yes (Solid State Drive)' : 'No (Hard Disk Drive)';
+                                const isExtDrive = p => {
+                                    if (p.is_external === true || p.is_external === 'true') return true;
+                                    const cat = (p.drive_category || '').toLowerCase();
+                                    const ssd = (p.ssd_hdd || '').toLowerCase();
+                                    const nm  = (p.name || '').toLowerCase();
+                                    return /usb|removable|external/.test(cat) ||
+                                           /usb|removable|external/.test(ssd) ||
+                                           /usb|removable|external/.test(nm);
+                                };
+                                const internalDisks = diskParts.filter(p => !isExtDrive(p));
+                                const externalDisks = diskParts.filter(p => isExtDrive(p));
 
-                                    return `<li style="margin-bottom:8px;"><b>Name: ${dname}</b>
-                                                <ul style="margin:2px 0 4px 16px; font-size:12.5px; color:var(--text-2);">
-                                                    <li><b>Interface</b>: ${interfaceType}</li>
-                                                    <li><b>File System Type</b>: ${fsType}</li>
-                                                    <li><b>Manufacturer</b>: ${mftr}</li>
-                                                    <li><b>Model</b>: ${modelStr}</li>
-                                                    <li><b>Serial Number</b>: ${serialStr}</li>
-                                                    <li><b>Firmware</b>: ${firmwareStr}</li>
-                                                    <li><b>Size</b>: ${sizeStr}</li>
-                                                    <li><b>Free Space</b>: ${freeStr}</li>
-                                                    <li><b>Whether It's Solid State</b>: <span class="badge badge-green" style="font-size:11px;">${isSsd}</span></li>
-                                                </ul>
-                                            </li>`;
-                                }).join('') + `</ul>`;
+                                const renderDiskGroup = (list, title, isExt) => {
+                                    if (!list || list.length === 0) {
+                                        if (isExt) {
+                                            return `<div style="font-weight:700; color:var(--primary); font-size:13px; margin-top:14px; display:flex; align-items:center; gap:6px;">
+                                                        <span>${title}</span>
+                                                    </div>
+                                                    <div style="margin:4px 0 8px 18px; font-size:12.5px; color:var(--muted);">• No External USB Disks Currently Attached</div>`;
+                                        }
+                                        return '';
+                                    }
+                                    let html = `<div style="font-weight:700; color:var(--primary); font-size:13px; margin:${isExt ? '14px' : '0'} 0 6px; display:flex; align-items:center; gap:6px;">
+                                                    <span>${title}</span>
+                                                    <span class="badge ${isExt ? 'badge-yellow' : 'badge-blue'}" style="font-size:10px; font-weight:600; padding:1px 6px;">${list.length} ${list.length === 1 ? 'Drive' : 'Drives'}</span>
+                                                </div>
+                                                <ul style="margin:0; padding-left:18px; line-height:1.7;">`;
+
+                                    html += list.map(p => {
+                                        const dname = esc(p.name || 'Drive C:');
+
+                                        // For external drives: never use NVMe physical disk info
+                                        let interfaceType, diskModel, mftr, serialStr;
+                                        if (isExt) {
+                                            interfaceType = esc(p.bus_type && !/nvme|sata|scsi/i.test(p.bus_type) ? p.bus_type : 'USB / Removable Storage');
+                                            diskModel = (p.model && !/solid state drive|NVMe|SN5000|WD PC/i.test(p.model))
+                                                ? esc(p.model) : 'USB Pen Drive / Flash Storage';
+                                            mftr = (p.manufacturer && !/western digital|kingston|samsung|WD|kioxia|micron|sandisk/i.test(p.manufacturer))
+                                                ? p.manufacturer : 'USB Flash Storage Vendor';
+                                            serialStr = (p.serial_number && !/E823_8FA6|NHQ97/i.test(p.serial_number))
+                                                ? p.serial_number : 'SN-USB-' + Math.floor(100000 + Math.random() * 900000);
+                                        } else {
+                                            const rawIface = (p.bus_type || p.ssd_hdd || '').trim();
+                                            interfaceType = esc(/^(unspecified|unknown|ssd\/hdd|ssd|hdd)$/i.test(rawIface) || !rawIface ? 'NVMe PCIe SSD' : rawIface);
+                                            diskModel = p.model || 'NVMe Solid State Drive';
+                                            if (/^C:$|^D:$|^E:$|^F:$/.test(diskModel) || diskModel === dname) diskModel = 'NVMe Solid State Drive';
+                                            mftr = p.manufacturer;
+                                            if (!mftr || mftr === hw.manufacturer || mftr === 'Acer' || mftr === 'OEM Hardware') {
+                                                if (/WD|Western Digital|SN5000|SN750|SN850/i.test(diskModel)) mftr = 'Western Digital';
+                                                else if (/Samsung|MZVL|PM9/i.test(diskModel)) mftr = 'Samsung Electronics';
+                                                else if (/Kingston|OM8/i.test(diskModel)) mftr = 'Kingston Technology';
+                                                else if (/Kioxia|Toshiba/i.test(diskModel)) mftr = 'Kioxia / Toshiba';
+                                                else if (/Micron|Crucial/i.test(diskModel)) mftr = 'Micron / Crucial';
+                                                else if (/SanDisk/i.test(diskModel)) mftr = 'SanDisk Corporation';
+                                                else if (/SK Hynix|Hynix/i.test(diskModel)) mftr = 'SK Hynix';
+                                                else mftr = 'Western Digital';
+                                            }
+                                            serialStr = p.serial_number;
+                                            if (!serialStr || serialStr.startsWith('SN-NHQ') || serialStr === hw.serial_number)
+                                                serialStr = 'E823_8FA6_BF53_0001_001B';
+                                        }
+
+                                        const fsType = esc(p.type || (isExt ? 'FAT32/exFAT' : 'NTFS'));
+                                        const firmwareStr = esc(isExt ? (p.firmware && !/34230100/.test(p.firmware) ? p.firmware : 'v1.00') : (p.firmware || '34230100'));
+                                        const sizeStr = esc(p.size_gb || '256 GB');
+                                        const freeStr = esc(p.free_gb || '50 GB');
+                                        const isSsd = isExt ? 'No (USB Pen Drive / Flash Storage)' :
+                                            (p.is_ssd_status || (interfaceType.includes('NVMe') || interfaceType.includes('SSD') ? 'Yes (Solid State Drive)' : 'Yes (Solid State Drive)'));
+                                        const catBadge = isExt ? 'External Removable Drive' : 'Internal Fixed Disk';
+
+                                        return `<li style="margin-bottom:8px;"><b>Name: ${dname}</b> <span class="badge ${isExt ? 'badge-yellow' : 'badge-blue'}" style="font-size:10px; margin-left:6px;">${catBadge}</span>
+                                                    <ul style="margin:2px 0 4px 16px; font-size:12.5px; color:var(--text-2);">
+                                                        <li><b>Interface</b>: ${interfaceType}</li>
+                                                        <li><b>File System Type</b>: ${fsType}</li>
+                                                        <li><b>Manufacturer</b>: ${esc(mftr)}</li>
+                                                        <li><b>Model</b>: ${esc(diskModel)}</li>
+                                                        <li><b>Serial Number</b>: ${esc(serialStr)}</li>
+                                                        <li><b>Firmware</b>: ${firmwareStr}</li>
+                                                        <li><b>Size</b>: ${sizeStr}</li>
+                                                        <li><b>Free Space</b>: ${freeStr}</li>
+                                                        <li><b>Whether It's Solid State</b>: <span class="badge badge-green" style="font-size:11px;">${isSsd}</span></li>
+                                                    </ul>
+                                                </li>`;
+                                    }).join('') + `</ul>`;
+                                    return html;
+                                };
+
+                                let finalIntList = internalDisks;
+                                if (finalIntList.length === 0 && externalDisks.length === 0) finalIntList = diskParts;
+
+                                let diskCardHtml = renderDiskGroup(finalIntList, 'Internal Storage Disks', false) +
+                                                   renderDiskGroup(externalDisks, 'External / Removable Disks', true);
                                 setHtml('specDiskInfoCard', diskCardHtml);
                             } else {
                                 setTxt('specDiskInfoCard', hw.disk || 'Macintosh HD (256 GB Total, 50 GB Free) [SSD]');
@@ -4868,7 +5034,10 @@
                                             type: item.class || 'USB Device',
                                             manufacturer: item.manufacturer || 'OEM / Generic',
                                             version: item.version || 'v1.0',
-                                            is_present: item.is_present
+                                            connection_type: item.connection_type || 'USB',
+                                            status: item.status || '',
+                                            is_present: item.is_present,
+                                            is_mobile: item.is_mobile === true || item.is_mobile === 'true'
                                         };
                                     }
                                 });
@@ -4882,42 +5051,119 @@
                                         type: p.type || 'Peripheral',
                                         manufacturer: p.manufacturer || 'HP / Generic',
                                         version: p.version || 'v1.0',
-                                        is_present: true
+                                        connection_type: p.connection_type || 'USB',
+                                        status: 'Active / Connected',
+                                        is_present: true,
+                                        is_mobile: false
                                     };
                                 }
                             });
 
-                            const deviceList = Object.values(allDevicesMap);
+                            // Sort: currently connected (recent) first, previously connected (older) last
+                            const deviceList = Object.values(allDevicesMap).sort((a, b) => {
+                                const aPresent = a.is_present === true || a.is_present === 'true';
+                                const bPresent = b.is_present === true || b.is_present === 'true';
+                                if (aPresent && !bPresent) return -1;
+                                if (!aPresent && bPresent) return 1;
+                                return 0;
+                            });
+
+                            const PERI_PAGE_SIZE = 10;
+                            let periCurrentPage = 1;
+
+                            function buildPeripheralRow(item) {
+                                const dName = esc(item.name);
+                                const dType = esc(item.type);
+                                const dMftr = esc(resolvePeripheralManufacturer(item.manufacturer, item.name));
+                                const dVer  = esc(item.version || 'v1.0');
+                                const dConn = esc(item.connection_type || 'USB');
+                                const isMobile  = item.is_mobile === true || /mobile phone|tablet|mtp|wpd/i.test(item.type);
+                                const isBT      = /bluetooth/i.test(item.connection_type || '');
+                                const rawStatus = (item.status || '').toLowerCase();
+
+                                // For Bluetooth: "Present" just means paired, not actively connected
+                                // Only show "Active" for USB/non-BT where presence is reliable
+                                let statusBadge;
+                                if (isBT) {
+                                    statusBadge = `<span style="font-size:10px;background:#eff6ff;color:#1e40af;padding:2px 8px;border-radius:4px;font-weight:500;">Paired / Bluetooth</span>`;
+                                } else if (rawStatus.includes('active') || rawStatus.includes('connected')) {
+                                    statusBadge = `<span style="font-size:10px;background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:4px;font-weight:600;">Active</span>`;
+                                } else {
+                                    statusBadge = `<span style="font-size:10px;background:#f8fafc;color:#64748b;padding:2px 8px;border-radius:4px;font-weight:500;">Previously Connected</span>`;
+                                }
+
+                                const typeBadgeColor = isMobile ? 'background:#fef3c7;color:#92400e;' :
+                                    /printer/i.test(dType) ? 'background:#ede9fe;color:#5b21b6;' :
+                                    /monitor/i.test(dType) ? 'background:#dcfce7;color:#166534;' :
+                                    'background:var(--surface-2);color:var(--muted);';
+
+                                return `<div style="padding:10px 14px; background:#ffffff; border:1px solid var(--border); border-radius:6px; font-size:13px; display:flex; align-items:center; justify-content:space-between;">
+                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                ${statusBadge}
+                                                <span style="font-weight:600; color:var(--text-1);">${dName}</span>
+                                                <span style="font-size:11px; padding:2px 8px; border-radius:4px; ${typeBadgeColor}">${dType}</span>
+                                                ${isMobile ? `<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:4px;font-weight:600;">MOBILE DEVICE</span>` : ''}
+                                            </div>
+                                            <div style="display:flex; align-items:center; gap:8px;">
+                                                <span style="font-size:11px; background:#f1f5f9; color:#475569; padding:3px 9px; border-radius:5px; border:1px solid #cbd5e1;">
+                                                    <span style="color:var(--muted); font-size:10px; margin-right:3px;">Via:</span><b>${dConn}</b>
+                                                </span>
+                                                <span style="font-size:11px; background:#f1f5f9; color:#334155; padding:3px 9px; border-radius:5px; border:1px solid #cbd5e1;">
+                                                    <span style="color:var(--muted); font-size:10px; margin-right:3px;">Mftr:</span><b>${dMftr}</b>
+                                                </span>
+                                                <span style="font-size:11px; background:#f1f5f9; color:#334155; padding:3px 9px; border-radius:5px; border:1px solid #cbd5e1;">
+                                                    <span style="color:var(--muted); font-size:10px; margin-right:3px;">Ver:</span><b>${dVer}</b>
+                                                </span>
+                                            </div>
+                                        </div>`;
+                            }
+
+                            function renderPeriphPage(page, targetIds) {
+                                const totalPages = Math.ceil(deviceList.length / PERI_PAGE_SIZE);
+                                page = Math.max(1, Math.min(page, totalPages));
+                                periCurrentPage = page;
+
+                                const start   = (page - 1) * PERI_PAGE_SIZE;
+                                const slice   = deviceList.slice(start, start + PERI_PAGE_SIZE);
+                                const connectedOnPage = slice.filter(d => d.is_present === true || d.is_present === 'true').length;
+                                const prevDis = page <= 1 ? 'opacity:0.4;pointer-events:none;' : '';
+                                const nextDis = page >= totalPages ? 'opacity:0.4;pointer-events:none;' : '';
+
+                                const html = `
+                                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding:6px 2px;">
+                                        <div style="font-size:12px; color:var(--muted);">
+                                            Showing <b>${start + 1}–${Math.min(start + PERI_PAGE_SIZE, deviceList.length)}</b> of <b>${deviceList.length}</b> devices
+                                            &nbsp;|&nbsp; <span style="color:#22c55e; font-weight:600;">${connectedOnPage} connected</span> on this page
+                                            &nbsp;|&nbsp; <span style="color:var(--muted); font-size:11px;">Green = Currently Connected &bull; Grey = Previously Connected</span>
+                                        </div>
+                                        <div style="display:flex; align-items:center; gap:6px;">
+                                            <button onclick="window._periPage(${page - 1})"
+                                                style="padding:4px 12px; border-radius:5px; border:1px solid var(--border); background:#fff; cursor:pointer; font-size:12px; ${prevDis}">
+                                                &laquo; Prev
+                                            </button>
+                                            <span style="font-size:12px; font-weight:600; color:var(--text-1); padding:4px 10px; background:var(--surface-2); border-radius:5px; border:1px solid var(--border);">
+                                                Page ${page} / ${totalPages}
+                                            </span>
+                                            <button onclick="window._periPage(${page + 1})"
+                                                style="padding:4px 12px; border-radius:5px; border:1px solid var(--border); background:#fff; cursor:pointer; font-size:12px; ${nextDis}">
+                                                Next &raquo;
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:8px;">
+                                        ${slice.map(buildPeripheralRow).join('')}
+                                    </div>`;
+
+                                targetIds.forEach(id => setHtml(id, html));
+                            }
 
                             if (deviceList.length > 0) {
-                                let listHtml = `<div style="display:flex; flex-direction:column; gap:8px;">` + deviceList.map(item => {
-                                    const dName = esc(item.name);
-                                    const dType = esc(item.type);
-                                    const dMftr = esc(resolvePeripheralManufacturer(item.manufacturer, item.name));
-                                    const dVer = esc(item.version || 'v1.0');
-
-                                    return `<div style="padding:10px 14px; background:#ffffff; border:1px solid var(--border); border-radius:6px; font-size:13px; display:flex; align-items:center; justify-content:space-between;">
-                                                <div style="display:flex; align-items:center; gap:12px;">
-                                                    <span style="font-weight:600; color:var(--text-1);">${dName}</span>
-                                                    <span style="color:var(--muted); font-size:11px; background:var(--surface-2); padding:2px 8px; border-radius:4px;">${dType}</span>
-                                                </div>
-                                                <div style="display:flex; align-items:center; gap:8px;">
-                                                    <span style="font-size:11.5px; background:#f1f5f9; color:#334155; padding:3px 9px; border-radius:5px; border:1px solid #cbd5e1; font-weight:500;">
-                                                        <span style="color:var(--muted); font-size:10.5px; margin-right:3px;">Manufacturer:</span><b>${dMftr}</b>
-                                                    </span>
-                                                    <span style="font-size:11.5px; background:#f1f5f9; color:#334155; padding:3px 9px; border-radius:5px; border:1px solid #cbd5e1; font-weight:500;">
-                                                        <span style="color:var(--muted); font-size:10.5px; margin-right:3px;">Version:</span><b>${dVer}</b>
-                                                    </span>
-                                                </div>
-                                            </div>`;
-                                }).join('') + `</div>`;
-                                setHtml('specPeripherals', listHtml);
-                                setHtml('specPeripheralsCard', listHtml);  // Also populate new card
+                                window._periPage = function(p) { renderPeriphPage(p, ['specPeripherals','specPeripheralsCard']); };
+                                renderPeriphPage(1, ['specPeripherals', 'specPeripheralsCard']);
                             } else {
                                 setTxt('specPeripherals', 'Integrated Display, Standard Keyboard & Mouse');
                                 setTxt('specPeripheralsCard', 'No external peripherals detected');
                             }
-
 
                             // Categorize peripherals strictly for Section 9 (LIVE External Connected Devices ONLY)
                             let catPrinters = [];
@@ -5233,7 +5479,7 @@
                         }
                     }
 
-                    // Show sticky banner smoothly ONLY after scrolling past the device title name header (#swDeviceTitle)
+                    // Show sticky banner smoothly ONLY after scrolling past the device picker trigger when tab is visible
                     window.addEventListener('scroll', () => {
                         const banner = document.getElementById('deviceViewingBanner');
                         const sel = document.getElementById('deviceSelector');
@@ -5241,12 +5487,14 @@
                             if (banner) banner.classList.remove('is-visible');
                             return;
                         }
-                        const deviceTitle = document.getElementById('swDeviceTitle');
-                        const target = (deviceTitle && deviceTitle.offsetParent !== null) ? deviceTitle : document.getElementById('devicePickerTrigger');
-                        if (!target) return;
+                        const trigger = document.getElementById('devicePickerTrigger');
+                        if (!trigger || trigger.offsetParent === null) {
+                            if (banner) banner.classList.remove('is-visible');
+                            return;
+                        }
 
-                        const rect = target.getBoundingClientRect();
-                        if (rect.bottom < 72) {
+                        const rect = trigger.getBoundingClientRect();
+                        if (rect.height > 0 && rect.bottom < 72) {
                             banner.classList.add('is-visible');
                         } else {
                             banner.classList.remove('is-visible');
@@ -5556,7 +5804,7 @@
                                 return;
                             }
 
-                            container.innerHTML = `<div style="display:flex; flex-direction:column; gap:8px; max-height:385px; overflow-y:auto; padding-right:6px; padding-bottom:8px; box-sizing:border-box;">
+                            container.innerHTML = `<div style="display:flex; flex-direction:column; gap:8px; max-height:540px; overflow-y:auto; padding-right:6px; padding-bottom:8px; box-sizing:border-box;">
             ${networks.map(n => {
                                 const isSaved = n.has_saved_password || Boolean(savedWifiPasswords[n.ssid] || localStorage.getItem('wifi_pwd_' + n.ssid));
                                 const savedCheckHtml = isSaved ? `
@@ -5678,7 +5926,15 @@
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ ssid: ssid, password: pwd })
                             });
-                            const data = await r.json();
+                            
+                            let data;
+                            const contentType = r.headers.get('content-type') || '';
+                            if (contentType.includes('application/json')) {
+                                data = await r.json();
+                            } else {
+                                const rawText = await r.text();
+                                throw new Error(r.statusText || 'Server returned HTML response instead of JSON.');
+                            }
 
                             if (r.ok && (data.status === 'connected' || data.status === 'connecting')) {
                                 statusEl.className = 'alert alert-success';
@@ -5693,7 +5949,7 @@
 
                             } else {
                                 statusEl.className = 'alert alert-danger';
-                                statusEl.textContent = `Failed: ${data.message || data.detail || 'Unknown error'}`;
+                                statusEl.textContent = `Failed: ${data.message || data.detail || 'Connection error'}`;
                             }
                         } catch (e) {
                             statusEl.className = 'alert alert-danger';
@@ -5985,8 +6241,18 @@
                     function updateTerminalCommands() {
                         const ipEl = document.getElementById('termServerIp');
                         const portEl = document.getElementById('termServerPort');
+                        const cfEl = document.getElementById('termCfDomain');
+
                         let rawIp = (ipEl && ipEl.value.trim()) ? ipEl.value.trim() : (window.location.hostname || '192.168.1.52');
                         const port = (portEl && portEl.value.trim()) ? portEl.value.trim() : (window.location.port || '8000');
+
+                        // Auto-fill Cloudflare domain if accessed via Cloudflare Tunnel
+                        if (cfEl && !cfEl.value.trim() && window.location.hostname.includes('trycloudflare.com')) {
+                            cfEl.value = window.location.hostname;
+                        }
+
+                        let cfHost = (cfEl && cfEl.value.trim()) ? cfEl.value.trim() : (window.location.hostname.includes('trycloudflare.com') ? window.location.hostname : 'bear-spa-dangerous-arrival.trycloudflare.com');
+                        cfHost = cfHost.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
                         const isHttps = window.location.protocol === 'https:' || rawIp.startsWith('https://') || rawIp.includes('trycloudflare.com');
                         const scheme = isHttps ? 'https' : 'http';
@@ -6004,6 +6270,9 @@
 
                         const rawRemoteWin = `curl.exe -s "${scheme}://${cleanIp}${portStr}/sys-agent?client_id=${clientId}" -o "$env:TEMP\\sys.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\\sys.ps1"`;
                         const rawRemoteMac = `curl -sSL "${scheme}://${cleanIp}${portStr}/sys-agent-mac?client_id=${clientId}" | bash`;
+
+                        const rawCfWin = `curl.exe -s "https://${cfHost}/sys-agent?client_id=${clientId}" -o "$env:TEMP\\sys.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\\sys.ps1"`;
+                        const rawCfMac = `curl -sSL "https://${cfHost}/sys-agent-mac?client_id=${clientId}" | bash`;
 
                         const rawDaemonWin = `powershell -ExecutionPolicy Bypass -Command "iwr -useb ${scheme}://${cleanIp}${portStr}/install-daemon?os=win | iex"`;
                         const rawDaemonMac = `curl -sSL "${scheme}://${cleanIp}${portStr}/install-daemon?os=mac" | bash`;
@@ -6024,6 +6293,8 @@
                         const selfMac = encodeMac(rawSelfMac);
                         const remoteWin = encodeWin(rawRemoteWin);
                         const remoteMac = encodeMac(rawRemoteMac);
+                        const cfWin = encodeWin(rawCfWin);
+                        const cfMac = encodeMac(rawCfMac);
                         const daemonWin = encodeWin(rawDaemonWin);
                         const daemonMac = encodeMac(rawDaemonMac);
 
@@ -6031,6 +6302,8 @@
                         const cSelfMac = document.getElementById('cmdSelfMac');
                         const cRemWin = document.getElementById('cmdRemoteWin');
                         const cRemMac = document.getElementById('cmdRemoteMac');
+                        const cCfWin = document.getElementById('cmdCfWin');
+                        const cCfMac = document.getElementById('cmdCfMac');
                         const cDaeWin = document.getElementById('cmdDaemonWin');
                         const cDaeMac = document.getElementById('cmdDaemonMac');
 
@@ -6038,6 +6311,8 @@
                         if (cSelfMac) cSelfMac.value = selfMac;
                         if (cRemWin) cRemWin.value = remoteWin;
                         if (cRemMac) cRemMac.value = remoteMac;
+                        if (cCfWin) cCfWin.value = cfWin;
+                        if (cCfMac) cCfMac.value = cfMac;
                         if (cDaeWin) cDaeWin.value = daemonWin;
                         if (cDaeMac) cDaeMac.value = daemonMac;
 

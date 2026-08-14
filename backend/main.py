@@ -1705,9 +1705,11 @@ def list_audited_devices():
                                 # Reject disk/SSD model strings masquerading as laptop model names
                                 mdl_lower = mdl_clean.lower()
                                 is_disk_model = any(x in mdl_lower for x in [
-                                    'gb', 'tb', 'nvme', 'ssd', 'hdd', 'nand', 'mzvl', 'kioxia',
-                                    'samsung mz', 'wd', 'seagate', 'toshiba', 'micron', 'crucial',
-                                    'sandisk', 'evmnv', 'pm9', 'pm98', '512', '256', '128', '1tb', '2tb'
+                                    'gb', 'tb', 'nvme', 'ssd', 'hdd', 'nand', 'sata', 'mzvl', 'kioxia',
+                                    'kingston', 'om8pcp', 'om8', 'samsung', 'wd', 'wdc', 'seagate',
+                                    'toshiba', 'micron', 'crucial', 'sandisk', 'evmnv', 'pm9', 'pm98',
+                                    'hynix', 'sk hynix', 'lexar', 'transcend', 'adata', 'sn5000', 'sn750', 'sn850',
+                                    '512', '256', '128', '1tb', '2tb', 'disk', 'drive', 'storage'
                                 ])
                                 if is_disk_model:
                                     pass  # skip — leave model_name empty, fallback to computer_name
@@ -2014,14 +2016,27 @@ def network_scan(request: NetworkScanRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid IP range: {e}")
 
-    common_ports  = [22, 23, 80, 135, 443, 445, 3389, 8080, 8443, 9100]
+    common_ports  = [22, 23, 80, 135, 161, 443, 445, 3389, 8080, 8443, 9100]
     timeout_secs  = max(0.1, min(request.timeout_ms / 1000, 2.0))
 
     PORT_LABELS = {
-        22: "SSH", 23: "Telnet", 80: "HTTP", 135: "RPC",
+        22: "SSH", 23: "Telnet (SNMP)", 80: "HTTP", 135: "RPC",
+        161: "SNMP (UDP/Network)",
         443: "HTTPS", 445: "SMB", 3389: "RDP",
-        8080: "HTTP-Alt", 8443: "HTTPS-Alt", 9100: "Printer/JetDirect"
+        8080: "HTTP-Alt", 8443: "HTTPS-Alt", 9100: "Printer/RAW"
     }
+
+    def check_snmp(ip_str):
+        pkt = b'\x30\x29\x02\x01\x00\x04\x06public\xa0\x1c\x02\x04\x00\x00\x00\x01\x02\x01\x00\x02\x01\x00\x30\x0e\x30\x0c\x06\x08\x2b\x06\x01\x02\x01\x01\x01\x00\x05\x00'
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(min(timeout_secs, 0.8))
+            s.sendto(pkt, (ip_str, 161))
+            data, _ = s.recvfrom(1024)
+            s.close()
+            return bool(data)
+        except Exception:
+            return False
 
     def guess_device_type(open_ports):
         if 3389 in open_ports and 445 in open_ports:
@@ -2030,10 +2045,10 @@ def network_scan(request: NetworkScanRequest):
             return "Windows Host"
         if 22 in open_ports and 80 not in open_ports and 443 not in open_ports:
             return "Linux/Unix Server"
-        if 23 in open_ports:
-            return "Network Device (Router/Switch)"
         if 9100 in open_ports:
-            return "Network Printer"
+            return "Network Printer (SNMP)"
+        if 23 in open_ports or 161 in open_ports:
+            return "Network Device / Switch / Router (SNMP)"
         if 80 in open_ports or 443 in open_ports:
             return "Web Service / Network Device"
         return "Unknown Device"
@@ -2049,6 +2064,10 @@ def network_scan(request: NetworkScanRequest):
             pass
 
         for port in common_ports:
+            if port == 161:
+                if check_snmp(ip_str):
+                    open_ports.append(161)
+                continue
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.settimeout(timeout_secs)
@@ -2210,21 +2229,34 @@ def network_scan_stream(request: NetworkScanRequest):
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
             return
 
-        common_ports  = [22, 23, 80, 135, 443, 445, 3389, 8080, 8443, 9100]
+        common_ports  = [22, 23, 80, 135, 161, 443, 445, 3389, 8080, 8443, 9100]
         timeout_secs  = max(0.1, min(request.timeout_ms / 1000, 2.0))
 
         PORT_LABELS = {
-            22: "SSH", 23: "Telnet", 80: "HTTP", 135: "RPC",
+            22: "SSH", 23: "Telnet (SNMP)", 80: "HTTP", 135: "RPC",
+            161: "SNMP (UDP/Network)",
             443: "HTTPS", 445: "SMB", 3389: "RDP",
-            8080: "HTTP-Alt", 8443: "HTTPS-Alt", 9100: "Printer/JetDirect"
+            8080: "HTTP-Alt", 8443: "HTTPS-Alt", 9100: "Printer/RAW"
         }
+
+        def check_snmp_stream(ip_str):
+            pkt = b'\x30\x29\x02\x01\x00\x04\x06public\xa0\x1c\x02\x04\x00\x00\x00\x01\x02\x01\x00\x02\x01\x00\x30\x0e\x30\x0c\x06\x08\x2b\x06\x01\x02\x01\x01\x01\x00\x05\x00'
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                s.settimeout(min(timeout_secs, 0.8))
+                s.sendto(pkt, (ip_str, 161))
+                data, _ = s.recvfrom(1024)
+                s.close()
+                return bool(data)
+            except Exception:
+                return False
 
         def guess_device_type(open_ports):
             if 3389 in open_ports and 445 in open_ports: return "Windows Workstation/Server"
             if 445 in open_ports and 135 in open_ports: return "Windows Host"
             if 22 in open_ports and 80 not in open_ports and 443 not in open_ports: return "Linux/Unix Server"
-            if 23 in open_ports: return "Network Device (Router/Switch)"
-            if 9100 in open_ports: return "Network Printer"
+            if 9100 in open_ports: return "Network Printer (SNMP)"
+            if 23 in open_ports or 161 in open_ports: return "Network Device / Switch / Router (SNMP)"
             if 80 in open_ports or 443 in open_ports: return "Web Service / Network Device"
             return "Unknown Device"
 
@@ -2306,6 +2338,10 @@ def network_scan_stream(request: NetworkScanRequest):
             ip_str = str(ip)
             open_ports = []
             for port in common_ports:
+                if port == 161:
+                    if check_snmp_stream(ip_str):
+                        open_ports.append(161)
+                    continue
                 try:
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.settimeout(timeout_secs)
@@ -2604,15 +2640,16 @@ def save_wifi_credential(req: WifiSaveCredentialRequest):
     return {"status": "saved", "ssid": req.ssid.strip()}
 
 @app.post("/wifi/connect")
+@app.post("/api/wifi/connect")
 def connect_wifi(req: WifiConnectRequest):
     """Create a WPA2-Personal profile and connect to the given SSID."""
     ssid     = req.ssid
     password = req.password
 
     if not ssid:
-        raise HTTPException(status_code=400, detail="SSID cannot be empty.")
+        return JSONResponse(status_code=400, content={"status": "error", "message": "SSID cannot be empty."})
     if len(password) < 8:
-        raise HTTPException(status_code=400, detail="WiFi password must be at least 8 characters.")
+        return JSONResponse(status_code=400, content={"status": "error", "message": "WiFi password must be at least 8 characters."})
 
     # Save credential permanently to DB
     try:
@@ -2628,7 +2665,7 @@ def connect_wifi(req: WifiConnectRequest):
         logger.warning(f"Could not save WiFi credential to DB: {db_err}")
 
     if not _is_windows():
-        raise HTTPException(status_code=501, detail="WiFi connect is only supported on Windows.")
+        return JSONResponse(status_code=400, content={"status": "error", "message": "WiFi connection is supported when hosted on local Windows machine."})
 
     def _xml_esc(s: str) -> str:
         return (s.replace("&", "&amp;")
@@ -3041,19 +3078,27 @@ class LifecycleData(BaseModel):
     po_number: str = ""
 
 
-@app.get("/api/lifecycle/{mac_address}")
-def get_lifecycle(mac_address: str):
+@app.get("/api/lifecycle/{identifier}")
+def get_lifecycle(identifier: str):
     with get_db(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
-        row = conn.execute("SELECT * FROM asset_lifecycle WHERE mac_address=?", (mac_address,)).fetchone()
+        # Search by mac_address first, then by computer_name (device name)
+        row = conn.execute(
+            "SELECT * FROM asset_lifecycle WHERE mac_address=? OR computer_name=? LIMIT 1",
+            (identifier, identifier)
+        ).fetchone()
     if row:
         return dict(row)
     return {}
 
 
 @app.post("/api/lifecycle")
-def save_lifecycle(data: LifecycleData):
+@app.post("/api/lifecycle/{identifier}")
+def save_lifecycle(data: LifecycleData, identifier: str = ""):
     now = datetime.now().isoformat()
+    # If mac_address is not set in body but identifier is in URL, use it as computer_name key
+    mac = data.mac_address or identifier or data.computer_name
+    cname = data.computer_name or identifier
     with get_db(DB_PATH) as conn:
         conn.execute('''
             INSERT INTO asset_lifecycle
@@ -3066,7 +3111,7 @@ def save_lifecycle(data: LifecycleData):
                 warranty_notes=excluded.warranty_notes, warranty_provider=excluded.warranty_provider,
                 purchase_price=excluded.purchase_price, purchase_date=excluded.purchase_date,
                 supplier=excluded.supplier, po_number=excluded.po_number, updated_at=excluded.updated_at
-        ''', (data.mac_address, data.computer_name, data.owner, data.location, data.vendor, data.status,
+        ''', (mac, cname, data.owner, data.location, data.vendor, data.status,
               data.warranty_start, data.warranty_end, data.warranty_notes, data.warranty_provider,
               data.purchase_price, data.purchase_date, data.supplier, data.po_number, now))
         conn.commit()
