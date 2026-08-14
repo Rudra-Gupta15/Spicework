@@ -1,9 +1,0 @@
-__pycache__/
-*.pyc
-reports/
-logs/
-user_info/
-push_to_github.ps1
-.env
-venv/
-.venv/
