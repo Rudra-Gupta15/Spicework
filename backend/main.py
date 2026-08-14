@@ -19,8 +19,6 @@ from backend.routers import (
     inventory_organizations,
     inventory_wifi,
     lifecycle,
-    osquery_settings,
-    osquery_telemetry,
     scripts,
     wifi,
 )
@@ -53,8 +51,6 @@ app.include_router(devices.router, tags=["Devices & Software (Audit DB)"])
 app.include_router(discovery.router, tags=["Network Discovery"])
 app.include_router(wifi.router, tags=["WiFi (Local Host)"])
 app.include_router(lifecycle.router, tags=["Asset Lifecycle & Tickets"])
-app.include_router(osquery_settings.router, tags=["Engine & Database Settings"])
-app.include_router(osquery_telemetry.router, tags=["Osquery Telemetry"])
 app.include_router(inventory.router, tags=["Inventory: Users & Roles"])
 app.include_router(inventory_auth.router, tags=["Inventory: Auth"])
 app.include_router(inventory_organizations.router, tags=["Inventory: Organizations & Sites"])
