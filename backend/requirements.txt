@@ -9,3 +9,4 @@ smbprotocol==1.11.0
 mac-vendor-lookup==0.1.15
 psycopg2-binary
 python-dotenv
+bcrypt

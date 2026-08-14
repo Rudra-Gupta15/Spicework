@@ -13,6 +13,11 @@ from backend.routers import (
     audits,
     devices,
     discovery,
+    inventory,
+    inventory_auth,
+    inventory_devices,
+    inventory_organizations,
+    inventory_wifi,
     lifecycle,
     osquery_settings,
     osquery_telemetry,
@@ -41,15 +46,20 @@ else:
         allow_headers=["*"],
     )
 
-app.include_router(scripts.router)
-app.include_router(audits.router)
-app.include_router(assets.router)
-app.include_router(devices.router)
-app.include_router(discovery.router)
-app.include_router(wifi.router)
-app.include_router(lifecycle.router)
-app.include_router(osquery_settings.router)
-app.include_router(osquery_telemetry.router)
+app.include_router(scripts.router, tags=["Scripts & Agent Launchers"])
+app.include_router(audits.router, tags=["Audit Ingestion & Reports"])
+app.include_router(assets.router, tags=["Asset Metadata"])
+app.include_router(devices.router, tags=["Devices & Software (Audit DB)"])
+app.include_router(discovery.router, tags=["Network Discovery"])
+app.include_router(wifi.router, tags=["WiFi (Local Host)"])
+app.include_router(lifecycle.router, tags=["Asset Lifecycle & Tickets"])
+app.include_router(osquery_settings.router, tags=["Engine & Database Settings"])
+app.include_router(osquery_telemetry.router, tags=["Osquery Telemetry"])
+app.include_router(inventory.router, tags=["Inventory: Users & Roles"])
+app.include_router(inventory_auth.router, tags=["Inventory: Auth"])
+app.include_router(inventory_organizations.router, tags=["Inventory: Organizations & Sites"])
+app.include_router(inventory_devices.router, tags=["Inventory: Devices & Deployments"])
+app.include_router(inventory_wifi.router, tags=["Inventory: WiFi & Network Scans"])
 
 # Catch-all static mount for the frontend SPA — must stay last so it never
 # shadows the explicit routes registered by the routers above.
