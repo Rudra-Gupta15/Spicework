@@ -16,6 +16,7 @@ export { PasswordInput } from "./PasswordInput";
 export { ProgressBar } from "./ProgressBar";
 export { SectionCard } from "./SectionCard";
 export { Select } from "./Select";
+export { StarRating } from "./StarRating";
 export { StatCard } from "./StatCard";
 export { Textarea } from "./Textarea";
 export { Toggle } from "./Toggle";

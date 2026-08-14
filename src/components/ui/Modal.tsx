@@ -79,14 +79,16 @@ export const Modal = ({
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          "relative w-full overflow-hidden bg-surface shadow-2xl outline-none",
+          /* Capped to the viewport so a long dialog scrolls its own body
+             instead of running off a phone screen with the page locked. */
+          "relative flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden bg-surface shadow-2xl outline-none",
           variant === "bar" ? "rounded-lg" : "rounded-xl",
           SIZES[size],
         )}
       >
         <header
           className={cn(
-            "flex items-center justify-between gap-3",
+            "flex shrink-0 items-center justify-between gap-3",
             variant === "bar"
               ? "bg-auth-panel px-5 py-3.5"
               : "px-6 pt-6 pb-1",
@@ -118,7 +120,7 @@ export const Modal = ({
         {description && (
           <p
             className={cn(
-              "text-[13px] text-muted",
+              "shrink-0 text-[13px] text-muted",
               variant === "bar"
                 ? "border-b border-line px-5 py-3"
                 : "px-6 pt-1",
@@ -128,16 +130,21 @@ export const Modal = ({
           </p>
         )}
 
-        <div className={variant === "bar" ? "px-5 py-4" : "px-6 pt-4"}>
+        <div
+          className={cn(
+            "flex-1 overflow-y-auto",
+            variant === "bar" ? "px-5 py-4" : "px-6 pt-4",
+          )}
+        >
           {children}
         </div>
 
         {footer && (
           <div
             className={cn(
-              "flex items-center gap-3",
+              "flex shrink-0 flex-wrap items-center justify-end gap-3",
               variant === "bar"
-                ? "justify-end border-t border-line bg-canvas px-5 py-3.5"
+                ? "border-t border-line bg-canvas px-5 py-3.5"
                 : "px-6 pt-5 pb-6",
             )}
           >

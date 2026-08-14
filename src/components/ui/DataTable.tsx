@@ -110,7 +110,7 @@ export const DataTable = <T,>({
                 })
               }
               className={cn(
-                "border-b border-line last:border-0 hover:bg-canvas/60",
+                "group border-b border-line last:border-0 hover:bg-canvas/60",
                 onRowClick &&
                   "cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand",
               )}

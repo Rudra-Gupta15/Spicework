@@ -2,7 +2,6 @@ import {
   Boxes,
   Clock,
   FileText,
-  Funnel,
   Monitor,
   Search,
   Settings,
@@ -63,13 +62,6 @@ export const NAVIGATION: NavItem[] = [
     ],
   },
   {
-    id: "filters",
-    label: "Filters",
-    icon: Funnel,
-    path: "/filters",
-    subtitle: "Build and manage reusable inventory filters.",
-  },
-  {
     id: "reports",
     label: "Reports",
     icon: FileText,
@@ -106,5 +98,5 @@ export const NAVIGATION: NavItem[] = [
   },
 ];
 
-/** Where "/" redirects to. */
-export const DEFAULT_ROUTE = "/inventory/hardware";
+/** Where a signed-in user lands — after login, and from a dead link. */
+export const DEFAULT_ROUTE = "/dashboard";

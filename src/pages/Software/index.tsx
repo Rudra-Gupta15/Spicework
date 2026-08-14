@@ -5,7 +5,7 @@ import { CustomizeColumnsModal } from "@/components/common/CustomizeColumnsModal
 import { HardwareFilters } from "@/components/hardware/HardwareFilters";
 import { HardwareTable } from "@/components/hardware/HardwareTable";
 import { Navbar } from "@/components/layout/Navbar";
-import { Card, Pagination, StatCard } from "@/components/ui";
+import { Card, Pagination } from "@/components/ui";
 import {
   DEFAULT_COLUMNS,
   DEFAULT_FILTERS,
@@ -16,7 +16,6 @@ import {
 import {
   DEFAULT_SOFTWARE_COLUMNS,
   SOFTWARE_COLUMNS,
-  SOFTWARE_STATS,
   TOTAL_SOFTWARE_DEVICES,
   type SoftwareColumnKey,
 } from "@/data/software";
@@ -68,15 +67,11 @@ const SoftwarePage = () => {
 
   return (
     <>
-      <Navbar subtitle="Track hardware devices, warranties, and maintenance across your network." />
+      {/* No override — the navigation config already describes this page.
+          It used to carry the Hardware page's subtitle verbatim. */}
+      <Navbar />
 
       <div className="mt-6 space-y-5">
-        <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {SOFTWARE_STATS.map((metric) => (
-            <StatCard key={metric.id} metric={metric} />
-          ))}
-        </section>
-
         <HardwareFilters
           filters={filters}
           onChange={handleFilterChange}

@@ -6,6 +6,8 @@ interface FieldProps {
   label: string;
   /** Id of the control this label points at. */
   htmlFor?: string;
+  /** Marks the label with the required asterisk. */
+  required?: boolean;
   /** Validation message rendered under the control. */
   error?: string;
   className?: string;
@@ -20,6 +22,7 @@ interface FieldProps {
 export const Field = ({
   label,
   htmlFor,
+  required = false,
   error,
   className,
   children,
@@ -30,6 +33,11 @@ export const Field = ({
       className="mb-1.5 block text-[13px] font-semibold text-heading"
     >
       {label}
+      {required && (
+        <span className="ml-1 text-status-offline" aria-hidden="true">
+          *
+        </span>
+      )}
     </label>
 
     {children}

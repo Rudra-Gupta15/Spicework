@@ -1,8 +1,10 @@
 import { useCallback, useMemo } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 
 import { CloudServiceForm } from "@/components/cloud/CloudServiceForm";
 import { Navbar } from "@/components/layout/Navbar";
+import { Button } from "@/components/ui";
 import { CLOUD_SERVICES } from "@/data/cloudAssets";
 import { getServiceDetail } from "@/data/cloudDetail";
 import { toFormValues } from "@/data/cloudForm";
@@ -42,6 +44,15 @@ const CloudAssetEditPage = () => {
       <Navbar
         title="Edit Cloud Service Configuration"
         subtitle={`Update the subscription terms, ownership and access records tracked for ${service.name}.`}
+        actions={
+          <Button
+            variant="outline"
+            leftIcon={<ArrowLeft className="h-4 w-4" strokeWidth={2.2} />}
+            onClick={close}
+          >
+            Back
+          </Button>
+        }
       />
 
       <div className="mt-6">

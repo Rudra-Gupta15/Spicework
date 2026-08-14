@@ -27,9 +27,16 @@ export const Navbar = ({
   const meta = usePageMeta();
 
   return (
-    <header className={cn("flex items-start justify-between gap-4", className)}>
-      <div className="min-w-0">
-        <h1 className="truncate text-[30px] leading-tight font-bold text-heading">
+    <header
+      className={cn(
+        "flex flex-wrap items-start justify-between gap-x-4 gap-y-3",
+        className,
+      )}
+    >
+      {/* The basis is the width the title asks for before the actions are
+          pushed onto their own line — on a phone they always are. */}
+      <div className="min-w-0 flex-1 basis-64">
+        <h1 className="text-[22px] leading-tight font-bold break-words text-heading sm:text-[26px] lg:text-[30px]">
           {title ?? meta.title}
         </h1>
         {(subtitle ?? meta.subtitle) && (
@@ -38,7 +45,9 @@ export const Navbar = ({
       </div>
 
       {actions && (
-        <div className="flex shrink-0 items-center gap-3">{actions}</div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:gap-3">
+          {actions}
+        </div>
       )}
     </header>
   );

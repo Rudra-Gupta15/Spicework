@@ -166,6 +166,15 @@ export const DEVICE_AUDITS: DeviceAudit[] = [
     score: 72.4,
     status: "Fail",
   },
+  {
+    id: "mis-app-23",
+    device: "MIS-APP-23",
+    ip: "10.0.1.55",
+    os: "Red Hat Enterprise 8",
+    auditedOn: "May 02, 2025",
+    score: 95.1,
+    status: "Pass",
+  },
 ];
 
 export const RECENT_ACTIVITY: ActivityItem[] = [

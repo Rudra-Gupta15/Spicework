@@ -1,4 +1,10 @@
-import { forwardRef, type KeyboardEventHandler, type ReactNode } from "react";
+import {
+  forwardRef,
+  useLayoutEffect,
+  useRef,
+  type KeyboardEventHandler,
+  type ReactNode,
+} from "react";
 import { Link } from "react-router-dom";
 
 import { cn } from "@/lib/cn";
@@ -18,25 +24,54 @@ interface MenuPanelProps {
   onKeyDown?: KeyboardEventHandler<HTMLDivElement>;
 }
 
+/** Breathing room kept between the panel and the edge of the screen. */
+const VIEWPORT_MARGIN = 8;
+
 export const MenuPanel = ({
   align = "right",
   className,
   children,
   role = "menu",
   onKeyDown,
-}: MenuPanelProps) => (
-  <div
-    role={role}
-    onKeyDown={onKeyDown}
-    className={cn(
-      "absolute z-30 mt-2 rounded-xl border border-line bg-surface p-1.5 shadow-lg",
-      align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left",
-      className,
-    )}
-  >
-    {children}
-  </div>
-);
+}: MenuPanelProps) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  /*
+   * A panel anchored to a trigger near the edge of a phone screen would
+   * otherwise hang off it and scroll the whole page sideways. The panel
+   * only mounts while it is open, so measuring once here is enough: nudge
+   * it back inside the viewport before the browser paints.
+   */
+  useLayoutEffect(() => {
+    const node = panelRef.current;
+    if (!node) return;
+
+    node.style.transform = "";
+    const { left, right } = node.getBoundingClientRect();
+
+    let shift = 0;
+    if (right > window.innerWidth - VIEWPORT_MARGIN)
+      shift = window.innerWidth - VIEWPORT_MARGIN - right;
+    if (left + shift < VIEWPORT_MARGIN) shift = VIEWPORT_MARGIN - left;
+
+    node.style.transform = shift ? `translateX(${Math.round(shift)}px)` : "";
+  }, []);
+
+  return (
+    <div
+      ref={panelRef}
+      role={role}
+      onKeyDown={onKeyDown}
+      className={cn(
+        "absolute z-30 mt-2 max-w-[calc(100vw-1rem)] rounded-xl border border-line bg-surface p-1.5 shadow-lg",
+        align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+};
 
 interface MenuItemProps {
   /** Renders a router <Link> instead of a button. */

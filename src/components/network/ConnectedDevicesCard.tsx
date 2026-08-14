@@ -133,7 +133,7 @@ export const ConnectedDevicesCard = ({
         rows={devices}
         rowKey={(device) => device.id}
         uppercaseHeaders
-        dense
+        bordered
         emptyMessage={
           canRescan
             ? "No devices match the current filter."

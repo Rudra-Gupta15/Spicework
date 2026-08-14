@@ -4,10 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { CloudAssetsTable } from "@/components/cloud/CloudAssetsTable";
 import { CloudFilters } from "@/components/cloud/CloudFilters";
 import { Navbar } from "@/components/layout/Navbar";
-import { Card, Pagination, StatCard } from "@/components/ui";
+import { Card, Pagination } from "@/components/ui";
 import {
   CLOUD_SERVICES,
-  CLOUD_STATS,
   DEFAULT_CLOUD_FILTERS,
   TOTAL_CLOUD_SERVICES,
   filterServices,
@@ -59,12 +58,6 @@ const CloudAssetsPage = () => {
       />
 
       <div className="mt-6 space-y-5">
-        <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {CLOUD_STATS.map((metric) => (
-            <StatCard key={metric.id} metric={metric} />
-          ))}
-        </section>
-
         <CloudFilters filters={filters} onChange={handleFilterChange} />
 
         <Card className="p-5">

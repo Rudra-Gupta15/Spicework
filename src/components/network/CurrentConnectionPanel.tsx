@@ -45,7 +45,7 @@ export const CurrentConnectionPanel = ({
       </div>
 
       <Button
-        variant="success"
+        variant="brand"
         size="lg"
         fullWidth
         isLoading={isScanning}

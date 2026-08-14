@@ -105,7 +105,7 @@ const HardwareDetailPage = () => {
     <>
       <Navbar
         title="Hardware Assets"
-        subtitle="Track software applications, licenses, and installations across your network."
+        subtitle="Track hardware devices, warranties, and maintenance across your network."
         actions={
           <>
             {/* Raising a ticket belongs to the device as a whole, so it

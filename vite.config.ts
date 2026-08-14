@@ -11,4 +11,9 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  build: {
+    /* Pages are bundled together on purpose (see src/routes) — the whole
+       app is ~150 kB gzipped, so the split-chunk warning does not apply. */
+    chunkSizeWarningLimit: 700,
+  },
 });

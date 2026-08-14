@@ -1,35 +1,29 @@
-import { CalendarClock, Monitor, Wifi, WifiOff } from "lucide-react";
-
-import type { StatMetric } from "@/types/ui";
 import type {
   HardwareColumnKey,
   HardwareDevice,
   HardwareFilterState,
 } from "@/types/hardware";
 
+import { ADMIN_SITES } from "./admin";
+
 /** Mock data — swap these exports for API responses later. */
 
-export const HARDWARE_STATS: StatMetric[] = [
-  {
-    id: "total",
-    label: "Total Devices",
-    value: "612",
-    icon: Monitor,
-    tone: "brand",
-  },
-  { id: "online", label: "Online", value: "500", icon: Wifi, tone: "brand" },
-  { id: "offline", label: "Offline", value: "112", icon: WifiOff, tone: "brand" },
-  {
-    id: "warranty",
-    label: "Warranty Expiring",
-    value: "35",
-    icon: CalendarClock,
-    tone: "brand",
-  },
-];
+/**
+ * Reported device count — the table only holds the current page of it.
+ * Summed from what stands at each site, so the inventory and the dashboard
+ * tile can never quote different totals for the same estate.
+ */
+export const TOTAL_DEVICES = ADMIN_SITES.reduce(
+  (sum, site) => sum + site.devices,
+  0,
+);
 
-/** Reported device count — the table only holds the current page of it. */
-export const TOTAL_DEVICES = 612;
+/**
+ * Devices stand at the organization's own sites, so the names below come
+ * from that list rather than being typed out again and drifting from it.
+ */
+const siteName = (index: number): string =>
+  ADMIN_SITES[index % ADMIN_SITES.length].name;
 
 /**
  * Every column the inventory table can render. Drives both the table and
@@ -68,7 +62,7 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     lastScan: "Jul 30 2026",
     ipAddress: "192.168.1.22",
     osVersion: "Windows 11 Pro",
-    location: "HQ - Floor 2",
+    location: siteName(0),
     assignedTo: "Alex Rivera",
   },
   {
@@ -81,7 +75,7 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     lastScan: "Jul 28 2026",
     ipAddress: "192.168.1.45",
     osVersion: "Windows 10 Pro",
-    location: "HQ - Floor 1",
+    location: siteName(1),
     assignedTo: "Priya Sharma",
   },
   {
@@ -94,7 +88,7 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     lastScan: "Jul 29 2026",
     ipAddress: "192.168.1.62",
     osVersion: "macOS 14.5",
-    location: "Remote",
+    location: siteName(0),
     assignedTo: "Jane Doe",
   },
   {
@@ -107,7 +101,7 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     lastScan: "Jul 25 2026",
     ipAddress: "192.168.1.90",
     osVersion: "Firmware 4.2.1",
-    location: "HQ - Print Room",
+    location: siteName(2),
     assignedTo: "Unassigned",
   },
   {
@@ -120,7 +114,7 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     lastScan: "Jul 20 2026",
     ipAddress: "10.0.1.4",
     osVersion: "IOS XE 17.9",
-    location: "Data Centre A",
+    location: siteName(3),
     assignedTo: "Network Team",
   },
   {
@@ -133,7 +127,7 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     lastScan: "Jul 30 2026",
     ipAddress: "192.168.1.118",
     osVersion: "Windows 11 Home",
-    location: "Branch - Pune",
+    location: siteName(4),
     assignedTo: "Rohit Mehta",
   },
 ];

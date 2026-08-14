@@ -60,10 +60,11 @@ export const Input = ({
             "w-full rounded-lg border bg-surface px-3.5 text-heading",
             CONTROL_SIZES[size],
             "placeholder:text-navy-300 transition-colors duration-150",
-            "focus:ring-2 focus:outline-none",
-            error
-              ? "border-status-offline focus:border-status-offline focus:ring-status-offline/20"
-              : "border-field focus:border-auth-panel focus:ring-auth-panel/15",
+            /* The field keeps its resting border when focused — no ring and
+               no colour change. `outline-none` still has to be here, or the
+               browser draws its own ring in place of the one dropped. */
+            "focus:outline-none",
+            error ? "border-status-offline" : "border-field",
             trailing && "pr-11",
             leading && "pl-10",
             className,

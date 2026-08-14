@@ -13,9 +13,9 @@
   /* Brand — Spiceworks orange */
   --color-brand-50: #fef4ec;
   --color-brand-100: #fde3cd;
-  --color-brand-400: #f58f45;
-  --color-brand-500: #ef7a22;
-  --color-brand-600: #dd6a12;
+  --color-brand-400: #f7934a;
+  --color-brand-500: #f47b20;
+  --color-brand-600: #d96a14;
   --color-brand: var(--color-brand-500);
 
   /* Navy — sidebar + headings */
@@ -76,6 +76,18 @@
   --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
 }
 
+/* Download shelf drop-in for the agent page. */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @layer base {
   html,
   body,
@@ -85,6 +97,26 @@
 
   body {
     @apply bg-canvas font-sans text-[15px] text-heading antialiased;
+  }
+
+  /*
+   * Tailwind's preflight leaves buttons on the default arrow. Every
+   * clickable control in the app should read as clickable, so the hand is
+   * restored here once instead of a `cursor-pointer` on each call site.
+   * A control that cannot be used keeps its own cursor.
+   */
+  button:not(:disabled):not([aria-disabled="true"]),
+  summary,
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="menuitem"],
+  [role="option"],
+  label:has(> input[type="checkbox"]:not(:disabled)),
+  label:has(> input[type="radio"]:not(:disabled)),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  select:not(:disabled) {
+    cursor: pointer;
   }
 
   /* Slim scrollbar for the sidebar / scroll areas */

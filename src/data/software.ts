@@ -1,46 +1,15 @@
-import { Building2, FileCheck, RefreshCcw, Sigma } from "lucide-react";
-
-import type { StatMetric } from "@/types/ui";
+import { TOTAL_DEVICES } from "./hardware";
 
 /** Mock data — swap these exports for API responses later. */
 
 /** Reported application count — the list only holds the current page of it. */
 export const TOTAL_SOFTWARE_APPS = 1500;
 
-export const SOFTWARE_STATS: StatMetric[] = [
-  {
-    id: "total-software",
-    label: "Total Software",
-    value: TOTAL_SOFTWARE_APPS.toString(),
-    icon: Sigma,
-    tone: "brand",
-    to: "/inventory/software/assets",
-  },
-  {
-    id: "total-license",
-    label: "Total License",
-    value: "723",
-    icon: FileCheck,
-    tone: "brand",
-  },
-  {
-    id: "subscription-count",
-    label: "Subscription Count",
-    value: "215",
-    icon: RefreshCcw,
-    tone: "brand",
-  },
-  {
-    id: "publisher-count",
-    label: "Publisher Count",
-    value: "562",
-    icon: Building2,
-    tone: "brand",
-  },
-];
-
-/** Reported estate size — the table only holds the current page of it. */
-export const TOTAL_SOFTWARE_DEVICES = 847;
+/**
+ * The software list walks the same machines the hardware inventory does, so
+ * it reports the same estate size rather than a number of its own.
+ */
+export const TOTAL_SOFTWARE_DEVICES = TOTAL_DEVICES;
 
 /** Every column the software list can show. */
 export type SoftwareColumnKey =

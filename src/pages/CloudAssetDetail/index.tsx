@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 
 import { CloudSpecCard } from "@/components/cloud/CloudSpecCard";
 import { CloudUsageTable } from "@/components/cloud/CloudUsageTable";
@@ -38,9 +39,18 @@ const CloudAssetDetailPage = () => {
         title={service.name}
         subtitle={CLOUD_DETAIL_SUBTITLE}
         actions={
-          <Button variant="brand" onClick={openEditor}>
-            Edit Configuration
-          </Button>
+          <>
+            <Button variant="brand" onClick={openEditor}>
+              Edit Configuration
+            </Button>
+            <Button
+              variant="outline"
+              leftIcon={<ArrowLeft className="h-4 w-4" strokeWidth={2.2} />}
+              onClick={() => navigate(CLOUD_ROUTE)}
+            >
+              Back
+            </Button>
+          </>
         }
       />
 

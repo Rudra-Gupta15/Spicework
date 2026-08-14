@@ -5,6 +5,8 @@ import type {
   HardwareDevice,
 } from "@/types/hardware";
 
+import { ADMIN_SITES, ORGANIZATION } from "./admin";
+
 /** Tabs on the device detail screen — Overview is the only one with data. */
 export const DEVICE_TABS = [
   "Overview",
@@ -75,18 +77,23 @@ const OVERVIEW_FIELDS: FieldSpec<DeviceOverview>[] = [
   { key: "printers", label: "Printers" },
 ];
 
+/** The site a device stands at, so its address can be shown alongside. */
+const siteFor = (device: HardwareDevice) =>
+  ADMIN_SITES.find((site) => site.name === device.location);
+
 /** Values every device shares, or that can be read off the row itself. */
 const derive = (device: HardwareDevice): DeviceOverview => ({
   scannerName: "Prevoyance Inspection v3.0.0 (Windows Scheduled Agent)",
   site: device.location,
-  organization: "Prevoyance Solutions",
+  organization: ORGANIZATION.name,
   deviceName: device.name,
   description: "AT/AT COMPATIBLE",
   operatingSystem: device.osVersion,
   manufacturerModel: `${device.manufacturer} ${device.type}\nS/N: ${device.serialNumber}`,
   domain: "WORKGROUP",
   domainRole: "Standalone Workstation",
-  location: device.location,
+  /* `site` above already names the office; this is where that office is. */
+  location: siteFor(device)?.location ?? device.location,
   publicIp: device.ipAddress,
   assetTag: "Unknown",
   lastBootTime: "Unknown",
@@ -104,10 +111,8 @@ const derive = (device: HardwareDevice): DeviceOverview => ({
 /** Per-device values the row itself does not carry. Mock data. */
 const OVERRIDES: Record<string, Partial<DeviceOverview>> = {
   "laptop-bml": {
-    site: "Nagpur",
     operatingSystem:
       "Microsoft Windows 11 Home Single Language\nBuild 10.0.26200",
-    location: "Pune, Maharashtra, India",
     publicIp: "219.91.171.134",
     lastBootTime: "2026-07-30 11:25:37",
     systemStatus: "Last seen 30-Jul-2026_12:36:32",
@@ -120,58 +125,50 @@ const OVERRIDES: Record<string, Partial<DeviceOverview>> = {
     printers: "1 connected",
   },
   "asus-rog": {
-    site: "Bengaluru",
     domain: "PREVOYANCE.LOCAL",
     domainRole: "Member Workstation",
-    location: "Bengaluru, Karnataka, India",
     publicIp: "103.21.58.9",
     lastBootTime: "2026-07-30 08:14:02",
     systemStatus: "Last seen 30-Jul-2026_09:52:10",
     uptime: "0d 1h 38m",
     lastShutdown: "2026-07-29 20:41:55",
     lastBackup: "2026-07-29 22:10:04 (Shadow Copy)",
-    lastLogin: "alex.rivera@prevoyance.com — 2026-07-30 08:16:44",
+    lastLogin: "alex.rivera@prevoyancesolutions.com — 2026-07-30 08:16:44",
     security: "Windows Defender,Malwarebytes",
     assetTag: "PS-LT-0847",
     printers: "2 connected",
   },
   "dell-latitude": {
-    site: "Nagpur",
     domain: "PREVOYANCE.LOCAL",
     domainRole: "Member Workstation",
-    location: "Nagpur, Maharashtra, India",
     publicIp: "45.118.132.77",
     lastBootTime: "2026-07-28 09:02:31",
     systemStatus: "Last seen 28-Jul-2026_18:04:12",
     uptime: "0d 9h 2m",
     lastShutdown: "2026-07-28 18:05:47",
     lastBackup: "2026-07-27 23:00:11 (Shadow Copy)",
-    lastLogin: "priya.sharma@prevoyance.com — 2026-07-28 09:05:20",
+    lastLogin: "priya.sharma@prevoyancesolutions.com — 2026-07-28 09:05:20",
     security: "Windows Defender,Sophos Endpoint",
     assetTag: "PS-LT-3891",
   },
   "macbook-pro": {
-    site: "Remote",
     description: "Apple Silicon Workstation",
     domain: "N/A",
     domainRole: "Standalone Workstation",
-    location: "Pune, Maharashtra, India",
     publicIp: "182.70.14.203",
     lastBootTime: "2026-07-29 07:48:19",
     systemStatus: "Last seen 29-Jul-2026_19:22:40",
     uptime: "0d 11h 34m",
     lastShutdown: "2026-07-28 21:12:05",
     lastBackup: "2026-07-29 02:00:00 (Time Machine)",
-    lastLogin: "jane.doe@prevoyance.com — 2026-07-29 07:50:31",
+    lastLogin: "jane.doe@prevoyancesolutions.com — 2026-07-29 07:50:31",
     security: "XProtect,CrowdStrike Falcon",
     assetTag: "PS-LT-7742",
   },
   "hp-laserjet": {
-    site: "Nagpur",
     description: "Network Print Device",
     domain: "N/A",
     domainRole: "Network Peripheral",
-    location: "Nagpur, Maharashtra, India",
     publicIp: "45.118.132.77",
     lastBootTime: "2026-07-25 06:30:00",
     systemStatus: "Last seen 25-Jul-2026_17:12:09",
@@ -185,18 +182,16 @@ const OVERRIDES: Record<string, Partial<DeviceOverview>> = {
     printers: "Self",
   },
   "cisco-catalyst": {
-    site: "Data Centre A",
     description: "Managed Layer 3 Switch",
     domain: "N/A",
     domainRole: "Network Infrastructure",
-    location: "Mumbai, Maharashtra, India",
     publicIp: "14.99.201.6",
     lastBootTime: "2026-07-20 02:15:44",
     systemStatus: "Last seen 20-Jul-2026_11:47:52",
     uptime: "31d 9h 32m",
     lastShutdown: "2026-06-19 02:11:09",
     lastBackup: "2026-07-19 23:45:00 (Config Archive)",
-    lastLogin: "netops@prevoyance.com — 2026-07-20 09:31:02",
+    lastLogin: "netops@prevoyancesolutions.com — 2026-07-20 09:31:02",
     security: "Cisco TrustSec",
     assetTag: "PS-SW-1104",
     printers: "None connected",

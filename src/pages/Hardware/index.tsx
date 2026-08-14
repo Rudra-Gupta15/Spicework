@@ -5,13 +5,12 @@ import { CustomizeColumnsModal } from "@/components/common/CustomizeColumnsModal
 import { HardwareFilters } from "@/components/hardware/HardwareFilters";
 import { HardwareTable } from "@/components/hardware/HardwareTable";
 import { Navbar } from "@/components/layout/Navbar";
-import { Card, Pagination, StatCard } from "@/components/ui";
+import { Card, Pagination } from "@/components/ui";
 import {
   DEFAULT_COLUMNS,
   DEFAULT_FILTERS,
   HARDWARE_COLUMNS,
   HARDWARE_DEVICES,
-  HARDWARE_STATS,
   TOTAL_DEVICES,
   filterDevices,
   isFiltered,
@@ -63,12 +62,6 @@ const HardwarePage = () => {
       <Navbar />
 
       <div className="mt-6 space-y-5">
-        <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {HARDWARE_STATS.map((metric) => (
-            <StatCard key={metric.id} metric={metric} />
-          ))}
-        </section>
-
         <HardwareFilters
           filters={filters}
           onChange={handleFilterChange}

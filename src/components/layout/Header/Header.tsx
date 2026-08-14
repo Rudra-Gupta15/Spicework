@@ -1,4 +1,4 @@
-import { PanelLeft } from "lucide-react";
+import { Menu } from "lucide-react";
 
 import { CURRENT_USER } from "@/config/user";
 import { useLogout } from "@/hooks/useLogout";
@@ -21,7 +21,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
         aria-label="Open navigation"
         className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-heading transition-colors hover:bg-canvas lg:hidden"
       >
-        <PanelLeft className="h-5 w-5" strokeWidth={1.9} />
+        <Menu className="h-5 w-5" strokeWidth={2} />
       </button>
 
       <div className="ml-auto">

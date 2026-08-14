@@ -43,19 +43,19 @@ const LOGINS_BY_DEVICE: Record<string, Row[]> = {
 
   "asus-rog": [
     [
-      "alex.rivera@prevoyance.com",
+      "alex.rivera@prevoyancesolutions.com",
       "PREVOYANCE",
       "Interactive",
       "2026-07-30 08:16:44",
     ],
     [
-      "alex.rivera@prevoyance.com",
+      "alex.rivera@prevoyancesolutions.com",
       "PREVOYANCE",
       "Unlock",
       "2026-07-30 09:41:02",
     ],
     [
-      "alex.rivera@prevoyance.com",
+      "alex.rivera@prevoyancesolutions.com",
       "PREVOYANCE",
       "Cached Interactive",
       "2026-07-29 20:38:17",
@@ -64,19 +64,19 @@ const LOGINS_BY_DEVICE: Record<string, Row[]> = {
 
   "dell-latitude": [
     [
-      "priya.sharma@prevoyance.com",
+      "priya.sharma@prevoyancesolutions.com",
       "PREVOYANCE",
       "Interactive",
       "2026-07-28 09:05:20",
     ],
     [
-      "priya.sharma@prevoyance.com",
+      "priya.sharma@prevoyancesolutions.com",
       "PREVOYANCE",
       "Unlock",
       "2026-07-28 13:22:41",
     ],
     [
-      "itsupport@prevoyance.com",
+      "itsupport@prevoyancesolutions.com",
       "PREVOYANCE",
       "Remote Interactive",
       "2026-07-14 11:22:07",
@@ -84,12 +84,12 @@ const LOGINS_BY_DEVICE: Record<string, Row[]> = {
   ],
 
   "macbook-pro": [
-    ["jane.doe@prevoyance.com", "Local", "Interactive", "2026-07-29 07:50:31"],
-    ["jane.doe@prevoyance.com", "Local", "Unlock", "2026-07-29 14:08:55"],
+    ["jane.doe@prevoyancesolutions.com", "Local", "Interactive", "2026-07-29 07:50:31"],
+    ["jane.doe@prevoyancesolutions.com", "Local", "Unlock", "2026-07-29 14:08:55"],
   ],
 
   "cisco-catalyst": [
-    ["netops@prevoyance.com", "TACACS+", "Network", "2026-07-20 09:31:02"],
+    ["netops@prevoyancesolutions.com", "TACACS+", "Network", "2026-07-20 09:31:02"],
     ["admin", "Local", "Interactive", "2026-06-19 02:09:44"],
   ],
 };

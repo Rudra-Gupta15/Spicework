@@ -80,7 +80,7 @@ export const ConfirmDialog = ({
         aria-label={title}
         aria-describedby="confirm-dialog-description"
         tabIndex={-1}
-        className="relative w-full max-w-[420px] rounded-xl bg-surface px-8 py-8 text-center shadow-2xl outline-none"
+        className="relative max-h-[calc(100dvh-2rem)] w-full max-w-[420px] overflow-y-auto rounded-xl bg-surface px-6 py-7 text-center shadow-2xl outline-none sm:px-8 sm:py-8"
       >
         <span
           aria-hidden="true"

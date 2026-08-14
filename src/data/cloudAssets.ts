@@ -1,43 +1,9 @@
-import { Cloud, CloudOff, RefreshCcw, Wallet } from "lucide-react";
-
-import type { StatMetric } from "@/types/ui";
 import type { CloudFilterState, CloudService } from "@/types/cloud";
 
 /** Mock data — swap these exports for API responses later. */
 
 /** Reported service count — the table only holds the current page of it. */
 export const TOTAL_CLOUD_SERVICES = 87;
-
-export const CLOUD_STATS: StatMetric[] = [
-  {
-    id: "total",
-    label: "Total Cloud Services",
-    value: TOTAL_CLOUD_SERVICES.toString(),
-    icon: Cloud,
-    tone: "brand",
-  },
-  {
-    id: "active",
-    label: "Active Subscriptions",
-    value: "72",
-    icon: RefreshCcw,
-    tone: "brand",
-  },
-  {
-    id: "inactive",
-    label: "Inactive / Suspended",
-    value: "15",
-    icon: CloudOff,
-    tone: "brand",
-  },
-  {
-    id: "spend",
-    label: "Monthly Spend",
-    value: "42,850",
-    icon: Wallet,
-    tone: "brand",
-  },
-];
 
 export const CLOUD_SERVICES: CloudService[] = [
   {
