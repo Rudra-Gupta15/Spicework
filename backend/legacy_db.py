@@ -225,6 +225,212 @@ def list_audit_index():
         return [dict(r) for r in cur.fetchall()]
 
 
+def count_devices() -> int:
+    """
+    Distinct physical devices in the audit log, deduped by computer name
+    alone. Deliberately looser than the Hardware/Software page list (which
+    keys on name + OS family, so a dual-booted machine shows as two
+    browsable rows) — a dual-boot box reporting Windows under one MAC and
+    Linux under another is still one machine for a headline device count.
+    """
+    audits = list_audit_index()
+    names = {
+        (a.get("computer_name") or a.get("mac_address") or "Unknown").strip().lower()
+        for a in audits
+    }
+    return len(names)
+
+
+def list_recent_audits(limit: int = 5) -> list:
+    """Most recently audited devices (deduped, one row per real device) for
+    the Dashboard's 'Recent Device Audits' card — every field below is shown
+    exactly as the scan reported it, nothing derived or scored."""
+    with get_inventory_db() as conn:
+        cur = _dict_cursor(conn)
+        cur.execute("""
+            SELECT la.id, la.mac_address, la.computer_name, la.os_name, la.os_version,
+                   la.execution_datetime, la.created_at, la.current_username,
+                   la.firewall, la.license_status,
+                   (SELECT ip_address FROM legacy_audit_network_details
+                    WHERE audit_id = la.id AND ip_address IS NOT NULL AND ip_address <> ''
+                    LIMIT 1) AS ip_address,
+                   (SELECT COUNT(*) FROM legacy_audit_software WHERE audit_id = la.id) AS software_count,
+                   (SELECT STRING_AGG(name, ', ') FROM legacy_audit_antivirus
+                    WHERE audit_id = la.id AND name IS NOT NULL AND name <> '') AS antivirus
+            FROM legacy_audits la
+            ORDER BY la.created_at DESC
+        """)
+        audits = [dict(r) for r in cur.fetchall()]
+
+    deduped = _dedupe_latest_audit_per_device(audits)[:limit]
+
+    results = []
+    for a in deduped:
+        # Same precedence as /devices and the software inventory's device
+        # links, so this row's device name is routable to /inventory/hardware/{id}.
+        mac = a.get("mac_address")
+        device_id = mac if mac and mac != "Unknown" else (a.get("computer_name") or "Unknown")
+        results.append({
+            "id": device_id,
+            "device": a["computer_name"] or a["mac_address"] or "Unknown",
+            "ip": a["ip_address"] or "Unknown",
+            "os": " ".join(x for x in [a["os_name"], a["os_version"]] if x) or "Unknown",
+            "audited_on": a["execution_datetime"] or "Unknown",
+            "current_user": a["current_username"] or "Unknown",
+            "antivirus": a["antivirus"] or "None detected",
+            "firewall": a["firewall"] or "Unknown",
+            "license_status": a["license_status"] or "Unknown",
+            "software_count": a["software_count"] or 0,
+        })
+    return results
+
+
+def get_compliance_summary() -> dict:
+    """
+    Firewall / Antivirus / License breakdown across every real device's latest
+    audit (not just the 5 shown in the Recent Device Audits card) — backs the
+    Dashboard's compliance chart. Same raw fields and same "one row per real
+    device" dedup as list_recent_audits(), just aggregated instead of listed.
+    """
+    with get_inventory_db() as conn:
+        cur = _dict_cursor(conn)
+        cur.execute("""
+            SELECT la.id, la.mac_address, la.computer_name, la.os_name,
+                   la.created_at, la.firewall, la.license_status,
+                   (SELECT STRING_AGG(name, ', ') FROM legacy_audit_antivirus
+                    WHERE audit_id = la.id AND name IS NOT NULL AND name <> '') AS antivirus
+            FROM legacy_audits la
+            ORDER BY la.created_at DESC
+        """)
+        audits = [dict(r) for r in cur.fetchall()]
+
+    deduped = _dedupe_latest_audit_per_device(audits)
+
+    firewall = {"enabled": 0, "disabled": 0, "unknown": 0}
+    antivirus = {"protected": 0, "unprotected": 0}
+    license_status = {"licensed": 0, "unlicensed": 0, "unknown": 0}
+
+    for a in deduped:
+        fw = (a.get("firewall") or "").strip().lower()
+        if "enabled" in fw:
+            firewall["enabled"] += 1
+        elif "disabled" in fw:
+            firewall["disabled"] += 1
+        else:
+            firewall["unknown"] += 1
+
+        av = (a.get("antivirus") or "").strip()
+        if av:
+            antivirus["protected"] += 1
+        else:
+            antivirus["unprotected"] += 1
+
+        lic = (a.get("license_status") or "").strip().lower()
+        if "unlicensed" in lic:
+            license_status["unlicensed"] += 1
+        elif "licensed" in lic:
+            license_status["licensed"] += 1
+        else:
+            license_status["unknown"] += 1
+
+    return {
+        "total": len(deduped),
+        "firewall": firewall,
+        "antivirus": antivirus,
+        "license": license_status,
+    }
+
+
+def _dedupe_latest_audit_per_device(audits: list) -> list:
+    """Same (name, OS family) de-dup devices.py's device list uses, so a
+    software inventory count of 'installed on N devices' matches N devices
+    actually listed on the Hardware/Software pages."""
+    seen = {}
+    for a in audits:
+        name = (a.get("computer_name") or "Unknown").strip()
+        os_name = (a.get("os_name") or "Unknown").strip().lower()
+        if "windows" in os_name:
+            os_family = "windows"
+        elif "mac" in os_name:
+            os_family = "mac"
+        elif "ubuntu" in os_name or "linux" in os_name:
+            os_family = "linux"
+        else:
+            os_family = os_name
+        key = (name.lower(), os_family)
+        if key not in seen:
+            seen[key] = a
+    return list(seen.values())
+
+
+def list_software_inventory():
+    """
+    One row per distinct (application name, version) combo, aggregated across
+    every device's latest audit — the estate-wide 'Software' inventory, as
+    opposed to get_latest_audit()'s per-device software list.
+    """
+    with get_inventory_db() as conn:
+        cur = _dict_cursor(conn)
+        cur.execute("""
+            SELECT id, mac_address, computer_name, os_name, execution_datetime, created_at
+            FROM legacy_audits ORDER BY created_at DESC
+        """)
+        latest_audits = _dedupe_latest_audit_per_device([dict(r) for r in cur.fetchall()])
+        audit_ids = [a["id"] for a in latest_audits]
+
+        def _device_id(a):
+            # Same precedence as devices.py's list_audited_devices(), so a
+            # device clicked here routes to the same id used everywhere else.
+            mac = a.get("mac_address")
+            return mac if mac and mac != "Unknown" else (a.get("computer_name") or "Unknown")
+
+        device_by_audit = {
+            a["id"]: {"id": _device_id(a), "name": a.get("computer_name") or _device_id(a)}
+            for a in latest_audits
+        }
+
+        if not audit_ids:
+            return []
+
+        cur.execute("""
+            SELECT audit_id, application_name, version, publisher, install_date, size_mb
+            FROM legacy_audit_software WHERE audit_id = ANY(%s::uuid[])
+        """, (audit_ids,))
+        rows = cur.fetchall()
+
+    aggregated: dict = {}
+    for row in rows:
+        name = (row["application_name"] or "Unknown").strip() or "Unknown"
+        version = (row["version"] or "Unknown").strip() or "Unknown"
+        key = (name.lower(), version.lower())
+        entry = aggregated.setdefault(key, {
+            "name": name,
+            "version": version,
+            "publisher": row["publisher"] or "Unknown",
+            "install_date": row["install_date"] or "Unknown",
+            "size_mb": row["size_mb"] or "Unknown",
+            "devices": [],
+        })
+        device = device_by_audit.get(row["audit_id"], {"id": "Unknown", "name": "Unknown"})
+        if not any(d["id"] == device["id"] for d in entry["devices"]):
+            entry["devices"].append(device)
+
+    result = [
+        {
+            "name": entry["name"],
+            "version": entry["version"],
+            "publisher": entry["publisher"],
+            "install_date": entry["install_date"],
+            "size_mb": entry["size_mb"],
+            "install_count": len(entry["devices"]),
+            "devices": entry["devices"],
+        }
+        for entry in aggregated.values()
+    ]
+    result.sort(key=lambda x: x["name"].lower())
+    return result
+
+
 def get_audit_enrichment_indexes():
     """
     Two lookup dicts used to enrich live network-scan results with prior audit

@@ -11,6 +11,7 @@ from backend.core.config import FRONTEND_DIR
 from backend.routers import (
     assets,
     audits,
+    dashboard,
     devices,
     discovery,
     inventory,
@@ -19,7 +20,9 @@ from backend.routers import (
     inventory_organizations,
     inventory_wifi,
     lifecycle,
+    saved_searches,
     scripts,
+    view_preferences,
     wifi,
 )
 
@@ -56,6 +59,9 @@ app.include_router(inventory_auth.router, tags=["Inventory: Auth"])
 app.include_router(inventory_organizations.router, tags=["Inventory: Organizations & Sites"])
 app.include_router(inventory_devices.router, tags=["Inventory: Devices & Deployments"])
 app.include_router(inventory_wifi.router, tags=["Inventory: WiFi & Network Scans"])
+app.include_router(view_preferences.router, tags=["View Preferences"])
+app.include_router(saved_searches.router, tags=["Saved Searches"])
+app.include_router(dashboard.router, tags=["Dashboard"])
 
 # Catch-all static mount for the frontend SPA — must stay last so it never
 # shadows the explicit routes registered by the routers above.

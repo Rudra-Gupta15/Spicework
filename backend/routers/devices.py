@@ -5,6 +5,13 @@ from backend import legacy_db
 router = APIRouter()
 
 
+@router.get("/api/software-inventory")
+def list_software_inventory():
+    """Estate-wide software list: one row per (application, version), aggregated across devices."""
+    items = legacy_db.list_software_inventory()
+    return {"software": items, "total": len(items)}
+
+
 @router.get("/devices")
 @router.get("/api/devices")
 def list_audited_devices():
@@ -111,7 +118,12 @@ def get_software_for_device(device_id: str):
         "user_accounts":      latest_data.get("user_accounts", []),
         "login_history":      latest_data.get("raw_login_history") or [],
         "hotfixes":           latest_data.get("hotfixes", []),
-        "antivirus":          latest_data.get("antivirus", [])
+        "antivirus":          latest_data.get("antivirus", []),
+        "gpus":               latest_data.get("gpus", []),
+        "disk_partitions":    latest_data.get("disk_partitions", []),
+        "peripherals":        latest_data.get("peripherals", []),
+        "printers":           latest_data.get("printers", []),
+        "network_adapters":   latest_data.get("network_adapters", []),
     }
 
 

@@ -73,6 +73,19 @@ def test_connection() -> dict:
         return {"status": "error", "connected": False, "message": str(e)}
 
 
+def get_org_dashboard_stats() -> dict:
+    """Sites/users/cities across every organization — the Dashboard page's stat tiles."""
+    with get_inventory_db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM sites")
+        sites = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM users")
+        users = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(DISTINCT city) FROM sites WHERE city IS NOT NULL AND city <> ''")
+        cities = cur.fetchone()[0]
+        return {"sites": sites, "users": users, "cities": cities}
+
+
 _USER_COLUMNS = """
     id, email, first_name, last_name, user_type,
     is_active, email_verified, last_login_at,
