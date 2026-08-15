@@ -1,0 +1,156 @@
+import { useEffect, useState } from "react";
+
+import { api, ApiError } from "@/lib/api";
+import type {
+  SavedSearch,
+  SavedSearchCategory,
+  SavedSearchScope,
+} from "@/types/savedSearch";
+
+export const SAVED_SEARCH_TABS: SavedSearchCategory[] = [
+  "Hardware",
+  "Software",
+  "Cloud Assets",
+  "Network",
+];
+
+export const SAVED_SEARCH_SCOPES = ["Public", "Private"] as const;
+
+/**
+ * What the "Create New" dialog opens pre-filled with when there's no active
+ * filter state to seed it from (e.g. opened directly from the Saved Search
+ * page rather than from a filter bar's "Save Filter" button).
+ */
+export const DEFAULT_SEARCH_DRAFT: Record<
+  SavedSearchCategory,
+  { name: string; filters: string[] }
+> = {
+  Hardware: { name: "", filters: [] },
+  Software: { name: "", filters: [] },
+  "Cloud Assets": { name: "", filters: [] },
+  Network: { name: "", filters: [] },
+};
+
+/** Dimension names a filter chip contributes, e.g. "Type: Laptop" -> "Type". */
+export const filtersLabel = (filters: string[]): string =>
+  filters.length === 0
+    ? "None"
+    : filters.map((filter) => filter.split(":")[0].trim()).join(", ");
+
+/** Today, in the "Aug 15, 2026" format saved searches are named/dated with. */
+export const todayLabel = (): string =>
+  new Date().toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+/**
+ * Auto-generated name for a filter saved straight from a list page's filter
+ * bar — no naming dialog, so the chips themselves have to say what it is.
+ */
+export const autoFilterName = (category: SavedSearchCategory, chips: string[]): string =>
+  chips.length === 0 ? `All ${category} — ${todayLabel()}` : chips.join(" · ");
+
+const errorMessage = (error: unknown, fallback: string) =>
+  error instanceof ApiError || error instanceof Error ? error.message : fallback;
+
+interface RawSavedSearch {
+  id: string;
+  category: string;
+  name: string;
+  scope: string;
+  applied_filters: string[];
+  results_count: number;
+  created_by: string;
+  created_at: string;
+}
+
+const formatDate = (iso: string): string =>
+  new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+const toSavedSearch = (raw: RawSavedSearch): SavedSearch => ({
+  id: raw.id,
+  name: raw.name,
+  scope: raw.scope as SavedSearchScope,
+  filters: filtersLabel(raw.applied_filters),
+  appliedFilters: raw.applied_filters,
+  results: raw.results_count,
+  createdBy: raw.created_by,
+  created: formatDate(raw.created_at),
+});
+
+/** GET /api/saved-searches?category= */
+export const fetchSavedSearches = async (
+  category: SavedSearchCategory,
+): Promise<SavedSearch[]> => {
+  const data = await api.get<{ searches: RawSavedSearch[] }>(
+    `/api/saved-searches?category=${encodeURIComponent(category)}`,
+  );
+  return data.searches.map(toSavedSearch);
+};
+
+/** GET /api/saved-searches/{id} — also returns which category it belongs to. */
+export const fetchSavedSearchById = async (
+  id: string,
+): Promise<{ category: SavedSearchCategory; search: SavedSearch } | null> => {
+  try {
+    const raw = await api.get<RawSavedSearch>(`/api/saved-searches/${encodeURIComponent(id)}`);
+    return { category: raw.category as SavedSearchCategory, search: toSavedSearch(raw) };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+};
+
+/** POST /api/saved-searches */
+export const createSavedSearch = async (
+  category: SavedSearchCategory,
+  draft: { name: string; scope: SavedSearchScope; filters: string[]; resultsCount: number; createdBy: string },
+): Promise<SavedSearch> => {
+  const raw = await api.post<RawSavedSearch>("/api/saved-searches", {
+    category,
+    name: draft.name,
+    scope: draft.scope,
+    applied_filters: draft.filters,
+    results_count: draft.resultsCount,
+    created_by: draft.createdBy,
+  });
+  return toSavedSearch(raw);
+};
+
+/** DELETE /api/saved-searches/{id} */
+export const deleteSavedSearch = (id: string) =>
+  api.delete<{ status: string }>(`/api/saved-searches/${encodeURIComponent(id)}`);
+
+export const useSavedSearches = (category: SavedSearchCategory) => {
+  const [searches, setSearches] = useState<SavedSearch[]>([]);
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string>();
+  const [reloadTick, setReloadTick] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSavedSearches(category)
+      .then((data) => {
+        if (!cancelled) setSearches(data);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(errorMessage(err, "Could not load saved searches."));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [category, reloadTick]);
+
+  const reload = () => setReloadTick((n) => n + 1);
+
+  return { searches, isLoading, error, reload };
+};
