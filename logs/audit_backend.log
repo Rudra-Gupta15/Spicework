@@ -1,0 +1,19 @@
+2026-08-15 19:29:59,398 [INFO] Uploading audit for client: apicheck123
+2026-08-15 19:29:59,642 [INFO] PDF built: user_info/audit_apicheck123___TEST_DEVICE_SQLITE___20260815_192959.pdf
+2026-08-15 19:29:59,673 [INFO] XML built: user_info/audit_apicheck123___TEST_DEVICE_SQLITE___20260815_192959.xml
+2026-08-15 19:30:13,399 [INFO] Asset metadata saved: __TEST_DEVICE_SQLITE__
+2026-08-15 19:30:41,989 [INFO] Manual force-scan requested for device: __TEST_DEVICE_SQLITE__
+2026-08-15 19:30:44,054 [INFO] Trigger delivered to checking daemon: __TEST_DEVICE_SQLITE__
+2026-08-15 19:48:16,222 [INFO] Uploading audit for client: t2_client_1786803494
+2026-08-15 19:48:16,376 [INFO] PDF built: user_info/audit_t2_client_1786803494___T2_SQLITE_DEVICE___20260815_194816.pdf
+2026-08-15 19:48:16,392 [INFO] XML built: user_info/audit_t2_client_1786803494___T2_SQLITE_DEVICE___20260815_194816.xml
+2026-08-15 19:48:28,921 [INFO] Asset metadata saved: __T2_SQLITE_DEVICE__
+2026-08-15 19:48:53,454 [INFO] Manual force-scan requested for device: __T2_SQLITE_DEVICE__
+2026-08-15 19:48:55,505 [INFO] Trigger delivered to checking daemon: __T2_SQLITE_DEVICE__
+2026-08-16 00:37:30,613 [INFO] Uploading audit for client: T4_VERIFY_client1
+2026-08-16 00:37:31,384 [INFO] PDF built: user_info/audit_T4_VERIFY_client1___T4_VERIFY_DEVICE___20260816_003730.pdf
+2026-08-16 00:37:31,396 [INFO] XML built: user_info/audit_T4_VERIFY_client1___T4_VERIFY_DEVICE___20260816_003730.xml
+2026-08-16 00:37:34,007 [INFO] Uploading audit for client: T4_VERIFY_client2
+2026-08-16 00:37:34,760 [INFO] PDF built: user_info/audit_T4_VERIFY_client2___T4_VERIFY_DEVICE___20260816_003734.pdf
+2026-08-16 00:37:34,771 [INFO] XML built: user_info/audit_T4_VERIFY_client2___T4_VERIFY_DEVICE___20260816_003734.xml
+2026-08-16 00:37:52,751 [INFO] Asset metadata saved: __T4_VERIFY_DEVICE__

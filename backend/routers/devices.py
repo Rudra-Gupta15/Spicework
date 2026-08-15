@@ -1,10 +1,6 @@
-import json
-import sqlite3
-
 from fastapi import APIRouter, HTTPException
 
-from backend.core.config import DB_PATH
-from backend.db import get_db
+from backend import legacy_db
 
 router = APIRouter()
 
@@ -13,127 +9,109 @@ router = APIRouter()
 @router.get("/api/devices")
 def list_audited_devices():
     devices = {}
-    with get_db(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.execute('''
-            SELECT mac_address, computer_name, os_name, execution_datetime, audit_data
-            FROM device_audits
-            ORDER BY id DESC, execution_datetime DESC
-        ''')
-        for row in cursor:
-            name = (row['computer_name'] or "Unknown").strip()
-            os_name = (row['os_name'] or "Unknown").strip()
+    for row in legacy_db.list_audit_index():
+        name = (row['computer_name'] or "Unknown").strip()
+        os_name = (row['os_name'] or "Unknown").strip()
 
-            # Categorize OS family to pair same OS versions (e.g. Windows 10 vs 11 or macOS vs macOS)
-            os_lower = os_name.lower()
-            if "windows" in os_lower:
-                os_family = "windows"
-            elif "mac" in os_lower:
-                os_family = "mac"
-            elif "ubuntu" in os_lower or "linux" in os_lower:
-                os_family = "linux"
-            else:
-                os_family = os_lower
+        # Categorize OS family to pair same OS versions (e.g. Windows 10 vs 11 or macOS vs macOS)
+        os_lower = os_name.lower()
+        if "windows" in os_lower:
+            os_family = "windows"
+        elif "mac" in os_lower:
+            os_family = "mac"
+        elif "ubuntu" in os_lower or "linux" in os_lower:
+            os_family = "linux"
+        else:
+            os_family = os_lower
 
-            key = (name.lower(), os_family)
-            if key not in devices:
-                user = "Unknown"
-                model_name = ""
-                if row['audit_data']:
-                    try:
-                        ad = json.loads(row['audit_data'])
-                        user = ad.get("current_user") or ad.get("user") or "Unknown"
-                        hw = ad.get("hardware_details", {})
-                        if isinstance(hw, dict):
-                            mfr = (hw.get("manufacturer") or "").strip()
-                            mdl = (hw.get("model") or "").strip()
-                            if mfr and mdl and mdl != "Unknown" and mdl != "N/A":
-                                if "ASUSTeK" in mfr or "ASUS" in mfr:
-                                    mfr = "ASUS"
-                                elif "Hewlett" in mfr or "HP" in mfr:
-                                    mfr = "HP"
-                                elif "Lenovo" in mfr:
-                                    mfr = "Lenovo"
-                                elif "Dell" in mfr:
-                                    mfr = "Dell"
-                                elif "Apple" in mfr:
-                                    mfr = "Apple"
-                                mdl_clean = mdl.split('_')[0].strip()
-                                # Reject disk/SSD model strings masquerading as laptop model names
-                                mdl_lower = mdl_clean.lower()
-                                is_disk_model = any(x in mdl_lower for x in [
-                                    'gb', 'tb', 'nvme', 'ssd', 'hdd', 'nand', 'sata', 'mzvl', 'kioxia',
-                                    'kingston', 'om8pcp', 'om8', 'samsung', 'wd', 'wdc', 'seagate',
-                                    'toshiba', 'micron', 'crucial', 'sandisk', 'evmnv', 'pm9', 'pm98',
-                                    'hynix', 'sk hynix', 'lexar', 'transcend', 'adata', 'sn5000', 'sn750', 'sn850',
-                                    '512', '256', '128', '1tb', '2tb', 'disk', 'drive', 'storage'
-                                ])
-                                if is_disk_model:
-                                    pass  # skip — leave model_name empty, fallback to computer_name
-                                elif mdl_clean.lower().startswith(mfr.lower()):
-                                    model_name = mdl_clean
-                                else:
-                                    model_name = f"{mfr} {mdl_clean}".strip()
-                    except Exception:
-                        pass
+        key = (name.lower(), os_family)
+        if key not in devices:
+            user = row.get('current_username') or "Unknown"
+            model_name = ""
+            mfr = (row.get('manufacturer') or "").strip()
+            mdl = (row.get('model') or "").strip()
+            if mfr and mdl and mdl != "Unknown" and mdl != "N/A":
+                if "ASUSTeK" in mfr or "ASUS" in mfr:
+                    mfr = "ASUS"
+                elif "Hewlett" in mfr or "HP" in mfr:
+                    mfr = "HP"
+                elif "Lenovo" in mfr:
+                    mfr = "Lenovo"
+                elif "Dell" in mfr:
+                    mfr = "Dell"
+                elif "Apple" in mfr:
+                    mfr = "Apple"
+                mdl_clean = mdl.split('_')[0].strip()
+                # Reject disk/SSD model strings masquerading as laptop model names
+                mdl_lower = mdl_clean.lower()
+                is_disk_model = any(x in mdl_lower for x in [
+                    'gb', 'tb', 'nvme', 'ssd', 'hdd', 'nand', 'sata', 'mzvl', 'kioxia',
+                    'kingston', 'om8pcp', 'om8', 'samsung', 'wd', 'wdc', 'seagate',
+                    'toshiba', 'micron', 'crucial', 'sandisk', 'evmnv', 'pm9', 'pm98',
+                    'hynix', 'sk hynix', 'lexar', 'transcend', 'adata', 'sn5000', 'sn750', 'sn850',
+                    '512', '256', '128', '1tb', '2tb', 'disk', 'drive', 'storage'
+                ])
+                if is_disk_model:
+                    pass  # skip — leave model_name empty, fallback to computer_name
+                elif mdl_clean.lower().startswith(mfr.lower()):
+                    model_name = mdl_clean
+                else:
+                    model_name = f"{mfr} {mdl_clean}".strip()
 
-                mac = row['mac_address']
-                uid = mac if mac and mac != "Unknown" else name
-                devices[key] = {
-                    "id": uid,
-                    "computer_name": name,
-                    "model_name": model_name or name,
-                    "os_name": os_name,
-                    "username": user,
-                    "last_seen": row['execution_datetime']
-                }
+            mac = row.get('mac_address')
+            uid = mac if mac and mac != "Unknown" else name
+            devices[key] = {
+                "id": uid,
+                "computer_name": name,
+                "model_name": model_name or name,
+                "os_name": os_name,
+                "username": user,
+                "last_seen": row.get('execution_datetime')
+            }
 
     device_list = list(devices.values())
-    device_list.sort(key=lambda x: x.get("last_seen", ""), reverse=True)
+    device_list.sort(key=lambda x: x.get("last_seen") or "", reverse=True)
     return {"devices": device_list, "total": len(device_list)}
 
 
 @router.get("/api/software/{device_id}")
 def get_software_for_device(device_id: str):
-    latest_data = None
-    with get_db(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.execute('''
-            SELECT audit_data, execution_datetime FROM device_audits
-            WHERE LOWER(mac_address) = LOWER(?) OR LOWER(computer_name) = LOWER(?)
-            ORDER BY id DESC, execution_datetime DESC LIMIT 1
-        ''', (device_id, device_id))
-        row = cursor.fetchone()
-        if row:
-            latest_data = json.loads(row['audit_data'])
-            latest_ts = row['execution_datetime']
+    latest_data = legacy_db.get_latest_audit(device_id)
 
     if not latest_data:
         raise HTTPException(status_code=404, detail=f"No audit found for device: {device_id}")
+
+    software_inventory = [
+        {"name": s.get("application_name"), "version": s.get("version"),
+         "publisher": s.get("publisher"), "install_date": s.get("install_date"), "size_mb": s.get("size_mb")}
+        for s in latest_data.get("software", [])
+    ]
+
     return {
         "id":                 device_id,
-        "computer_name":      latest_data.get("computer_name", "Unknown"),
-        "current_user":       latest_data.get("current_user", "Unknown"),
-        "last_audit":         latest_ts,
-        "software_inventory": latest_data.get("software_inventory", []),
-        "total":              len(latest_data.get("software_inventory", [])),
-        "os_name":            latest_data.get("os_name", ""),
-        "os_version":         latest_data.get("os_version", ""),
-        "os_build":           latest_data.get("os_build", ""),
-        "last_boot":          latest_data.get("last_boot", ""),
-        "uptime":             latest_data.get("uptime", ""),
-        "architecture":       latest_data.get("architecture", ""),
-        "license_status":     latest_data.get("license_status", ""),
-        "firewall":           latest_data.get("firewall", "Unknown"),
-        "bitlocker":          latest_data.get("bitlocker", "Unknown"),
-        "secure_boot":        latest_data.get("secure_boot", "Unknown"),
-        "tpm":                latest_data.get("tpm", "Unknown"),
-        "hardware_details":   latest_data.get("hardware_details", {}),
+        "computer_name":      latest_data.get("computer_name") or "Unknown",
+        "current_user":       latest_data.get("current_username") or "Unknown",
+        "last_audit":         latest_data.get("execution_datetime"),
+        "software_inventory": software_inventory,
+        "total":              len(software_inventory),
+        "os_name":            latest_data.get("os_name") or "",
+        "os_version":         latest_data.get("os_version") or "",
+        "os_build":           latest_data.get("os_build") or "",
+        "last_boot":          latest_data.get("last_boot") or "",
+        "uptime":             latest_data.get("uptime") or "",
+        "architecture":       latest_data.get("architecture") or "",
+        "license_status":     latest_data.get("license_status") or "",
+        "firewall":           latest_data.get("firewall") or "Unknown",
+        "bitlocker":          latest_data.get("bitlocker") or "Unknown",
+        "secure_boot":        latest_data.get("secure_boot") or "Unknown",
+        "tpm":                latest_data.get("tpm") or "Unknown",
+        "hardware_details":   {k: latest_data.get(k) for k in
+                                ("cpu", "ram", "disk", "serial_number", "manufacturer", "model")},
         "network_details":    latest_data.get("network_details", []),
         "user_accounts":      latest_data.get("user_accounts", []),
-        "login_history":      latest_data.get("login_history", []),
+        "login_history":      latest_data.get("raw_login_history") or [],
         "hotfixes":           latest_data.get("hotfixes", []),
-        "antivirus":          latest_data.get("antivirus", "")
+        "antivirus":          latest_data.get("antivirus", [])
     }
 
 
@@ -143,16 +121,8 @@ def get_device_diff(device_id: str):
     Compare the two most recent audit scans for a device.
     Returns: newly installed apps, removed apps, hardware changes.
     """
-    scans = []
-    with get_db(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.execute('''
-            SELECT audit_data, execution_datetime FROM device_audits
-            WHERE LOWER(mac_address) = LOWER(?) OR LOWER(computer_name) = LOWER(?)
-            ORDER BY execution_datetime DESC LIMIT 2
-        ''', (device_id, device_id))
-        for row in cursor:
-            scans.append((row['execution_datetime'], json.loads(row['audit_data'])))
+    scans_raw = legacy_db.get_last_two_audits(device_id)
+    scans = [(a.get("execution_datetime") or a["created_at"].isoformat(), a) for a in scans_raw]
 
     if len(scans) < 2:
         return {
@@ -192,19 +162,17 @@ def get_device_diff(device_id: str):
         ("manufacturer",  "Manufacturer"),
         ("model",         "Model"),
     ]
-    prev_hw = prev.get("hardware_details", {}) if isinstance(prev.get("hardware_details"), dict) else {}
-    curr_hw = curr.get("hardware_details", {}) if isinstance(curr.get("hardware_details"), dict) else {}
 
     for field, label in hw_fields:
-        pv = str(prev_hw.get(field, "Unknown") or "Unknown").strip()
-        cv = str(curr_hw.get(field, "Unknown") or "Unknown").strip()
+        pv = str(prev.get(field) or "Unknown").strip()
+        cv = str(curr.get(field) or "Unknown").strip()
         if pv != cv:
             hw_changes.append({"field": label, "previous": pv, "current": cv})
 
     # OS changes
     for field, label in [("os_name", "OS Name"), ("os_version", "OS Version"), ("architecture", "Architecture")]:
-        pv = str(prev.get(field, "Unknown") or "Unknown").strip()
-        cv = str(curr.get(field, "Unknown") or "Unknown").strip()
+        pv = str(prev.get(field) or "Unknown").strip()
+        cv = str(curr.get(field) or "Unknown").strip()
         if pv != cv:
             hw_changes.append({"field": label, "previous": pv, "current": cv})
 

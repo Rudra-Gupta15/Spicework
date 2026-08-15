@@ -8,9 +8,9 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from backend.core.config import DB_PATH, USER_INFO_DIR, logger
+from backend import legacy_db
+from backend.core.config import USER_INFO_DIR, logger
 from backend.core.state import sessions
-from backend.db import get_db
 from backend.models.audit import AuditData, GpuInfo, HardwareDetails, HotfixData, NetworkDetails, PrinterData, UserAccount
 from backend.services.common import clean_string, model_to_dict
 from backend.services.pdf_report import (
@@ -48,20 +48,12 @@ def upload_audit(data: AuditData, client_id: str = Query(None)):
     pdf_path  = f"{USER_INFO_DIR}/audit_{cid}_{clean_name}_{timestamp}.pdf"
     xml_path  = f"{USER_INFO_DIR}/audit_{cid}_{clean_name}_{timestamp}.xml"
 
-    # INSERT TO DB INSTEAD OF SAVING JSON FILE
     # Record current server timestamp for real-time sorting
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     data.execution_datetime = ts
-    mac = data.mac_address
-    name = data.computer_name
-    os_name = data.os_name
 
-    with get_db(DB_PATH) as conn:
-        conn.execute('''
-            INSERT INTO device_audits (mac_address, computer_name, os_name, execution_datetime, audit_data)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (mac, name, os_name, ts, data.json()))
-        conn.commit()
+    audit_row = legacy_db.save_audit(data, client_id=cid)
+    audit_id = audit_row["id"]
 
 
     av_str          = list_text(data.antivirus)
@@ -484,6 +476,12 @@ def upload_audit(data: AuditData, client_id: str = Query(None)):
             "xml_path": xml_path if os.path.exists(xml_path) else None,
         }
         raise HTTPException(status_code=500, detail="Audit report generation failed.")
+
+    legacy_db.update_audit_report_paths(
+        audit_id,
+        pdf_path if os.path.exists(pdf_path) else None,
+        xml_path if os.path.exists(xml_path) else None,
+    )
 
     sessions[cid] = {
         "status": "completed", "branch_name": branch_name, "branch_code": branch_code,

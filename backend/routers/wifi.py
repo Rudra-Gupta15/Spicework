@@ -2,7 +2,6 @@ import base64
 import os
 import re
 import socket
-import sqlite3
 import tempfile
 import time
 import uuid
@@ -11,8 +10,8 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-from backend.core.config import DB_PATH, logger
-from backend.db import get_db
+from backend import legacy_db
+from backend.core.config import logger
 from backend.models.discovery import NetworkScanRequest
 from backend.models.wifi import NotificationRequest, WifiConnectRequest, WifiSaveCredentialRequest
 from backend.routers.discovery import network_scan
@@ -69,11 +68,9 @@ def get_wifi_networks():
 
     # Query DB saved wifi credentials
     try:
-        with get_db(DB_PATH) as conn:
-            rows = conn.execute("SELECT ssid FROM wifi_credentials").fetchall()
-            for r in rows:
-                if r[0]:
-                    saved_profiles.add(r[0])
+        for ssid in legacy_db.list_wifi_ssids():
+            if ssid:
+                saved_profiles.add(ssid)
     except Exception:
         pass
 
@@ -171,15 +168,12 @@ def get_current_wifi():
 @router.get("/wifi/credentials")
 def get_saved_wifi_credentials():
     credentials = {}
-    with get_db(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.execute("SELECT ssid, password, updated_at FROM wifi_credentials")
-        for row in cursor:
-            credentials[row['ssid']] = {
-                "ssid": row['ssid'],
-                "password": row['password'],
-                "updated_at": row['updated_at']
-            }
+    for row in legacy_db.list_wifi_credentials():
+        credentials[row['ssid']] = {
+            "ssid": row['ssid'],
+            "password": row['password'],
+            "updated_at": row['updated_at']
+        }
     return {"credentials": credentials}
 
 
@@ -187,14 +181,7 @@ def get_saved_wifi_credentials():
 def save_wifi_credential(req: WifiSaveCredentialRequest):
     if not req.ssid or not req.password:
         raise HTTPException(status_code=400, detail="SSID and password cannot be empty.")
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with get_db(DB_PATH) as conn:
-        conn.execute('''
-            INSERT INTO wifi_credentials (ssid, password, updated_at)
-            VALUES (?, ?, ?)
-            ON CONFLICT(ssid) DO UPDATE SET password=excluded.password, updated_at=excluded.updated_at
-        ''', (req.ssid.strip(), req.password, now))
-        conn.commit()
+    legacy_db.save_wifi_credential(req.ssid.strip(), req.password)
     return {"status": "saved", "ssid": req.ssid.strip()}
 
 
@@ -212,14 +199,7 @@ def connect_wifi(req: WifiConnectRequest):
 
     # Save credential permanently to DB
     try:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with get_db(DB_PATH) as conn:
-            conn.execute('''
-                INSERT INTO wifi_credentials (ssid, password, updated_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(ssid) DO UPDATE SET password=excluded.password, updated_at=excluded.updated_at
-            ''', (ssid.strip(), password, now))
-            conn.commit()
+        legacy_db.save_wifi_credential(ssid.strip(), password)
     except Exception as db_err:
         logger.warning(f"Could not save WiFi credential to DB: {db_err}")
 

@@ -1,5 +1,3 @@
-import json
-import sqlite3
 from datetime import datetime
 from xml.sax.saxutils import escape
 
@@ -8,9 +6,8 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from backend.core.config import DB_PATH, USER_INFO_DIR
+from backend.core.config import USER_INFO_DIR
 from backend.core.config import logger
-from backend.db import get_db
 from backend.models.audit import AuditData, HardwareDetails
 from backend.services.common import clean_string, model_to_dict
 
@@ -91,49 +88,54 @@ def get_hw_list(data, key):
 
 
 def generate_pdf_for_device(client_id: str) -> str:
-    """Dynamically build a ReportLab PDF report from SQLite database audit records."""
-    raw_audit = None
+    """Dynamically build a ReportLab PDF report from the relational legacy_audits tables."""
+    from backend import legacy_db
+
+    audit = None
     try:
-        with get_db(DB_PATH) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.execute('''
-                SELECT audit_data FROM device_audits
-                WHERE mac_address = ? OR computer_name = ? OR id = ?
-                ORDER BY id DESC LIMIT 1
-            ''', (client_id, client_id, client_id))
-            row = cursor.fetchone()
-            if row and row["audit_data"]:
-                raw_audit = json.loads(row["audit_data"])
-            else:
-                cursor2 = conn.execute('''
-                    SELECT raw_payload FROM device_audits_v2
-                    WHERE mac_address = ? OR computer_name = ? OR id = ?
-                    ORDER BY id DESC LIMIT 1
-                ''', (client_id, client_id, client_id))
-                row2 = cursor2.fetchone()
-                if row2 and row2["raw_payload"]:
-                    raw_audit = json.loads(row2["raw_payload"])
+        audit = legacy_db.get_latest_audit(client_id)
     except Exception as e:
         logger.error(f"Error querying database for device '{client_id}': {e}")
 
-    if not raw_audit:
+    if not audit:
         return None
 
     try:
-        if isinstance(raw_audit, dict) and "software_inventory" in raw_audit:
-            data = AuditData(**raw_audit)
-        else:
-            data = AuditData(
-                computer_name=raw_audit.get("computer_name", client_id),
-                os_name=raw_audit.get("os_name", "Windows / macOS"),
-                os_version=raw_audit.get("os_version", ""),
-                architecture=raw_audit.get("architecture", "64-bit"),
-                license_status=raw_audit.get("license_status", "Licensed"),
-                mac_address=raw_audit.get("mac_address", client_id),
-                software_inventory=raw_audit.get("software_inventory", []),
-                hardware_details=raw_audit.get("hardware_details", {}),
-                execution_datetime=raw_audit.get("execution_datetime", datetime.now().strftime("%d-%b-%Y_%H:%M:%S")),
-            )
+        hw_details = {
+            "cpu": audit.get("cpu"), "ram": audit.get("ram"), "disk": audit.get("disk"),
+            "serial_number": audit.get("serial_number"), "manufacturer": audit.get("manufacturer"),
+            "model": audit.get("model"), "mobo_manufacturer": audit.get("mobo_manufacturer"),
+            "mobo_product": audit.get("mobo_product"), "bios_version": audit.get("bios_version"),
+            "bios_date": audit.get("bios_date"),
+            "gpu_details": audit.get("gpus", []),
+            "network_adapters": audit.get("network_adapters", []),
+            "disk_partitions": audit.get("disk_partitions", []),
+            "peripherals": audit.get("peripherals", []),
+        }
+        data = AuditData(
+            computer_name=audit.get("computer_name") or client_id,
+            current_user=audit.get("current_username") or "Unknown",
+            os_name=audit.get("os_name") or "Windows / macOS",
+            os_version=audit.get("os_version") or "",
+            architecture=audit.get("architecture") or "64-bit",
+            license_status=audit.get("license_status") or "Licensed",
+            mac_address=audit.get("mac_address") or client_id,
+            software_inventory=[
+                {"name": s.get("application_name"), "version": s.get("version"),
+                 "publisher": s.get("publisher"), "install_date": s.get("install_date")}
+                for s in audit.get("software", [])
+            ],
+            hardware_details=hw_details,
+            hotfixes=audit.get("hotfixes", []),
+            printers=audit.get("printers", []),
+            antivirus=audit.get("antivirus", []),
+            user_accounts=[
+                {"name": u.get("username"), "disabled": u.get("disabled"), "user_type": u.get("user_type")}
+                for u in audit.get("user_accounts", [])
+            ],
+            login_history=audit.get("raw_login_history") or [],
+            execution_datetime=audit.get("execution_datetime") or datetime.now().strftime("%d-%b-%Y_%H:%M:%S"),
+        )
 
         clean_cid = "".join(x for x in client_id if x.isalnum() or x in "._-").strip() or "device"
         pdf_path = f"{USER_INFO_DIR}/AuditReport_{clean_cid}.pdf"

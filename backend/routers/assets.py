@@ -1,10 +1,9 @@
-import json
-import os
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 
-from backend.core.config import ASSET_METADATA_DIR, logger
+from backend import legacy_db
+from backend.core.config import logger
 from backend.models.assets import AssetMetadata
 from backend.services.common import model_to_dict
 
@@ -14,10 +13,9 @@ router = APIRouter()
 @router.post("/asset-metadata")
 def save_asset_metadata(metadata: AssetMetadata):
     metadata.last_updated = datetime.now().isoformat()
-    path = f"{ASSET_METADATA_DIR}/{metadata.device_id}.json"
     try:
-        with open(path, "w") as f:
-            json.dump(model_to_dict(metadata), f, indent=4)
+        fields = model_to_dict(metadata)
+        legacy_db.save_asset_metadata(metadata.device_id, fields)
         logger.info(f"Asset metadata saved: {metadata.device_id}")
         return {"status": "saved", "device_id": metadata.device_id}
     except Exception as e:
@@ -27,42 +25,29 @@ def save_asset_metadata(metadata: AssetMetadata):
 
 @router.get("/asset-metadata/{device_id}")
 def get_asset_metadata(device_id: str):
-    path = f"{ASSET_METADATA_DIR}/{device_id}.json"
-    if not os.path.exists(path):
+    row = legacy_db.get_asset_metadata(device_id)
+    if not row:
         raise HTTPException(status_code=404, detail="Asset not found.")
-    with open(path) as f:
-        return json.load(f)
+    return row
 
 
 @router.put("/asset-metadata/{device_id}")
 def update_asset_metadata(device_id: str, metadata: AssetMetadata):
-    metadata.device_id   = device_id
+    metadata.device_id = device_id
     metadata.last_updated = datetime.now().isoformat()
-    path = f"{ASSET_METADATA_DIR}/{device_id}.json"
-    with open(path, "w") as f:
-        json.dump(model_to_dict(metadata), f, indent=4)
+    fields = model_to_dict(metadata)
+    legacy_db.save_asset_metadata(device_id, fields)
     return {"status": "updated", "device_id": device_id}
 
 
 @router.delete("/asset-metadata/{device_id}")
 def delete_asset_metadata(device_id: str):
-    path = f"{ASSET_METADATA_DIR}/{device_id}.json"
-    if not os.path.exists(path):
+    if not legacy_db.delete_asset_metadata(device_id):
         raise HTTPException(status_code=404, detail="Asset not found.")
-    os.remove(path)
     return {"status": "deleted", "device_id": device_id}
 
 
 @router.get("/assets")
 def list_assets():
-    assets = []
-    if os.path.exists(ASSET_METADATA_DIR):
-        for fn in os.listdir(ASSET_METADATA_DIR):
-            if fn.endswith(".json"):
-                try:
-                    with open(f"{ASSET_METADATA_DIR}/{fn}") as f:
-                        assets.append(json.load(f))
-                except Exception:
-                    pass
-    assets.sort(key=lambda x: x.get("last_updated", ""), reverse=True)
+    assets = legacy_db.list_asset_metadata()
     return {"assets": assets, "total": len(assets)}
