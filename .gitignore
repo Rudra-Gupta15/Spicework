@@ -1,0 +1,39 @@
+# Environment variables — never commit real secrets, copy *.env.example instead
+.env
+.env.*
+!.env.example
+!*/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+venv/
+.venv/
+env/
+ENV/
+
+# Node (frontend keeps its own .gitignore too — this is a safety net)
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Logs
+logs/
+*.log
+
+# Runtime data / generated reports
+audits.db
+*.sqlite
+*.sqlite3
+user_info/
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
