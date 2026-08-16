@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AgentConfigCard } from "@/components/agent/AgentConfigCard";
 import { DeploymentCard } from "@/components/agent/DeploymentCard";
@@ -10,12 +10,15 @@ import { Avatar, Badge } from "@/components/ui";
 import { CURRENT_USER } from "@/config/user";
 import {
   DEFAULT_AGENT_CONFIG,
-  buildLauncher,
   daemonSnippets,
+  downloadLauncher,
+  fetchAuditStatus,
+  generateClientId,
   localSnippets,
   remoteSnippets,
 } from "@/data/agent";
-import { downloadText, formatBytes } from "@/lib/download";
+import { ApiError } from "@/lib/api";
+import { downloadBlob, formatBytes } from "@/lib/download";
 import type { AgentConfig, LauncherId } from "@/types/agent";
 
 interface DownloadInfo {
@@ -25,15 +28,27 @@ interface DownloadInfo {
   isWindows: boolean;
 }
 
+/** How often to check whether a triggered audit has reported back. */
+const STATUS_POLL_MS = 3000;
+/** Stop polling after ~5 minutes so a launcher that's never run doesn't poll forever. */
+const STATUS_POLL_MAX_ATTEMPTS = 100;
+
 const AgentPage = () => {
+  /* One id per page visit — every download and command snippet below is
+     tagged with it, so the status badge can track whichever one gets run. */
+  const [clientId] = useState(generateClientId);
+
   /* The saved settings; edits stay in `draft` until Save. */
   const [config, setConfig] = useState<AgentConfig>(DEFAULT_AGENT_CONFIG);
   const [draft, setDraft] = useState<AgentConfig>(DEFAULT_AGENT_CONFIG);
   const [launcher, setLauncher] = useState<LauncherId>("win-exe");
   const [download, setDownload] = useState<DownloadInfo | null>(null);
+  const [isDownloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string>();
   /* The launcher whose SmartScreen prompt is open, if any. */
   const [running, setRunning] = useState<string | null>(null);
   const [isActive, setActive] = useState(false);
+  const [isWaiting, setWaiting] = useState(false);
 
   const isDirty = useMemo(
     () =>
@@ -56,20 +71,32 @@ const AgentPage = () => {
     setConfig(DEFAULT_AGENT_CONFIG);
   }, []);
 
-  /* Selecting a launcher downloads it and drops in the confirmation toast. */
+  /* Selecting a launcher fetches the real file from the backend, which also
+     opens a tracked session for `clientId` on the server. */
   const pickLauncher = useCallback(
-    (id: LauncherId) => {
+    async (id: LauncherId) => {
       setLauncher(id);
-
-      const file = buildLauncher(id, draft);
-      downloadText(file.filename, file.content);
-      setDownload({
-        filename: file.filename,
-        size: formatBytes(new Blob([file.content]).size),
-        isWindows: id === "win-exe" || id === "win-vbs",
-      });
+      setDownloading(true);
+      setDownloadError(undefined);
+      try {
+        const { blob, filename } = await downloadLauncher(id, clientId);
+        downloadBlob(filename, blob);
+        setDownload({
+          filename,
+          size: formatBytes(blob.size),
+          isWindows: id === "win-exe" || id === "win-vbs",
+        });
+      } catch (error) {
+        setDownloadError(
+          error instanceof ApiError || error instanceof Error
+            ? error.message
+            : "Could not download the launcher.",
+        );
+      } finally {
+        setDownloading(false);
+      }
     },
-    [draft],
+    [clientId],
   );
 
   /* Clicking the download "runs" it — Windows launchers hit SmartScreen. */
@@ -79,14 +106,40 @@ const AgentPage = () => {
     setDownload(null);
   }, [download]);
 
+  /* The browser can't actually execute the downloaded file, so "confirming"
+     just starts watching the server for the real audit it's expected to
+     trigger — `isActive` only flips once that report genuinely arrives. */
   const confirmRun = useCallback(() => {
     setRunning(null);
-    setActive(true);
+    setWaiting(true);
   }, []);
 
+  useEffect(() => {
+    if (!isWaiting) return;
+
+    let attempts = 0;
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      fetchAuditStatus(clientId)
+        .then((session) => {
+          if (session.status === "completed") {
+            setActive(true);
+            setWaiting(false);
+          } else if (session.status === "failed" || attempts >= STATUS_POLL_MAX_ATTEMPTS) {
+            setWaiting(false);
+          }
+        })
+        .catch(() => {
+          /* Transient network hiccup — try again on the next tick. */
+        });
+    }, STATUS_POLL_MS);
+
+    return () => window.clearInterval(timer);
+  }, [isWaiting, clientId]);
+
   /* Commands preview the draft, so edits show before they are saved. */
-  const local = useMemo(() => localSnippets(draft), [draft]);
-  const remote = useMemo(() => remoteSnippets(draft), [draft]);
+  const local = useMemo(() => localSnippets(draft, clientId), [draft, clientId]);
+  const remote = useMemo(() => remoteSnippets(draft, clientId), [draft, clientId]);
   const daemon = useMemo(() => daemonSnippets(draft), [draft]);
 
   return (
@@ -103,12 +156,12 @@ const AgentPage = () => {
               <span
                 aria-hidden="true"
                 className={
-                  isActive
+                  isActive || isWaiting
                     ? "h-2 w-2 animate-pulse rounded-full bg-status-online"
                     : "h-2 w-2 rounded-full bg-status-neutral"
                 }
               />
-              {isActive ? "Active" : "Standby"}
+              {isActive ? "Active" : isWaiting ? "Waiting for audit…" : "Standby"}
             </Badge>
             <Avatar name={CURRENT_USER.name} variant="auto" />
           </>
@@ -133,8 +186,17 @@ const AgentPage = () => {
           </p>
 
           <div className="mt-4">
-            <LauncherTabs value={launcher} onChange={pickLauncher} />
+            <LauncherTabs
+              value={launcher}
+              onChange={(id) => void pickLauncher(id)}
+            />
           </div>
+          {isDownloading && (
+            <p className="mt-2 text-[13px] text-muted">Preparing launcher…</p>
+          )}
+          {downloadError && (
+            <p className="mt-2 text-[13px] text-status-offline">{downloadError}</p>
+          )}
         </section>
 
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">

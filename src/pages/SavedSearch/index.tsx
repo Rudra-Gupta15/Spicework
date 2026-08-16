@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus } from "lucide-react";
 
 import { DetailTabs } from "@/components/common/DetailTabs";
@@ -12,39 +12,35 @@ import { SavedSearchTable } from "@/components/savedSearch/SavedSearchTable";
 import { Button, Card, ConfirmDialog, Pagination } from "@/components/ui";
 import { CURRENT_USER } from "@/config/user";
 import {
-  SAVED_SEARCHES,
   SAVED_SEARCH_TABS,
-  addSavedSearch,
+  createSavedSearch,
   deleteSavedSearch,
-  filtersLabel,
+  useSavedSearches,
 } from "@/data/savedSearches";
-import { runHardwareSearch } from "@/data/savedSearchResults";
+import { ApiError } from "@/lib/api";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import type { SavedSearch, SavedSearchCategory } from "@/types/savedSearch";
 
 const PAGE_SIZE = 8;
 
-/** Today, in the `Aug 4, 2026` format the list displays. */
-const todayLabel = (): string =>
-  new Date().toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-
-let sequence = 0;
+const errorMessage = (error: unknown, fallback: string) =>
+  error instanceof ApiError || error instanceof Error ? error.message : fallback;
 
 const SavedSearchPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const createDialog = useDisclosure();
 
-  /* Snapshot the store on mount; a version bump re-reads it after edits. */
-  const [, bump] = useState(0);
-  const [tab, setTab] = useState<SavedSearchCategory>("Hardware");
+  /* A filter bar's "Save Filter" button lands here with the category it
+     saved to, e.g. navigate("/saved-search", { state: { tab: "Software" } }). */
+  const initialTab = (location.state as { tab?: SavedSearchCategory } | null)?.tab;
+  const [tab, setTab] = useState<SavedSearchCategory>(initialTab ?? "Hardware");
   const [page, setPage] = useState(1);
   const [pendingDelete, setPendingDelete] = useState<SavedSearch | null>(null);
+  const [createError, setCreateError] = useState<string>();
+  const [isSaving, setSaving] = useState(false);
 
-  const searches = SAVED_SEARCHES[tab];
+  const { searches, isLoading, error, reload } = useSavedSearches(tab);
 
   const visible = useMemo(
     () => searches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
@@ -57,26 +53,24 @@ const SavedSearchPage = () => {
   };
 
   const createSearch = useCallback(
-    (draft: NewSearchDraft) => {
-      sequence += 1;
-      /* Hardware queries run against the estate; others just record intent. */
-      const results =
-        tab === "Hardware" ? runHardwareSearch(draft.filters).length : 0;
-
-      const search: SavedSearch = {
-        id: `${tab.toLowerCase().replace(/\s+/g, "-")}-new-${sequence}`,
-        name: draft.name,
-        scope: draft.scope,
-        filters: filtersLabel(draft.filters),
-        appliedFilters: draft.filters,
-        results,
-        createdBy: CURRENT_USER.name,
-        created: todayLabel(),
-      };
-
-      addSavedSearch(tab, search);
-      createDialog.close();
-      navigate(`/saved-search/${search.id}`);
+    async (draft: NewSearchDraft) => {
+      setCreateError(undefined);
+      setSaving(true);
+      try {
+        const search = await createSavedSearch(tab, {
+          name: draft.name,
+          scope: draft.scope,
+          filters: draft.filters,
+          resultsCount: 0,
+          createdBy: CURRENT_USER.name,
+        });
+        createDialog.close();
+        navigate(`/saved-search/${search.id}`);
+      } catch (err) {
+        setCreateError(errorMessage(err, "Could not save this search."));
+      } finally {
+        setSaving(false);
+      }
     },
     [tab, createDialog, navigate],
   );
@@ -88,18 +82,17 @@ const SavedSearchPage = () => {
 
   const confirmDelete = useCallback(() => {
     if (!pendingDelete) return;
-    deleteSavedSearch(pendingDelete.id);
+    const id = pendingDelete.id;
     setPendingDelete(null);
-    /* Land back on a valid page if the last row of this one just went. */
-    setPage((current) => {
-      const lastPage = Math.max(
-        Math.ceil((SAVED_SEARCHES[tab].length || 1) / PAGE_SIZE),
-        1,
-      );
-      return Math.min(current, lastPage);
+    void deleteSavedSearch(id).then(() => {
+      reload();
+      setPage((current) => {
+        const remaining = searches.length - 1;
+        const lastPage = Math.max(Math.ceil((remaining || 1) / PAGE_SIZE), 1);
+        return Math.min(current, lastPage);
+      });
     });
-    bump((value) => value + 1);
-  }, [pendingDelete, tab]);
+  }, [pendingDelete, reload, searches.length]);
 
   return (
     <>
@@ -134,12 +127,22 @@ const SavedSearchPage = () => {
             {tab} Saved Searches
           </h2>
 
-          <SavedSearchTable
-            searches={visible}
-            onView={openSearch}
-            onEdit={openSearch}
-            onDelete={setPendingDelete}
-          />
+          {error && (
+            <p className="mb-3 text-[13px] text-status-offline">{error}</p>
+          )}
+
+          {isLoading ? (
+            <p className="py-8 text-center text-sm text-muted">
+              Loading saved searches…
+            </p>
+          ) : (
+            <SavedSearchTable
+              searches={visible}
+              onView={openSearch}
+              onEdit={openSearch}
+              onDelete={setPendingDelete}
+            />
+          )}
 
           <Pagination
             className="mt-5"
@@ -156,8 +159,13 @@ const SavedSearchPage = () => {
         key={`${tab}-${createDialog.isOpen}`}
         isOpen={createDialog.isOpen}
         category={tab}
-        onClose={createDialog.close}
-        onSave={createSearch}
+        onClose={() => {
+          setCreateError(undefined);
+          createDialog.close();
+        }}
+        onSave={(draft) => void createSearch(draft)}
+        error={createError}
+        isSaving={isSaving}
       />
 
       <ConfirmDialog

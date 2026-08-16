@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 .claude
 .vscode
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class

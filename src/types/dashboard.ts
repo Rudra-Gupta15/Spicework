@@ -18,14 +18,19 @@ export interface BarPoint {
   value: number;
 }
 
+/** Every field here is shown exactly as the scan reported it — no derived
+    scoring or interpretation. */
 export interface DeviceAudit {
   id: string;
   device: string;
   ip: string;
   os: string;
   auditedOn: string;
-  score: number;
-  status: "Pass" | "Fail";
+  currentUser: string;
+  antivirus: string;
+  firewall: string;
+  licenseStatus: string;
+  softwareCount: number;
 }
 
 export interface ActivityItem {

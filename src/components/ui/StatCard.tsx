@@ -17,14 +17,14 @@ const ICON_TONES: Record<Tone, string> = {
 
 /** KPI tile: label, hero number and an optional period-over-period delta. */
 export const StatCard = ({ metric }: { metric: StatMetric }) => {
-  const { label, value, icon: Icon, tone, delta, to } = metric;
+  const { label, value, icon: Icon, tone, delta, to, onClick } = metric;
   const TrendIcon = delta?.direction === "up" ? TrendingUp : TrendingDown;
 
   const tile = (
     <Card
       className={cn(
         "h-full p-[18px]",
-        to && "transition-colors hover:border-brand",
+        (to || onClick) && "transition-colors hover:border-brand",
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -58,6 +58,19 @@ export const StatCard = ({ metric }: { metric: StatMetric }) => {
       </div>
     </Card>
   );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={`${label}: ${value}`}
+        className="block w-full rounded-xl text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      >
+        {tile}
+      </button>
+    );
+  }
 
   if (!to) return tile;
 

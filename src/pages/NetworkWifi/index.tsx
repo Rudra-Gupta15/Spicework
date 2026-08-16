@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ConnectedDevicesCard } from "@/components/network/ConnectedDevicesCard";
 import { ConnectWifiModal } from "@/components/network/ConnectWifiModal";
@@ -7,19 +7,16 @@ import { WifiNetworkList } from "@/components/network/WifiNetworkList";
 import { Navbar } from "@/components/layout/Navbar";
 import { SectionCard } from "@/components/ui";
 import {
-  ACTIVE_NETWORK_ID,
-  TOTAL_SCANNED_DEVICES,
-  WIFI_NETWORKS,
+  connectToWifi,
+  fetchCurrentWifi,
+  fetchWifiNetworks,
   filterDevices,
-  getConnection,
-  scanDevices,
-  subnetLabel,
+  resolveConnection,
+  scanConnectedDevices,
 } from "@/data/network";
+import { ApiError } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
 import type { NetworkDevice, WifiNetwork } from "@/types/network";
-
-/** How long the mock sweep runs before it reports back. */
-const SCAN_DURATION_MS = 900;
 
 const CSV_HEADERS = [
   "IP Address",
@@ -30,85 +27,146 @@ const CSV_HEADERS = [
   "Status",
 ];
 
+const errorMessage = (error: unknown, fallback: string) =>
+  error instanceof ApiError || error instanceof Error ? error.message : fallback;
+
 const NetworkWifiPage = () => {
-  const [activeId, setActiveId] = useState(ACTIVE_NETWORK_ID);
+  const [networks, setNetworks] = useState<WifiNetwork[]>([]);
+  const [currentSsid, setCurrentSsid] = useState<string | null>(null);
+  const [currentIp, setCurrentIp] = useState<string | null>(null);
+  const [currentSubnet, setCurrentSubnet] = useState<string | null>(null);
+  const [currentBand, setCurrentBand] = useState<string | null>(null);
+  const [currentChannel, setCurrentChannel] = useState<string | null>(null);
+  const [connected, setConnected] = useState(false);
+
+  const [isLoading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string>();
+
   const [devices, setDevices] = useState<NetworkDevice[]>([]);
   const [hasScanned, setHasScanned] = useState(false);
   const [isScanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string>();
   const [search, setSearch] = useState("");
-  /* The network waiting on the password prompt. */
+
   const [pending, setPending] = useState<WifiNetwork | null>(null);
+  const [isConnecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string>();
+
   const [notified, setNotified] = useState<ReadonlySet<string>>(new Set());
 
-  const scanTimer = useRef<number | null>(null);
-
-  const cancelScan = useCallback(() => {
-    if (scanTimer.current !== null) window.clearTimeout(scanTimer.current);
-    scanTimer.current = null;
+  const loadWifiState = useCallback(async () => {
+    setLoading(true);
+    setLoadError(undefined);
+    try {
+      const [networkList, current] = await Promise.all([
+        fetchWifiNetworks(),
+        fetchCurrentWifi(),
+      ]);
+      setNetworks(networkList);
+      setConnected(current.connected);
+      setCurrentSsid(current.ssid);
+      setCurrentIp(current.ip);
+      setCurrentSubnet(current.subnet);
+      setCurrentBand(current.band);
+      setCurrentChannel(current.channel);
+    } catch (error) {
+      setLoadError(errorMessage(error, "Could not reach the WiFi service."));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  /* A pending sweep must not land after the page is gone. */
-  useEffect(() => cancelScan, [cancelScan]);
+  useEffect(() => {
+    // Standard fetch-on-mount: loadWifiState sets a loading flag before its
+    // first await, which this rule can't distinguish from a synchronous
+    // render-time state update.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadWifiState();
+  }, [loadWifiState]);
 
-  const network = useMemo(
-    () => WIFI_NETWORKS.find((item) => item.id === activeId),
-    [activeId],
+  const activeNetwork = useMemo(
+    () => networks.find((item) => item.ssid === currentSsid),
+    [networks, currentSsid],
   );
 
-  const connection = useMemo(() => getConnection(network), [network]);
+  const connection = useMemo(
+    () =>
+      resolveConnection(
+        {
+          connected,
+          ssid: currentSsid,
+          band: currentBand,
+          channel: currentChannel,
+          ip: currentIp,
+          subnet: currentSubnet,
+        },
+        networks,
+      ),
+    [connected, currentSsid, currentBand, currentChannel, currentIp, currentSubnet, networks],
+  );
 
   const visibleDevices = useMemo(
     () => filterDevices(devices, search),
     [devices, search],
   );
 
-  /* Unfiltered, the table is the first page of everything the sweep saw. */
   const summary = useMemo(() => {
     if (!hasScanned || !connection) return "0 devices";
-
     if (search.trim()) {
-      return `${visibleDevices.length} of ${TOTAL_SCANNED_DEVICES} devices match this filter`;
+      return `${visibleDevices.length} of ${devices.length} devices match this filter`;
     }
+    return `${devices.length} devices active on subnet ${currentSubnet ?? "—"}`;
+  }, [hasScanned, connection, search, visibleDevices.length, devices.length, currentSubnet]);
 
-    return `${TOTAL_SCANNED_DEVICES} devices active on subnet ${subnetLabel(connection)}`;
-  }, [hasScanned, connection, search, visibleDevices.length]);
+  const runScan = useCallback(async () => {
+    if (!connection || isScanning) return;
 
-  /* Joining an access point drops the results of the previous sweep. */
-  const connectNetwork = useCallback(
-    (next: WifiNetwork) => {
-      cancelScan();
-      setActiveId(next.id);
-      setDevices([]);
-      setHasScanned(false);
+    setScanning(true);
+    setScanError(undefined);
+    try {
+      const found = await scanConnectedDevices(currentSubnet ?? undefined);
+      setDevices(found);
+      setHasScanned(true);
+    } catch (error) {
+      setScanError(errorMessage(error, "Scan failed."));
+    } finally {
       setScanning(false);
-      setSearch("");
-      setPending(null);
-      setNotified(new Set());
+    }
+  }, [connection, isScanning, currentSubnet]);
+
+  const connectNetwork = useCallback(
+    async (next: WifiNetwork, password: string) => {
+      setConnecting(true);
+      setConnectError(undefined);
+      try {
+        const result = await connectToWifi(next.ssid, password);
+        if (result.status === "error") {
+          setConnectError(result.message ?? "Failed to connect to this network.");
+          return;
+        }
+
+        setDevices([]);
+        setHasScanned(false);
+        setSearch("");
+        setNotified(new Set());
+        setPending(null);
+        await loadWifiState();
+      } catch (error) {
+        setConnectError(errorMessage(error, "Failed to connect to this network."));
+      } finally {
+        setConnecting(false);
+      }
     },
-    [cancelScan],
+    [loadWifiState],
   );
 
   const notifyDevice = useCallback((device: NetworkDevice) => {
     setNotified((current) => new Set(current).add(device.id));
   }, []);
 
-  const runScan = useCallback(() => {
-    if (!connection || isScanning) return;
-
-    setScanning(true);
-    cancelScan();
-
-    scanTimer.current = window.setTimeout(() => {
-      setDevices(scanDevices(connection));
-      setHasScanned(true);
-      setScanning(false);
-      scanTimer.current = null;
-    }, SCAN_DURATION_MS);
-  }, [connection, isScanning, cancelScan]);
-
   const exportCsv = useCallback(() => {
     downloadCsv(
-      `network-devices-${activeId}.csv`,
+      `network-devices-${activeNetwork?.id ?? "scan"}.csv`,
       CSV_HEADERS,
       visibleDevices.map((device) => [
         device.ipAddress,
@@ -119,7 +177,7 @@ const NetworkWifiPage = () => {
         device.status,
       ]),
     );
-  }, [activeId, visibleDevices]);
+  }, [activeNetwork, visibleDevices]);
 
   return (
     <>
@@ -134,28 +192,47 @@ const NetworkWifiPage = () => {
       />
 
       <div className="mt-6 space-y-6">
+        {loadError && (
+          <p className="rounded-lg border border-status-offline bg-red-50 px-4 py-3 text-sm text-status-offline">
+            {loadError}
+          </p>
+        )}
+
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
           <SectionCard title="Available WiFi Networks">
-            <WifiNetworkList
-              networks={WIFI_NETWORKS}
-              activeId={activeId}
-              onSelect={setPending}
-            />
+            {isLoading ? (
+              <p className="text-sm text-muted">Scanning for nearby networks…</p>
+            ) : networks.length === 0 ? (
+              <p className="text-sm text-muted">
+                No WiFi networks found. The backend host may not have wireless
+                hardware, or is running outside a local network.
+              </p>
+            ) : (
+              <WifiNetworkList
+                networks={networks}
+                activeId={activeNetwork?.id ?? ""}
+                onSelect={setPending}
+              />
+            )}
           </SectionCard>
 
           <SectionCard title="Current Connection">
-            {network && connection ? (
+            {activeNetwork && connection ? (
               <CurrentConnectionPanel
-                network={network}
+                network={activeNetwork}
                 connection={connection}
                 isScanning={isScanning}
-                onScan={runScan}
+                onScan={() => void runScan()}
               />
             ) : (
               <p className="text-sm text-muted">
-                This access point is out of range — pick another network to see
-                its connection details.
+                {isLoading
+                  ? "Checking connection status…"
+                  : "Not connected to a network — pick one on the left to connect."}
               </p>
+            )}
+            {scanError && (
+              <p className="mt-3 text-[13px] text-status-offline">{scanError}</p>
             )}
           </SectionCard>
         </section>
@@ -165,7 +242,7 @@ const NetworkWifiPage = () => {
           summary={summary}
           search={search}
           onSearchChange={setSearch}
-          onRescan={runScan}
+          onRescan={() => void runScan()}
           onExport={exportCsv}
           notified={notified}
           onNotify={notifyDevice}
@@ -178,7 +255,9 @@ const NetworkWifiPage = () => {
         key={pending?.id}
         network={pending}
         onCancel={() => setPending(null)}
-        onConnect={connectNetwork}
+        onConnect={(network, password) => void connectNetwork(network, password)}
+        isConnecting={isConnecting}
+        connectError={connectError}
       />
     </>
   );

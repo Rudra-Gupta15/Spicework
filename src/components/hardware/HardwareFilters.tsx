@@ -7,7 +7,9 @@ import type { HardwareFilterState } from "@/types/hardware";
 interface HardwareFiltersProps {
   filters: HardwareFilterState;
   onChange: (patch: Partial<HardwareFilterState>) => void;
+  /** Saves the current selection immediately — no naming dialog. */
   onSaveFilter?: () => void;
+  isSavingFilter?: boolean;
   onCustomizeView?: () => void;
 }
 
@@ -16,6 +18,7 @@ export const HardwareFilters = ({
   filters,
   onChange,
   onSaveFilter,
+  isSavingFilter = false,
   onCustomizeView,
 }: HardwareFiltersProps) => (
   <div className="flex flex-wrap items-center gap-2">
@@ -55,9 +58,14 @@ export const HardwareFilters = ({
     />
 
     <div className="ml-auto flex items-center gap-2">
-      <Button variant="brand" size="sm" onClick={onSaveFilter}>
+      <Button
+        variant="brand"
+        size="sm"
+        onClick={onSaveFilter}
+        isLoading={isSavingFilter}
+      >
         Save Filter
-        <ChevronDown className="h-4 w-4" strokeWidth={2.2} />
+        {!isSavingFilter && <ChevronDown className="h-4 w-4" strokeWidth={2.2} />}
       </Button>
 
       <Button variant="brand" size="sm" onClick={onCustomizeView}>

@@ -10,7 +10,11 @@ interface ConnectWifiModalProps {
   /** The access point being joined; `null` keeps the dialog closed. */
   network: WifiNetwork | null;
   onCancel: () => void;
-  onConnect: (network: WifiNetwork, remember: boolean) => void;
+  onConnect: (network: WifiNetwork, password: string, remember: boolean) => void;
+  /** True while the connect request is in flight. */
+  isConnecting?: boolean;
+  /** Server-side failure, e.g. wrong password or connection timeout. */
+  connectError?: string;
 }
 
 /**
@@ -21,6 +25,8 @@ export const ConnectWifiModal = ({
   network,
   onCancel,
   onConnect,
+  isConnecting = false,
+  connectError,
 }: ConnectWifiModalProps) => {
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -36,7 +42,7 @@ export const ConnectWifiModal = ({
       return;
     }
 
-    onConnect(network, remember);
+    onConnect(network, password, remember);
   };
 
   return (
@@ -53,6 +59,7 @@ export const ConnectWifiModal = ({
             size="lg"
             className="flex-1"
             onClick={onCancel}
+            disabled={isConnecting}
           >
             Cancel
           </Button>
@@ -61,6 +68,7 @@ export const ConnectWifiModal = ({
             size="lg"
             className="flex-1"
             onClick={handleConnect}
+            isLoading={isConnecting}
           >
             Connect
           </Button>
@@ -105,7 +113,7 @@ export const ConnectWifiModal = ({
                 }}
                 placeholder="Enter the network password"
                 autoComplete="off"
-                error={error}
+                error={error ?? connectError}
               />
             </Field>
           )}

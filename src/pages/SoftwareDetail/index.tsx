@@ -7,15 +7,9 @@ import { AppsTable } from "@/components/software/AppsTable";
 import { LoginTab } from "@/components/software/LoginTab";
 import { UserTab } from "@/components/software/UserTab";
 import { Navbar } from "@/components/layout/Navbar";
-import { Button } from "@/components/ui";
-import { HARDWARE_DEVICES } from "@/data/hardware";
-import { getDeviceUsers } from "@/data/hardwareUsers";
-import { getDeviceApps } from "@/data/softwareApps";
-import {
-  SOFTWARE_TABS,
-  getDeviceLogins,
-  type SoftwareTab,
-} from "@/data/softwareDetail";
+import { Button, Card } from "@/components/ui";
+import { mapApps, mapLogins, mapUsers, useDeviceDetail } from "@/data/deviceApi";
+import { SOFTWARE_TABS, type SoftwareTab } from "@/data/softwareDetail";
 
 const SOFTWARE_ROUTE = "/inventory/software";
 
@@ -24,25 +18,13 @@ const SoftwareDetailPage = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<SoftwareTab>("Login");
 
-  const device = useMemo(
-    () => HARDWARE_DEVICES.find((item) => item.id === deviceId),
-    [deviceId],
-  );
+  const { detail, isLoading, error } = useDeviceDetail(deviceId ?? "");
 
-  const logins = useMemo(
-    () => (device ? getDeviceLogins(device) : []),
-    [device],
-  );
+  const logins = useMemo(() => mapLogins(detail), [detail]);
+  const users = useMemo(() => mapUsers(detail), [detail]);
+  const apps = useMemo(() => mapApps(detail), [detail]);
 
-  const users = useMemo(
-    () => (device ? getDeviceUsers(device) : []),
-    [device],
-  );
-
-  const apps = useMemo(() => (device ? getDeviceApps(device) : []), [device]);
-
-  /* Deep link to a device that is not in the current data set. */
-  if (!device) return <Navigate to={SOFTWARE_ROUTE} replace />;
+  if (!deviceId) return <Navigate to={SOFTWARE_ROUTE} replace />;
 
   return (
     <>
@@ -68,9 +50,23 @@ const SoftwareDetailPage = () => {
       />
 
       <div className="mt-5">
-        {tab === "Login" && <LoginTab logins={logins} />}
-        {tab === "User" && <UserTab users={users} />}
-        {tab === "Software" && <AppsTable apps={apps} />}
+        {error && (
+          <Card className="p-8 text-center">
+            <p className="text-sm text-status-offline">{error}</p>
+          </Card>
+        )}
+        {!error && isLoading && (
+          <Card className="p-8 text-center">
+            <p className="text-sm text-muted">Loading device details…</p>
+          </Card>
+        )}
+        {!error && !isLoading && (
+          <>
+            {tab === "Login" && <LoginTab logins={logins} />}
+            {tab === "User" && <UserTab users={users} />}
+            {tab === "Software" && <AppsTable apps={apps} />}
+          </>
+        )}
       </div>
     </>
   );

@@ -1,12 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
 import { Badge, Button, Card, ConfirmDialog, DataTable, PRIMARY_CELL, Pagination, type Column } from "@/components/ui";
-import { deleteSavedSearch, findSavedSearch } from "@/data/savedSearches";
+import { deleteSavedSearch, fetchSavedSearchById } from "@/data/savedSearches";
 import { resultsForSearch } from "@/data/savedSearchResults";
+import { ApiError } from "@/lib/api";
 import { useDisclosure } from "@/hooks/useDisclosure";
-import type { SearchResultDevice } from "@/types/savedSearch";
+import type { SavedSearch, SavedSearchCategory, SearchResultDevice } from "@/types/savedSearch";
 
 const SAVED_ROUTE = "/saved-search";
 const PAGE_SIZE = 8;
@@ -17,11 +18,35 @@ const SavedSearchDetailPage = () => {
   const deletePrompt = useDisclosure();
   const [page, setPage] = useState(1);
 
-  const found = useMemo(
-    () => (searchId ? findSavedSearch(searchId) : null),
-    [searchId],
-  );
+  const [found, setFound] = useState<{ category: SavedSearchCategory; search: SavedSearch } | null>(null);
+  const [isLoading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [error, setError] = useState<string>();
 
+  useEffect(() => {
+    if (!searchId) return;
+    let cancelled = false;
+    fetchSavedSearchById(searchId)
+      .then((result) => {
+        if (cancelled) return;
+        if (!result) setNotFound(true);
+        else setFound(result);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof ApiError || err instanceof Error ? err.message : "Could not load this search.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [searchId]);
+
+  /* The result set below is still mocked — running a saved query against
+     live data is a separate piece of work from persisting the search itself. */
   const results = useMemo(
     () => (found ? resultsForSearch(found.search) : []),
     [found],
@@ -32,8 +57,35 @@ const SavedSearchDetailPage = () => {
     [results, page],
   );
 
-  /* Deep link to a search that is not in the current set. */
-  if (!found) return <Navigate to={SAVED_ROUTE} replace />;
+  if (!searchId || notFound) return <Navigate to={SAVED_ROUTE} replace />;
+
+  if (isLoading) {
+    return (
+      <Card className="p-8 text-center">
+        <p className="text-sm text-muted">Loading saved search…</p>
+      </Card>
+    );
+  }
+
+  if (error || !found) {
+    return (
+      <>
+        <Card className="p-8 text-center">
+          <p className="text-sm text-status-offline">
+            {error ?? "Could not load this search."}
+          </p>
+          <Button
+            variant="outline"
+            className="mt-4"
+            leftIcon={<ArrowLeft className="h-4 w-4" strokeWidth={2.2} />}
+            onClick={() => navigate(SAVED_ROUTE)}
+          >
+            Back
+          </Button>
+        </Card>
+      </>
+    );
+  }
 
   const { search } = found;
   const chips = search.appliedFilters ?? search.filters.split(",").map((f) => f.trim());
@@ -62,8 +114,7 @@ const SavedSearchDetailPage = () => {
   ];
 
   const handleDelete = () => {
-    deleteSavedSearch(search.id);
-    navigate(SAVED_ROUTE);
+    void deleteSavedSearch(search.id).then(() => navigate(SAVED_ROUTE));
   };
 
   return (
@@ -109,7 +160,7 @@ const SavedSearchDetailPage = () => {
             </span>
           ))}
           <span className="ml-1 text-[13px] text-muted">
-            {results.length} results found
+            {search.results} results found
           </span>
         </Card>
 

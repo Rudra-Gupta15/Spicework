@@ -2,18 +2,17 @@ import { useNavigate } from "react-router-dom";
 import { Building2 } from "lucide-react";
 
 import { AdminStatTile } from "@/components/dashboard/AdminStatTile";
+import { ComplianceOverviewCard } from "@/components/dashboard/ComplianceOverviewCard";
+import { DeviceStatusCard } from "@/components/dashboard/DeviceStatusCard";
 import { RecentAuditsCard } from "@/components/dashboard/RecentAuditsCard";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui";
 import { ORGANIZATION } from "@/data/admin";
-import { adminStats } from "@/data/adminDashboard";
+import { useDashboardTiles } from "@/data/dashboardApi";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
-
-  /* Recounted on every visit, so a site added or a user invited elsewhere
-     shows up here without a reload. */
-  const tiles = adminStats();
+  const { tiles, isLoading, error } = useDashboardTiles();
 
   return (
     <>
@@ -36,10 +35,24 @@ const DashboardPage = () => {
       />
 
       <div className="mt-6 space-y-6">
+        {error && (
+          <p className="text-[13px] text-status-offline">{error}</p>
+        )}
+
         <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {tiles.map((tile) => (
-            <AdminStatTile key={tile.id} tile={tile} />
-          ))}
+          {isLoading
+            ? Array.from({ length: 4 }, (_, index) => (
+                <div
+                  key={index}
+                  className="h-[122px] animate-pulse rounded-xl border border-line bg-surface"
+                />
+              ))
+            : tiles.map((tile) => <AdminStatTile key={tile.id} tile={tile} />)}
+        </section>
+
+        <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <DeviceStatusCard />
+          <ComplianceOverviewCard />
         </section>
 
         <RecentAuditsCard />

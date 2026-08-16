@@ -24,28 +24,37 @@ interface CreateSearchModalProps {
   category: SavedSearchCategory;
   onClose: () => void;
   onSave: (draft: NewSearchDraft) => void;
+  /** Overrides the default (empty) seed — e.g. the filter bar's current
+      search/type/status/manufacturer selection, formatted as chips. */
+  seed?: { name?: string; filters: string[] };
+  /** Server-side failure from the last save attempt, e.g. a network error. */
+  error?: string;
+  isSaving?: boolean;
 }
 
 /**
- * "Save New Search" dialog. Mount it keyed on the category so switching tabs
- * re-seeds the applied filters and suggested name.
+ * "Save New Search" dialog. Mount it keyed on the category (and on whatever
+ * identifies the seed) so switching tabs or filters re-seeds the dialog.
  */
 export const CreateSearchModal = ({
   isOpen,
   category,
   onClose,
   onSave,
+  seed: seedOverride,
+  error: saveError,
+  isSaving = false,
 }: CreateSearchModalProps) => {
-  const seed = DEFAULT_SEARCH_DRAFT[category];
+  const seed = seedOverride ?? DEFAULT_SEARCH_DRAFT[category];
 
-  const [name, setName] = useState(seed.name);
+  const [name, setName] = useState(seed.name ?? "");
   const [scope, setScope] = useState<SavedSearchScope>("Public");
   const [filters, setFilters] = useState<string[]>(seed.filters);
-  const [error, setError] = useState<string>();
+  const [nameError, setNameError] = useState<string>();
 
   const handleSave = () => {
     if (!name.trim()) {
-      setError("Name this search so you can find it later.");
+      setNameError("Name this search so you can find it later.");
       return;
     }
     onSave({ name: name.trim(), scope, filters });
@@ -60,10 +69,10 @@ export const CreateSearchModal = ({
       size="md"
       footer={
         <>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
-          <Button variant="brand" onClick={handleSave}>
+          <Button variant="brand" onClick={handleSave} isLoading={isSaving}>
             Save Search
           </Button>
         </>
@@ -76,10 +85,10 @@ export const CreateSearchModal = ({
             value={name}
             onChange={(event) => {
               setName(event.target.value);
-              setError(undefined);
+              setNameError(undefined);
             }}
             placeholder="e.g. Online Laptops - Dell & HP"
-            error={error}
+            error={nameError ?? saveError}
           />
         </Field>
 

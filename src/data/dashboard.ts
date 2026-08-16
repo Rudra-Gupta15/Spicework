@@ -3,7 +3,6 @@ import { Activity, ClipboardList, Monitor, ShieldAlert } from "lucide-react";
 import type {
   ActivityItem,
   BarPoint,
-  DeviceAudit,
   OsBreakdownRow,
   Segment,
 } from "@/types/dashboard";
@@ -138,44 +137,6 @@ export const OS_BREAKDOWN = {
   ] satisfies OsBreakdownRow[],
 };
 
-export const DEVICE_AUDITS: DeviceAudit[] = [
-  {
-    id: "srv-prod-01",
-    device: "SRV-PROD-01",
-    ip: "192.168.1.1",
-    os: "Windows Server 2019",
-    auditedOn: "May 02, 2025",
-    score: 91.8,
-    status: "Pass",
-  },
-  {
-    id: "ubuntsrv-05-02",
-    device: "UBUNTSRV-05-02",
-    ip: "192.168.1.45",
-    os: "Ubuntu 22.04 LTS",
-    auditedOn: "May 02, 2025",
-    score: 88.5,
-    status: "Pass",
-  },
-  {
-    id: "centos-db-01",
-    device: "CENTOS-DB-01",
-    ip: "10.0.1.12",
-    os: "CentOS 7",
-    auditedOn: "May 02, 2025",
-    score: 72.4,
-    status: "Fail",
-  },
-  {
-    id: "mis-app-23",
-    device: "MIS-APP-23",
-    ip: "10.0.1.55",
-    os: "Red Hat Enterprise 8",
-    auditedOn: "May 02, 2025",
-    score: 95.1,
-    status: "Pass",
-  },
-];
 
 export const RECENT_ACTIVITY: ActivityItem[] = [
   {

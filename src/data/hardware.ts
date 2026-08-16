@@ -179,7 +179,7 @@ export const filterDevices = (
       (status === ALL || device.status === status) &&
       (manufacturer === ALL || device.manufacturer === manufacturer) &&
       (term === "" ||
-        `${device.name} ${device.manufacturer} ${device.serialNumber}`
+        `${device.name} ${device.manufacturer} ${device.serialNumber} ${device.osVersion}`
           .toLowerCase()
           .includes(term)),
   );

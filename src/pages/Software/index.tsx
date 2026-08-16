@@ -1,108 +1,218 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Building2, HardDrive, Sigma, Trophy } from "lucide-react";
 
 import { CustomizeColumnsModal } from "@/components/common/CustomizeColumnsModal";
-import { HardwareFilters } from "@/components/hardware/HardwareFilters";
-import { HardwareTable } from "@/components/hardware/HardwareTable";
 import { Navbar } from "@/components/layout/Navbar";
-import { Card, Pagination } from "@/components/ui";
+import { SoftwareFilters } from "@/components/software/SoftwareFilters";
+import { SoftwareInventoryTable } from "@/components/software/SoftwareInventoryTable";
+import { Card, Pagination, StatCard } from "@/components/ui";
 import {
-  DEFAULT_COLUMNS,
-  DEFAULT_FILTERS,
-  HARDWARE_DEVICES,
-  filterDevices,
-  isFiltered,
-} from "@/data/hardware";
-import {
-  DEFAULT_SOFTWARE_COLUMNS,
-  SOFTWARE_COLUMNS,
-  TOTAL_SOFTWARE_DEVICES,
-  type SoftwareColumnKey,
-} from "@/data/software";
+  DEFAULT_SOFTWARE_FILTERS,
+  DEFAULT_SOFTWARE_INVENTORY_COLUMNS,
+  SOFTWARE_INVENTORY_COLUMNS,
+  computeSoftwareKpis,
+  filterSoftware,
+  isSoftwareFiltered,
+  softwareFilterOptions,
+  useSoftwareInventory,
+} from "@/data/softwareInventory";
+import { autoFilterName, createSavedSearch } from "@/data/savedSearches";
+import { useViewColumns } from "@/data/viewPreferences";
+import { CURRENT_USER } from "@/config/user";
+import { ApiError } from "@/lib/api";
 import { useDisclosure } from "@/hooks/useDisclosure";
-import type {
-  HardwareColumnKey,
-  HardwareDevice,
-  HardwareFilterState,
-} from "@/types/hardware";
+import type { SoftwareColumnKey, SoftwareFilterState } from "@/types/software";
+import type { StatMetric } from "@/types/ui";
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
+const TABLE_ANCHOR_ID = "software-inventory-table";
+
+/** "Publisher: Adobe Inc.", "Installed On: Multiple Devices", … — only the
+    dimensions actually narrowed. */
+const filterChips = (filters: SoftwareFilterState): string[] => {
+  const chips: string[] = [];
+  if (filters.search.trim()) chips.push(`Search: ${filters.search.trim()}`);
+  if (filters.publisher !== "All") chips.push(`Publisher: ${filters.publisher}`);
+  if (filters.installScope !== "All") chips.push(`Installed On: ${filters.installScope}`);
+  return chips;
+};
 
 const SoftwarePage = () => {
   const navigate = useNavigate();
-  const [filters, setFilters] = useState<HardwareFilterState>(DEFAULT_FILTERS);
+  const { items: allItems, isLoading, error } = useSoftwareInventory();
+  const [filters, setFilters] = useState<SoftwareFilterState>(DEFAULT_SOFTWARE_FILTERS);
   const [page, setPage] = useState(1);
-  const [columns] = useState<HardwareColumnKey[]>(DEFAULT_COLUMNS);
-  /* Picker selection — the software column set from the design. */
-  const [softwareColumns, setSoftwareColumns] = useState<SoftwareColumnKey[]>(
-    DEFAULT_SOFTWARE_COLUMNS,
+  const { columns, save: saveColumns } = useViewColumns<SoftwareColumnKey>(
+    "software",
+    DEFAULT_SOFTWARE_INVENTORY_COLUMNS,
   );
   const customize = useDisclosure();
+  const [saveError, setSaveError] = useState<string>();
+  const [isSaving, setSaving] = useState(false);
 
-  const handleFilterChange = useCallback(
-    (patch: Partial<HardwareFilterState>) => {
-      setFilters((current) => ({ ...current, ...patch }));
-      setPage(1);
-    },
-    [],
+  const handleFilterChange = useCallback((patch: Partial<SoftwareFilterState>) => {
+    setFilters((current) => ({ ...current, ...patch }));
+    setPage(1);
+  }, []);
+
+  const publisherOptions = useMemo(() => softwareFilterOptions(allItems).publisher, [allItems]);
+
+  const kpis = useMemo(() => computeSoftwareKpis(allItems), [allItems]);
+
+  /* Software Count drills into the full, unfiltered list right below —
+     there's nowhere else to navigate to since this already is that list, so
+     clear any filter and scroll to it so the click has a visible effect even
+     when nothing was filtered to begin with. */
+  const showAllSoftware = useCallback(() => {
+    setFilters(DEFAULT_SOFTWARE_FILTERS);
+    setPage(1);
+    document.getElementById(TABLE_ANCHOR_ID)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const kpiTiles = useMemo<StatMetric[]>(
+    () => [
+      {
+        id: "software-count",
+        label: "Software Count",
+        value: kpis.softwareCount.toLocaleString(),
+        icon: Sigma,
+        tone: "info",
+        onClick: showAllSoftware,
+      },
+      {
+        id: "publisher-count",
+        label: "Publisher Count",
+        value: kpis.publisherCount.toLocaleString(),
+        icon: Building2,
+        tone: "brand",
+      },
+      {
+        id: "largest-package",
+        label: "Largest Package",
+        value: kpis.largest?.size ?? "No data",
+        icon: HardDrive,
+        tone: "warning",
+      },
+      {
+        id: "top-device",
+        label: "Most Applications On",
+        value: kpis.topDevice ? `${kpis.topDevice.name} (${kpis.topDevice.count})` : "No data",
+        icon: Trophy,
+        tone: "success",
+      },
+    ],
+    [kpis, showAllSoftware],
   );
 
-  const openDevice = useCallback(
-    (device: HardwareDevice) => navigate(`/inventory/software/${device.id}`),
-    [navigate],
-  );
-
-  const devices = useMemo(
-    () => filterDevices(HARDWARE_DEVICES, filters),
-    [filters],
-  );
+  const matches = useMemo(() => filterSoftware(allItems, filters), [allItems, filters]);
 
   const visible = useMemo(
-    () => devices.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [devices, page],
+    () => matches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [matches, page],
   );
 
-  /* Unfiltered, the list is one page of the full estate. */
-  const total = isFiltered(filters) ? devices.length : TOTAL_SOFTWARE_DEVICES;
+  /* Unfiltered, the list is the full estate. */
+  const total = isSoftwareFiltered(filters) ? matches.length : allItems.length;
+
+  /* No dialog — Save Filter persists the current selection immediately and
+     jumps straight to where it landed. */
+  const handleSaveFilter = useCallback(async () => {
+    setSaveError(undefined);
+    setSaving(true);
+    try {
+      const chips = filterChips(filters);
+      await createSavedSearch("Software", {
+        name: autoFilterName("Software", chips),
+        scope: "Private",
+        filters: chips,
+        resultsCount: matches.length,
+        createdBy: CURRENT_USER.name,
+      });
+      navigate("/saved-search", { state: { tab: "Software" } });
+    } catch (err) {
+      setSaveError(
+        err instanceof ApiError || err instanceof Error
+          ? err.message
+          : "Could not save this filter.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }, [filters, matches.length, navigate]);
 
   return (
     <>
-      {/* No override — the navigation config already describes this page.
-          It used to carry the Hardware page's subtitle verbatim. */}
       <Navbar />
 
       <div className="mt-6 space-y-5">
-        <HardwareFilters
+        <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {isLoading
+            ? Array.from({ length: 4 }, (_, index) => (
+                <div
+                  key={index}
+                  className="h-[110px] animate-pulse rounded-xl border border-line bg-surface"
+                />
+              ))
+            : kpiTiles.map((tile) => <StatCard key={tile.id} metric={tile} />)}
+        </section>
+
+        <SoftwareFilters
           filters={filters}
           onChange={handleFilterChange}
+          publisherOptions={publisherOptions}
+          onSaveFilter={() => void handleSaveFilter()}
+          isSavingFilter={isSaving}
           onCustomizeView={customize.open}
         />
 
-        <Card className="p-5">
-          <HardwareTable
-            devices={visible}
-            visibleColumns={columns}
-            onSelect={openDevice}
-          />
+        {saveError && (
+          <p className="text-[13px] text-status-offline">{saveError}</p>
+        )}
 
-          <Pagination
-            className="mt-5"
-            page={page}
-            pageSize={PAGE_SIZE}
-            totalItems={total}
-            itemLabel="devices"
-            onPageChange={setPage}
-          />
-        </Card>
+        <div id={TABLE_ANCHOR_ID}>
+          <Card className="p-5">
+            <h2 className="text-base font-bold text-heading">
+              Software Inventory
+            </h2>
+            <p className="mt-1 text-[13px] text-muted">
+              Every distinct application and version installed across your
+              estate, aggregated from each device's latest audit.
+            </p>
+
+            {error && (
+              <p className="mt-3 text-[13px] text-status-offline">{error}</p>
+            )}
+
+            <div className="mt-4">
+              {isLoading ? (
+                <p className="py-8 text-center text-sm text-muted">
+                  Loading software inventory…
+                </p>
+              ) : (
+                <SoftwareInventoryTable items={visible} visibleColumns={columns} />
+              )}
+            </div>
+
+            <Pagination
+              className="mt-5"
+              page={page}
+              pageSize={PAGE_SIZE}
+              totalItems={total}
+              itemLabel="applications"
+              onPageChange={setPage}
+            />
+          </Card>
+        </div>
       </div>
 
       <CustomizeColumnsModal
         isOpen={customize.isOpen}
         onClose={customize.close}
-        columns={SOFTWARE_COLUMNS}
-        defaultColumns={DEFAULT_SOFTWARE_COLUMNS}
-        value={softwareColumns}
-        onApply={setSoftwareColumns}
+        columns={SOFTWARE_INVENTORY_COLUMNS}
+        defaultColumns={DEFAULT_SOFTWARE_INVENTORY_COLUMNS}
+        value={columns}
+        onApply={saveColumns}
       />
     </>
   );

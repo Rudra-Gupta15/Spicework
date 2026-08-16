@@ -18,6 +18,9 @@ export interface StatMetric {
   tone: Tone;
   /** Makes the whole tile a link to the drill-down list. */
   to?: string;
+  /** Makes the whole tile a button — for drilling into a list already on this
+      page (e.g. clearing filters), where a route link wouldn't do anything. */
+  onClick?: () => void;
   delta?: {
     value: string;
     direction: "up" | "down";

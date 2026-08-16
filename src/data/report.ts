@@ -1,4 +1,15 @@
-import type { HardwareDevice, InstalledApp } from "@/types/hardware";
+import {
+  fetchAssetMetadata,
+  fetchDeviceDetail,
+  mapApps,
+  mapHardwareFields,
+  mapNetworkAdapters,
+  mapPeripherals,
+  mapStorage,
+  mapUsers,
+  type RawDeviceDetail,
+} from "./deviceApi";
+import type { HardwareDevice } from "@/types/hardware";
 import type {
   ReportCategory,
   ReportPreview,
@@ -6,53 +17,17 @@ import type {
   ReportSystem,
 } from "@/types/report";
 
-import { HARDWARE_DEVICES } from "./hardware";
-import { getTabPanel } from "./hardwareDetail";
-import { getDeviceAdapters } from "./hardwareNetwork";
-import { getDevicePeripherals } from "./hardwarePeripherals";
-import { getDeviceStorage } from "./hardwareStorage";
-import { getDeviceUsers } from "./hardwareUsers";
-import { getDeviceApps } from "./softwareApps";
-import { SOFTWARE_ASSETS } from "./softwareAssets";
-
-/** Mock data — swap these exports for API responses later. */
-
 export const REPORT_CATEGORIES: ReportCategory[] = ["Hardware", "Software"];
 
-/** Values in the mock set carry `\n` for the detail grid; reports do not. */
-const flatten = (value: string): string => value.replace(/\s*\n\s*/g, " ");
-
-/**
- * Applications for a device. Only one device in the mock set has its own
- * scan, so the rest borrow a deterministic slice of the estate-wide list —
- * every system still previews a report with real-looking rows.
- */
-const appsFor = (device: HardwareDevice): InstalledApp[] => {
-  const scanned = getDeviceApps(device);
-  if (scanned.length > 0) return scanned;
-
-  const index = HARDWARE_DEVICES.findIndex((item) => item.id === device.id);
-  const start = (index * 7) % SOFTWARE_ASSETS.length;
-  const size = 18 + (index % 4) * 6;
-
-  return SOFTWARE_ASSETS.slice(start, start + size).map((app, position) => ({
-    ...app,
-    sequence: position + 1,
-  }));
+/** Header row label for the per-category count column. */
+export const RECORD_LABEL: Record<ReportCategory, string> = {
+  Hardware: "Components",
+  Software: "Applications",
 };
 
-/** How many records a report for this system would carry. */
-const recordCount = (device: HardwareDevice, category: ReportCategory): number =>
-  category === "Software"
-    ? appsFor(device).length
-    : getDevicePeripherals(device).length +
-      getDeviceAdapters(device).length +
-      getDeviceStorage(device).disks.length +
-      getDeviceUsers(device).length;
-
-/** The systems a report can be generated for, in list order. */
-export const reportSystems = (category: ReportCategory): ReportSystem[] =>
-  HARDWARE_DEVICES.map((device) => ({
+/** The picker table's rows, before per-row record counts are known. */
+export const reportSystems = (devices: HardwareDevice[]): ReportSystem[] =>
+  devices.map((device) => ({
     id: device.id,
     name: device.name,
     type: device.type,
@@ -62,13 +37,36 @@ export const reportSystems = (category: ReportCategory): ReportSystem[] =>
     location: device.location,
     assignedTo: device.assignedTo,
     lastScan: device.lastScan,
-    records: recordCount(device, category),
+    records: 0,
   }));
 
-/** Header row label for the per-category count column. */
-export const RECORD_LABEL: Record<ReportCategory, string> = {
-  Hardware: "Components",
-  Software: "Applications",
+/**
+ * Record counts require a full detail fetch, which is too expensive to run
+ * for the whole estate — so it's only ever called for the current page of
+ * visible rows (a handful of devices), not the full list.
+ */
+export const fetchRecordCounts = async (
+  devices: HardwareDevice[],
+  category: ReportCategory,
+): Promise<Record<string, number>> => {
+  const entries = await Promise.all(
+    devices.map(async (device): Promise<[string, number]> => {
+      try {
+        const detail = await fetchDeviceDetail(device.id);
+        const count =
+          category === "Software"
+            ? (detail.software_inventory?.length ?? 0)
+            : (detail.peripherals?.length ?? 0) +
+              (detail.network_adapters?.length ?? 0) +
+              (detail.disk_partitions?.length ?? 0) +
+              (detail.user_accounts?.length ?? 0);
+        return [device.id, count];
+      } catch {
+        return [device.id, 0];
+      }
+    }),
+  );
+  return Object.fromEntries(entries);
 };
 
 /** Timestamp printed on the report and written into the exports. */
@@ -85,65 +83,55 @@ const generatedOn = (): string =>
 const withRows = (sections: ReportSection[]): ReportSection[] =>
   sections.filter((section) => section.rows.length > 0);
 
-const buildHardwareReport = (device: HardwareDevice): ReportPreview => {
-  const specification = getTabPanel(device, "Hardware")?.fields ?? [];
-  const storage = getDeviceStorage(device);
-  const adapters = getDeviceAdapters(device);
-  const peripherals = getDevicePeripherals(device);
-  const users = getDeviceUsers(device);
+const buildHardwareReport = (
+  device: HardwareDevice,
+  detail: RawDeviceDetail,
+  assetTag: string,
+): ReportPreview => {
+  const specification = mapHardwareFields(detail);
+  const storage = mapStorage(detail);
+  const adapters = mapNetworkAdapters(detail);
+  const peripherals = mapPeripherals(detail);
+  const users = mapUsers(detail);
 
   return {
     id: `hardware-${device.id}`,
     category: "Hardware",
     title: `Hardware Report — ${device.name}`,
-    subtitle: `${device.manufacturer} · ${device.type} · S/N ${device.serialNumber}`,
+    subtitle: `${device.manufacturer} · ${device.type}${assetTag ? ` · Asset ${assetTag}` : ""}`,
     generatedOn: generatedOn(),
     summary: [
       { label: "Device Name", value: device.name },
       { label: "Type", value: device.type },
       { label: "Manufacturer", value: device.manufacturer },
-      { label: "Serial Number", value: device.serialNumber },
+      { label: "Serial Number", value: detail.hardware_details?.serial_number || "Unknown" },
       { label: "Status", value: device.status },
-      { label: "Operating System", value: device.osVersion },
-      { label: "IP Address", value: device.ipAddress },
-      { label: "Location", value: device.location },
-      { label: "Assigned To", value: device.assignedTo },
+      { label: "Operating System", value: `${detail.os_name} ${detail.os_version}`.trim() },
+      { label: "IP Address", value: detail.network_details?.[0]?.ip_address || "Unknown" },
+      { label: "Asset Tag", value: assetTag || "Unassigned" },
+      { label: "Last Audit", value: detail.last_audit || "Unknown" },
       { label: "Total Storage", value: storage.summary.totalStorage },
-      { label: "Physical Disks", value: storage.summary.physicalDisks.toString() },
-      { label: "Last Scan", value: device.lastScan },
+      { label: "Partitions", value: storage.summary.physicalDisks.toString() },
+      { label: "License Status", value: detail.license_status || "Unknown" },
     ],
     sections: withRows([
       {
         id: "specification",
         title: "Hardware Specification",
         columns: ["Specification", "Value"],
-        rows: specification.map((field) => [
-          field.label,
-          flatten(field.note ? `${field.value} (${field.note})` : field.value),
-        ]),
+        rows: specification.map((field) => [field.label, field.value]),
       },
       {
         id: "storage",
-        title: "Storage Devices",
-        columns: [
-          "#",
-          "Disk",
-          "Manufacturer",
-          "Model",
-          "Interface",
-          "File System",
-          "Size",
-          "Used",
-        ],
-        rows: storage.disks.map((disk, index) => [
+        title: "Disk Partitions",
+        columns: ["#", "Name", "File System", "Size", "Free Space", "Bootable"],
+        rows: storage.partitions.map((partition, index) => [
           (index + 1).toString(),
-          disk.name,
-          disk.manufacturer,
-          disk.model,
-          disk.interface,
-          disk.fileSystem,
-          disk.size,
-          disk.used,
+          partition.name,
+          partition.fileSystem,
+          partition.totalSize,
+          partition.freeSpace,
+          partition.bootable,
         ]),
       },
       {
@@ -188,8 +176,11 @@ const buildHardwareReport = (device: HardwareDevice): ReportPreview => {
   };
 };
 
-const buildSoftwareReport = (device: HardwareDevice): ReportPreview => {
-  const apps = appsFor(device);
+const buildSoftwareReport = (
+  device: HardwareDevice,
+  detail: RawDeviceDetail,
+): ReportPreview => {
+  const apps = mapApps(detail);
 
   const byPublisher = new Map<string, number>();
   apps.forEach((app) => {
@@ -200,8 +191,6 @@ const buildSoftwareReport = (device: HardwareDevice): ReportPreview => {
     (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
   );
 
-  const unused = apps.filter((app) => app.lastUsed === "Unknown").length;
-
   return {
     id: `software-${device.id}`,
     category: "Software",
@@ -210,17 +199,15 @@ const buildSoftwareReport = (device: HardwareDevice): ReportPreview => {
     generatedOn: generatedOn(),
     summary: [
       { label: "Device Name", value: device.name },
-      { label: "Operating System", value: device.osVersion },
-      { label: "Assigned To", value: device.assignedTo },
-      { label: "Location", value: device.location },
+      { label: "Operating System", value: `${detail.os_name} ${detail.os_version}`.trim() },
+      { label: "Current User", value: detail.current_user || "Unknown" },
       { label: "Total Applications", value: apps.length.toString() },
       { label: "Publishers", value: publishers.length.toString() },
-      { label: "Never Used", value: unused.toString() },
       { label: "Status", value: device.status },
-      { label: "IP Address", value: device.ipAddress },
-      { label: "Serial Number", value: device.serialNumber },
-      { label: "License Status", value: "Licensed" },
-      { label: "Last Scan", value: device.lastScan },
+      { label: "Firewall", value: detail.firewall || "Unknown" },
+      { label: "BitLocker", value: detail.bitlocker || "Unknown" },
+      { label: "License Status", value: detail.license_status || "Unknown" },
+      { label: "Last Audit", value: detail.last_audit || "Unknown" },
     ],
     sections: withRows([
       {
@@ -253,22 +240,24 @@ const buildSoftwareReport = (device: HardwareDevice): ReportPreview => {
           (index + 1).toString(),
           publisher,
           count.toString(),
-          `${Math.round((count / apps.length) * 100)}%`,
+          apps.length ? `${Math.round((count / apps.length) * 100)}%` : "0%",
         ]),
       },
     ]),
   };
 };
 
-/** Generates the report a system's row previews and exports. */
-export const buildReport = (
+/** Fetches the device's latest audit (and asset tag) and builds the report it previews/exports. */
+export const buildReport = async (
   category: ReportCategory,
-  systemId: string,
-): ReportPreview | null => {
-  const device = HARDWARE_DEVICES.find((item) => item.id === systemId);
-  if (!device) return null;
+  device: HardwareDevice,
+): Promise<ReportPreview> => {
+  const [detail, asset] = await Promise.all([
+    fetchDeviceDetail(device.id),
+    fetchAssetMetadata(device.id),
+  ]);
 
   return category === "Software"
-    ? buildSoftwareReport(device)
-    : buildHardwareReport(device);
+    ? buildSoftwareReport(device, detail)
+    : buildHardwareReport(device, detail, asset?.asset_tag ?? "");
 };

@@ -4,7 +4,12 @@ export const downloadText = (
   content: string,
   mime = "application/octet-stream",
 ): void => {
-  const url = URL.createObjectURL(new Blob([content], { type: mime }));
+  downloadBlob(filename, new Blob([content], { type: mime }));
+};
+
+/** Hands a blob (e.g. a fetched launcher file) to the browser as a download. */
+export const downloadBlob = (filename: string, blob: Blob): void => {
+  const url = URL.createObjectURL(blob);
 
   const link = document.createElement("a");
   link.href = url;

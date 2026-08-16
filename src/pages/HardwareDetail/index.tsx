@@ -13,19 +13,20 @@ import { UsersTab } from "@/components/hardware/UsersTab";
 import { VideoTab } from "@/components/hardware/VideoTab";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button, Card } from "@/components/ui";
-import { HARDWARE_DEVICES } from "@/data/hardware";
 import {
-  DEVICE_TABS,
-  getTabPanel,
-  type DeviceTab,
-} from "@/data/hardwareDetail";
+  mapHardwareFields,
+  mapNetworkAdapters,
+  mapOverviewFields,
+  mapPeripherals,
+  mapPrinters,
+  mapStorage,
+  mapUsers,
+  mapVideoControllers,
+  useDeviceDetail,
+} from "@/data/deviceApi";
+import { DEVICE_TABS, type DeviceTab } from "@/data/hardwareDetail";
 import { getConnectedDevices } from "@/data/hardwareConnected";
-import { getDeviceAdapters } from "@/data/hardwareNetwork";
-import { getDevicePeripherals } from "@/data/hardwarePeripherals";
-import { getDevicePrinters } from "@/data/hardwarePrinters";
-import { getDeviceStorage } from "@/data/hardwareStorage";
-import { getDeviceUsers } from "@/data/hardwareUsers";
-import { getVideoControllers } from "@/data/hardwareVideo";
+import type { HardwareDevice } from "@/types/hardware";
 
 const HARDWARE_ROUTE = "/inventory/hardware";
 
@@ -34,58 +35,80 @@ const HardwareDetailPage = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<DeviceTab>("Overview");
 
-  const device = useMemo(
-    () => HARDWARE_DEVICES.find((item) => item.id === deviceId),
-    [deviceId],
+  const { detail, asset, isLoading, error } = useDeviceDetail(deviceId ?? "");
+
+  /* "Connected Devices" has no backing data in the single-tenant audit
+     flow — it's specific to the newer multi-tenant network-scan feature —
+     so it's the one tab still on the old mock lookup, keyed by this
+     stand-in. A real device id won't match its mock keys, so it correctly
+     falls back to an empty list rather than showing invented data. */
+  const legacyDeviceStub: HardwareDevice = useMemo(
+    () => ({
+      id: deviceId ?? "",
+      name: detail?.computer_name ?? deviceId ?? "",
+      type: "Computer",
+      manufacturer: detail?.hardware_details?.manufacturer || "Unknown",
+      serialNumber: detail?.hardware_details?.serial_number || "Unknown",
+      status: "ONLINE",
+      lastScan: detail?.last_audit || "Unknown",
+      ipAddress: detail?.network_details?.[0]?.ip_address || "—",
+      osVersion: detail?.os_name || "Unknown",
+      location: "Unknown",
+      assignedTo: asset?.owner || detail?.current_user || "Unassigned",
+    }),
+    [deviceId, detail, asset],
   );
 
-  const panel = useMemo(
-    () => (device ? getTabPanel(device, tab) : null),
-    [device, tab],
+  const overviewFields = useMemo(
+    () => (detail ? mapOverviewFields(detail, asset) : []),
+    [detail, asset],
   );
-
-  const storage = useMemo(
-    () => (device ? getDeviceStorage(device) : null),
-    [device],
+  const hardwareFields = useMemo(
+    () => (detail ? mapHardwareFields(detail) : []),
+    [detail],
   );
+  const users = useMemo(() => mapUsers(detail), [detail]);
+  const storage = useMemo(() => mapStorage(detail), [detail]);
+  const adapters = useMemo(() => mapNetworkAdapters(detail), [detail]);
+  const peripherals = useMemo(() => mapPeripherals(detail), [detail]);
+  const printers = useMemo(() => mapPrinters(detail), [detail]);
+  const controllers = useMemo(() => mapVideoControllers(detail), [detail]);
+  const connected = useMemo(() => getConnectedDevices(legacyDeviceStub), [legacyDeviceStub]);
 
-  const adapters = useMemo(
-    () => (device ? getDeviceAdapters(device) : []),
-    [device],
-  );
+  /* No device id in the URL at all. */
+  if (!deviceId) return <Navigate to={HARDWARE_ROUTE} replace />;
 
-  const peripherals = useMemo(
-    () => (device ? getDevicePeripherals(device) : []),
-    [device],
-  );
+  if (error) {
+    return (
+      <>
+        <Navbar
+          title="Hardware Assets"
+          actions={
+            <Button
+              variant="outline"
+              leftIcon={<ArrowLeft className="h-4 w-4" />}
+              onClick={() => navigate(HARDWARE_ROUTE)}
+            >
+              Back
+            </Button>
+          }
+        />
+        <Card className="mt-5 p-8 text-center">
+          <p className="text-sm text-status-offline">{error}</p>
+        </Card>
+      </>
+    );
+  }
 
-  const printers = useMemo(
-    () => (device ? getDevicePrinters(device) : []),
-    [device],
-  );
+  const panel =
+    tab === "Overview"
+      ? { title: "Overview", fields: overviewFields }
+      : tab === "Hardware"
+        ? { title: "Hardware Details", fields: hardwareFields }
+        : null;
 
-  const connected = useMemo(
-    () => (device ? getConnectedDevices(device) : []),
-    [device],
-  );
-
-  const controllers = useMemo(
-    () => (device ? getVideoControllers(device) : []),
-    [device],
-  );
-
-  const users = useMemo(
-    () => (device ? getDeviceUsers(device) : []),
-    [device],
-  );
-
-  /* Deep link to a device that is not in the current data set. */
-  if (!device) return <Navigate to={HARDWARE_ROUTE} replace />;
-
-  /* Tabs with their own card layout render themselves; the rest share the
-     single-card shell below. */
   const customPanel =
-    tab === "Storage" && storage ? (
+    tab === "Storage" ? (
       <StorageTab storage={storage} />
     ) : tab === "Network" ? (
       <NetworkTab adapters={adapters} />
@@ -108,8 +131,6 @@ const HardwareDetailPage = () => {
         subtitle="Track hardware devices, warranties, and maintenance across your network."
         actions={
           <>
-            {/* Raising a ticket belongs to the device as a whole, so it
-                only sits on the summary tab. */}
             {tab === "Overview" && (
               <Button
                 variant="brand"
@@ -137,7 +158,11 @@ const HardwareDetailPage = () => {
         className="mt-6"
       />
 
-      {customPanel ? (
+      {isLoading ? (
+        <Card className="mt-5 p-8 text-center">
+          <p className="text-sm text-muted">Loading device details…</p>
+        </Card>
+      ) : customPanel ? (
         <div className="mt-5">{customPanel}</div>
       ) : (
         <Card className="mt-5 px-5 pt-5 pb-8">
@@ -146,13 +171,14 @@ const HardwareDetailPage = () => {
           </h2>
 
           <div className="mt-4">
-            {panel ? (
+            {panel && panel.fields.length > 0 ? (
               <DetailFieldGrid fields={panel.fields} />
             ) : (
               <div className="grid place-items-center py-16 text-center">
                 <Boxes className="h-10 w-10 text-navy-300" strokeWidth={1.5} />
                 <p className="mt-4 text-sm text-muted">
-                  No {tab.toLowerCase()} details reported for {device.name} yet.
+                  No {tab.toLowerCase()} details reported for{" "}
+                  {legacyDeviceStub.name} yet.
                 </p>
               </div>
             )}
