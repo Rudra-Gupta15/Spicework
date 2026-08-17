@@ -11,9 +11,11 @@ import {
 } from "@/components/ui";
 import {
   LIFECYCLE_STATUSES,
-  useLocations,
-  useOwners,
-} from "@/data/assetConfig";
+  NO_LOCATION_LABEL,
+  UNASSIGNED_OWNER_LABEL,
+  locationPickerOptions,
+  ownerPickerOptions,
+} from "@/data/assetFields";
 import {
   emptyLifecycle,
   fetchLifecycle,
@@ -27,8 +29,6 @@ interface LifecycleTabProps {
   computerName: string;
 }
 
-const UNASSIGNED = "— Unassigned —";
-
 /**
  * Assign ownership, location, lifecycle status, purchase and warranty details
  * to an asset. Owner/Location come from the configurable lists (Settings);
@@ -37,9 +37,6 @@ const UNASSIGNED = "— Unassigned —";
  * defaults to Active.
  */
 export const LifecycleTab = ({ deviceId, computerName }: LifecycleTabProps) => {
-  const owners = useOwners();
-  const locations = useLocations();
-
   const [form, setForm] = useState<LifecycleRecord>(() =>
     emptyLifecycle(deviceId, computerName),
   );
@@ -115,8 +112,8 @@ export const LifecycleTab = ({ deviceId, computerName }: LifecycleTabProps) => {
     );
   }
 
-  const ownerOptions = [UNASSIGNED, ...owners.map((owner) => owner.name)];
-  const locationOptions = [UNASSIGNED, ...locations.map((location) => location.name)];
+  const ownerOptions = ownerPickerOptions();
+  const locationOptions = locationPickerOptions();
 
   return (
     <div className="space-y-5">
@@ -128,8 +125,8 @@ export const LifecycleTab = ({ deviceId, computerName }: LifecycleTabProps) => {
               fullWidth
               placeholder="Unassigned"
               options={ownerOptions}
-              value={form.owner || UNASSIGNED}
-              onChange={(value) => set("owner", value === UNASSIGNED ? "" : value)}
+              value={form.owner || UNASSIGNED_OWNER_LABEL}
+              onChange={(value) => set("owner", value === UNASSIGNED_OWNER_LABEL ? "" : value)}
             />
           </Field>
           <Field label="Location">
@@ -137,14 +134,14 @@ export const LifecycleTab = ({ deviceId, computerName }: LifecycleTabProps) => {
               fullWidth
               placeholder="Unassigned"
               options={locationOptions}
-              value={form.location || UNASSIGNED}
-              onChange={(value) => set("location", value === UNASSIGNED ? "" : value)}
+              value={form.location || NO_LOCATION_LABEL}
+              onChange={(value) => set("location", value === NO_LOCATION_LABEL ? "" : value)}
             />
           </Field>
           <Field label="Lifecycle Status">
             <Select
               fullWidth
-              options={LIFECYCLE_STATUSES as unknown as string[]}
+              options={LIFECYCLE_STATUSES}
               value={form.status || "Active"}
               onChange={(value) => set("status", value)}
             />

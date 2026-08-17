@@ -68,7 +68,7 @@ export const NAVIGATION: NavItem[] = [
     label: "Settings",
     icon: Settings,
     path: "/settings",
-    subtitle: "Configure your organisation, users and integrations.",
+    subtitle: "Configure your organisation, users and asset fields.",
   },
 ];
 
