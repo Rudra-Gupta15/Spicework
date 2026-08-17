@@ -149,7 +149,7 @@ const SoftwarePage = () => {
       <div className="mt-6 space-y-5">
         <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {isLoading ? (
-            <SkeletonTiles count={4} className="h-[110px]" />
+            <SkeletonTiles count={4} className="h-27.5" />
           ) : (
             kpiTiles.map((tile) => <StatCard key={tile.id} metric={tile} />)
           )}

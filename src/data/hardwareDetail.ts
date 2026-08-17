@@ -18,6 +18,8 @@ export const DEVICE_TABS = [
   "Connected Devices",
   "Video/GPU",
   "Users",
+  "Lifecycle",
+  "Logs",
 ] as const;
 
 export type DeviceTab = (typeof DEVICE_TABS)[number];

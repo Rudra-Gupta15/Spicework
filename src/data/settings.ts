@@ -4,6 +4,8 @@ import { ADMIN_SITES, ADMIN_USERS } from "./admin";
 export const SETTINGS_CATEGORIES = [
   "General",
   "User Management",
+  "Owners",
+  "Locations",
   "Notifications",
   "Security",
   "Agent Config",

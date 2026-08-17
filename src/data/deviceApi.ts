@@ -323,6 +323,70 @@ export const useDeviceDetail = (deviceId: string) => {
   return { detail, asset, isLoading, error };
 };
 
+/* ── Change log (device-diff): the last two scans compared ───────────────── */
+
+/** One hardware/OS field that differs between the two scans. */
+export interface HardwareChange {
+  field: string;
+  previous: string;
+  current: string;
+}
+
+/** An app that appeared or disappeared between scans (a raw inventory entry). */
+export interface DiffApp {
+  name?: string;
+  version?: string;
+  publisher?: string;
+  vendor?: string;
+}
+
+/** Shape of GET /api/device-diff/{id} (backend/routers/devices.py). */
+export interface DeviceDiff {
+  has_diff: boolean;
+  scan_count: number;
+  /** Present only when has_diff is false (fewer than two scans). */
+  message?: string;
+  previous_scan?: string;
+  current_scan?: string;
+  newly_installed?: DiffApp[];
+  newly_removed?: DiffApp[];
+  hw_changes?: HardwareChange[];
+  summary?: {
+    installed_count: number;
+    removed_count: number;
+    hw_change_count: number;
+  };
+}
+
+export const fetchDeviceDiff = (deviceId: string) =>
+  api.get<DeviceDiff>(`/api/device-diff/${encodeURIComponent(deviceId)}`);
+
+/** Loads the change log (current vs previous scan) for the detail pages' Logs tab. */
+export const useDeviceDiff = (deviceId: string) => {
+  const [diff, setDiff] = useState<DeviceDiff | null>(null);
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string>();
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDeviceDiff(deviceId)
+      .then((result) => {
+        if (!cancelled) setDiff(result);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(errorMessage(err, "Could not load the change log."));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [deviceId]);
+
+  return { diff, isLoading, error };
+};
+
 /* ── Field mappers — raw API shapes -> the UI's existing display types ──── */
 
 const field = (key: string, label: string, value: string | undefined, note?: string): DetailField => ({

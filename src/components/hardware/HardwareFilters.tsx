@@ -1,12 +1,14 @@
 import { ChevronDown, Search } from "lucide-react";
 
 import { Button, Input, Select } from "@/components/ui";
-import { HARDWARE_FILTER_OPTIONS } from "@/data/hardware";
+import type { HardwareFilterOptions } from "@/data/hardware";
 import type { HardwareFilterState } from "@/types/hardware";
 
 interface HardwareFiltersProps {
   filters: HardwareFilterState;
   onChange: (patch: Partial<HardwareFilterState>) => void;
+  /** Type/Status/Manufacturer choices, derived from the loaded devices. */
+  options: HardwareFilterOptions;
   /** Saves the current selection immediately — no naming dialog. */
   onSaveFilter?: () => void;
   isSavingFilter?: boolean;
@@ -17,6 +19,7 @@ interface HardwareFiltersProps {
 export const HardwareFilters = ({
   filters,
   onChange,
+  options,
   onSaveFilter,
   isSavingFilter = false,
   onCustomizeView,
@@ -36,7 +39,7 @@ export const HardwareFilters = ({
     <Select
       label="Type:"
       aria-label="Filter by type"
-      options={HARDWARE_FILTER_OPTIONS.type}
+      options={options.type}
       value={filters.type}
       onChange={(type) => onChange({ type })}
     />
@@ -44,7 +47,7 @@ export const HardwareFilters = ({
     <Select
       label="Status:"
       aria-label="Filter by status"
-      options={HARDWARE_FILTER_OPTIONS.status}
+      options={options.status}
       value={filters.status}
       onChange={(status) => onChange({ status })}
     />
@@ -52,7 +55,7 @@ export const HardwareFilters = ({
     <Select
       label="Manufacturer:"
       aria-label="Filter by manufacturer"
-      options={HARDWARE_FILTER_OPTIONS.manufacturer}
+      options={options.manufacturer}
       value={filters.manufacturer}
       onChange={(manufacturer) => onChange({ manufacturer })}
     />

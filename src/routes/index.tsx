@@ -51,7 +51,6 @@ const PAGES: Record<string, ComponentType> = {
   "/reports": ReportPage,
   "/agent": AgentPage,
   "/saved-search": SavedSearchPage,
-  "/log": LogPage,
   "/settings": SettingsPage,
 };
 
@@ -129,6 +128,11 @@ export const AppRoutes = () => (
         path="/inventory/software/:deviceId"
         element={<SoftwareDetailPage />}
       />
+      {/* Log is hidden from the sidebar nav, so its route is declared
+          explicitly here (rather than generated from the nav) — this keeps the
+          Dashboard's "View All" links to /log working. */}
+      <Route path="/log" element={<LogPage />} />
+
       {/* Ticket is hidden from the sidebar nav, so its list route is declared
           explicitly here (rather than generated from the nav) — this keeps the
           ticket pages and their "back to list" links working. */}

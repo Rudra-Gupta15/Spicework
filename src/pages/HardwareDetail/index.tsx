@@ -5,6 +5,8 @@ import { ArrowLeft, Boxes, Plus } from "lucide-react";
 import { ConnectedDevicesTab } from "@/components/hardware/ConnectedDevicesTab";
 import { DetailFieldGrid } from "@/components/hardware/DetailFieldGrid";
 import { DetailTabs } from "@/components/common/DetailTabs";
+import { DeviceLogsTab } from "@/components/common/DeviceLogsTab";
+import { LifecycleTab } from "@/components/hardware/LifecycleTab";
 import { NetworkTab } from "@/components/hardware/NetworkTab";
 import { PeripheralsTab } from "@/components/hardware/PeripheralsTab";
 import { PrintersTab } from "@/components/hardware/PrintersTab";
@@ -122,6 +124,10 @@ const HardwareDetailPage = () => {
       <VideoTab controllers={controllers} />
     ) : tab === "Users" ? (
       <UsersTab users={users} />
+    ) : tab === "Lifecycle" ? (
+      <LifecycleTab deviceId={deviceId} computerName={legacyDeviceStub.name} />
+    ) : tab === "Logs" ? (
+      <DeviceLogsTab deviceId={deviceId} domain="hardware" />
     ) : null;
 
   return (

@@ -1,7 +1,7 @@
 import type { HardwareDevice, LoginRecord } from "@/types/hardware";
 
 /** Tabs on the software detail screen. */
-export const SOFTWARE_TABS = ["Login", "User", "Software"] as const;
+export const SOFTWARE_TABS = ["Login", "User", "Software", "Logs"] as const;
 
 export type SoftwareTab = (typeof SOFTWARE_TABS)[number];
 

@@ -6,7 +6,9 @@ import { BackupSettings } from "@/components/settings/BackupSettings";
 import { BillingSettings } from "@/components/settings/BillingSettings";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
+import { LocationsSettings } from "@/components/settings/LocationsSettings";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
+import { OwnersSettings } from "@/components/settings/OwnersSettings";
 import { SecuritySettings } from "@/components/settings/SecuritySettings";
 import { SettingsNav } from "@/components/settings/SettingsNav";
 import { UserManagement } from "@/components/settings/UserManagement";
@@ -22,6 +24,14 @@ const META: Record<SettingsCategory, { title: string; subtitle: string }> = {
   "User Management": {
     title: "Team Members",
     subtitle: "Everyone with portal access, the site they work from and the role they hold",
+  },
+  Owners: {
+    title: "Asset Owners",
+    subtitle: "Define who assets can be assigned to — used by the Owner dropdown on each asset",
+  },
+  Locations: {
+    title: "Asset Locations",
+    subtitle: "Define the physical locations assets can be assigned to",
   },
   Notifications: {
     title: "Notification Preferences",
@@ -75,7 +85,7 @@ const SettingsPage = () => {
       <div className="min-w-0 flex-1">
         <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
           <div className="min-w-0 flex-1 basis-64">
-            <h1 className="text-[22px] leading-tight font-bold break-words text-heading sm:text-[26px] lg:text-[30px]">
+            <h1 className="text-[22px] leading-tight font-bold wrap-break-word text-heading sm:text-[26px] lg:text-[30px]">
               {meta.title}
             </h1>
             <p className="mt-1 text-sm text-muted">{meta.subtitle}</p>
@@ -105,6 +115,8 @@ const SettingsPage = () => {
               onCloseInvite={() => setInviteOpen(false)}
             />
           )}
+          {category === "Owners" && <OwnersSettings />}
+          {category === "Locations" && <LocationsSettings />}
           {category === "Notifications" && <NotificationSettings />}
           {category === "Security" && <SecuritySettings />}
           {category === "Integrations" && <IntegrationsSettings />}

@@ -134,16 +134,30 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
 
 const ALL = "All";
 
-/** Filter options derived from the data so they never fall out of sync. */
-const uniqueValues = (pick: (device: HardwareDevice) => string): string[] => [
-  ALL,
-  ...new Set(HARDWARE_DEVICES.map(pick)),
-];
+export interface HardwareFilterOptions {
+  type: string[];
+  status: string[];
+  manufacturer: string[];
+}
 
-export const HARDWARE_FILTER_OPTIONS = {
-  type: uniqueValues((device) => device.type),
-  status: uniqueValues((device) => device.status),
-  manufacturer: uniqueValues((device) => device.manufacturer),
+/**
+ * Dropdown options derived from the *loaded* devices, so they always match the
+ * live data instead of the mock list. Mirrors softwareFilterOptions — pass the
+ * devices the page actually fetched. Blanks are dropped and values sorted so
+ * the menus stay tidy.
+ */
+export const hardwareFilterOptions = (
+  devices: HardwareDevice[],
+): HardwareFilterOptions => {
+  const distinct = (pick: (device: HardwareDevice) => string): string[] => [
+    ALL,
+    ...[...new Set(devices.map(pick).filter(Boolean))].sort(),
+  ];
+  return {
+    type: distinct((device) => device.type),
+    status: distinct((device) => device.status),
+    manufacturer: distinct((device) => device.manufacturer),
+  };
 };
 
 export const DEFAULT_FILTERS: HardwareFilterState = {

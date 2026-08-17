@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
 import { DetailTabs } from "@/components/common/DetailTabs";
+import { DeviceLogsTab } from "@/components/common/DeviceLogsTab";
 import { AppsTable } from "@/components/software/AppsTable";
 import { LoginTab } from "@/components/software/LoginTab";
 import { UserTab } from "@/components/software/UserTab";
@@ -65,6 +66,7 @@ const SoftwareDetailPage = () => {
             {tab === "Login" && <LoginTab logins={logins} />}
             {tab === "User" && <UserTab users={users} />}
             {tab === "Software" && <AppsTable apps={apps} />}
+            {tab === "Logs" && <DeviceLogsTab deviceId={deviceId} domain="software" />}
           </>
         )}
       </div>

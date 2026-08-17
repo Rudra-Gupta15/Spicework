@@ -61,7 +61,7 @@ export const DataTable = <T,>({
       className,
     )}
   >
-    <table className="w-full min-w-[700px] border-collapse text-sm">
+    <table className="w-full min-w-175 border-collapse text-sm">
       <thead>
         <tr className={cn("bg-canvas", bordered ? "border-b" : "border-y", "border-line")}>
           {columns.map((column) => (

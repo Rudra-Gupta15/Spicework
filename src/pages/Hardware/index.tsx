@@ -12,6 +12,7 @@ import {
   DEFAULT_FILTERS,
   HARDWARE_COLUMNS,
   filterDevices,
+  hardwareFilterOptions,
   isFiltered,
 } from "@/data/hardware";
 import { computeHardwareKpis, useAllAssetMetadata, useDeviceList } from "@/data/deviceApi";
@@ -67,6 +68,13 @@ const HardwarePage = () => {
   const devices = useMemo(
     () => filterDevices(allDevices, filters),
     [allDevices, filters],
+  );
+
+  /* Dropdown choices come from the devices actually loaded, so every option
+     matches something in the table (the mock list didn't). */
+  const filterOptions = useMemo(
+    () => hardwareFilterOptions(allDevices),
+    [allDevices],
   );
 
   const visible = useMemo(
@@ -158,7 +166,7 @@ const HardwarePage = () => {
       <div className="mt-6 space-y-5">
         <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {kpisLoading ? (
-            <SkeletonTiles count={4} className="h-[110px]" />
+            <SkeletonTiles count={4} className="h-27.5" />
           ) : (
             kpiTiles.map((tile) => <StatCard key={tile.id} metric={tile} />)
           )}
@@ -167,6 +175,7 @@ const HardwarePage = () => {
         <HardwareFilters
           filters={filters}
           onChange={handleFilterChange}
+          options={filterOptions}
           onSaveFilter={() => void handleSaveFilter()}
           isSavingFilter={isSaving}
           onCustomizeView={customize.open}

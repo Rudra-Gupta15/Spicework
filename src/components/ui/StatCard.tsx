@@ -23,7 +23,7 @@ export const StatCard = ({ metric }: { metric: StatMetric }) => {
   const tile = (
     <Card
       className={cn(
-        "h-full p-[18px]",
+        "h-full p-4.5",
         (to || onClick) && "transition-colors hover:border-brand",
       )}
     >
