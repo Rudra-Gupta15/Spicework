@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { BookOpen } from "lucide-react";
 
 import { AgentConfigCard } from "@/components/agent/AgentConfigCard";
 import { DeploymentCard } from "@/components/agent/DeploymentCard";
 import { DownloadToast } from "@/components/agent/DownloadToast";
 import { LauncherDetailsModal } from "@/components/agent/LauncherDetailsModal";
+import { LauncherGuide } from "@/components/agent/LauncherGuide";
 import { LauncherTabs } from "@/components/agent/LauncherTabs";
 import { SmartScreenModal } from "@/components/agent/SmartScreenModal";
 import { Navbar } from "@/components/layout/Navbar";
-import { Avatar, Badge, Loader } from "@/components/ui";
+import { Avatar, Badge, Button, Loader } from "@/components/ui";
 import { CURRENT_COMPANY } from "@/config/company";
 import {
   DEFAULT_AGENT_CONFIG,
@@ -18,6 +20,7 @@ import {
   localSnippets,
   remoteSnippets,
 } from "@/data/agent";
+import { useDisclosure } from "@/hooks/useDisclosure";
 import { ApiError } from "@/lib/api";
 import { downloadBlob, formatBytes } from "@/lib/download";
 import type {
@@ -32,6 +35,8 @@ interface DownloadInfo {
   /** Windows launchers trip SmartScreen when run. */
   isWindows: boolean;
 }
+
+const GUIDE_ANCHOR_ID = "launcher-guide";
 
 /**
  * What the details dialog opens on. The company is known — this install
@@ -71,6 +76,24 @@ const AgentPage = () => {
   const [running, setRunning] = useState<string | null>(null);
   const [isActive, setActive] = useState(false);
   const [isWaiting, setWaiting] = useState(false);
+  const guide = useDisclosure();
+
+  /* The panel sits below the launcher pills it refers to, which on a short
+     window is off-screen — opening it from the header has to bring it into
+     view or the button looks like it did nothing. */
+  const toggleGuide = useCallback(() => {
+    if (guide.isOpen) {
+      guide.close();
+      return;
+    }
+
+    guide.open();
+    window.requestAnimationFrame(() =>
+      document
+        .getElementById(GUIDE_ANCHOR_ID)
+        ?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
+    );
+  }, [guide]);
 
   const isDirty = useMemo(
     () =>
@@ -173,6 +196,16 @@ const AgentPage = () => {
         subtitle="Generate, Edit & Copy Audit Deployment Commands"
         actions={
           <>
+            <Button
+              variant="brand"
+              aria-expanded={guide.isOpen}
+              aria-controls={GUIDE_ANCHOR_ID}
+              leftIcon={<BookOpen className="h-4 w-4" strokeWidth={2.1} />}
+              onClick={toggleGuide}
+            >
+              {guide.isOpen ? "Hide Guide" : "User Guide"}
+            </Button>
+
             <Badge
               tone={isActive ? "success" : "neutral"}
               className="gap-1.5"
@@ -221,6 +254,12 @@ const AgentPage = () => {
           )}
           {downloadError && (
             <p className="mt-2 text-[13px] text-status-offline">{downloadError}</p>
+          )}
+
+          {guide.isOpen && (
+            <div id={GUIDE_ANCHOR_ID} className="mt-5">
+              <LauncherGuide onHide={guide.close} />
+            </div>
           )}
         </section>
 
