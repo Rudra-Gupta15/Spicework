@@ -2,11 +2,8 @@ import { useRef, useState } from "react";
 import { Plus } from "lucide-react";
 
 import { AgentConfigSettings } from "@/components/settings/AgentConfigSettings";
-import { BackupSettings } from "@/components/settings/BackupSettings";
-import { BillingSettings } from "@/components/settings/BillingSettings";
+import { AssetFieldSettings } from "@/components/settings/AssetFieldSettings";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
-import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
-import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { SecuritySettings } from "@/components/settings/SecuritySettings";
 import { SettingsNav } from "@/components/settings/SettingsNav";
 import { UserManagement } from "@/components/settings/UserManagement";
@@ -23,10 +20,10 @@ const META: Record<SettingsCategory, { title: string; subtitle: string }> = {
     title: "Team Members",
     subtitle: "Everyone with portal access, the site they work from and the role they hold",
   },
-  Notifications: {
-    title: "Notification Preferences",
+  "Asset Fields": {
+    title: "Asset Field Configuration",
     subtitle:
-      "Configure alerts and notification targets across emails and agent collect",
+      "Define the owners and locations an asset can be assigned to, and review the fields the product fixes for you",
   },
   Security: {
     title: "Security Settings",
@@ -36,18 +33,6 @@ const META: Record<SettingsCategory, { title: string; subtitle: string }> = {
     title: "Agent Configuration",
     subtitle:
       "Manage background collection daemons, deployment packages, and scan frequency",
-  },
-  Integrations: {
-    title: "Connected Services",
-    subtitle: "Manage authorization endpoints and service hooks",
-  },
-  "Backup & Data": {
-    title: "Backup & Data",
-    subtitle: "Configure data preservation policies, manual exports, and recovery targets",
-  },
-  Billing: {
-    title: "Billing & Subscription",
-    subtitle: "Manage your subscription, invoices, and platform resource usage",
   },
 };
 
@@ -62,8 +47,10 @@ const SettingsPage = () => {
 
   const meta = META[category];
 
+  /* Only General has a header commit — every other category writes as you
+     go, from inside its own panel. */
   const save = () => {
-    if (category === "General") saveGeneral.current?.();
+    saveGeneral.current?.();
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1800);
   };
@@ -81,7 +68,7 @@ const SettingsPage = () => {
             <p className="mt-1 text-sm text-muted">{meta.subtitle}</p>
           </div>
 
-          {(category === "General" || category === "Backup & Data") && (
+          {category === "General" && (
             <Button variant="brand" onClick={save}>
               {saved ? "Saved" : "Save Changes"}
             </Button>
@@ -105,12 +92,11 @@ const SettingsPage = () => {
               onCloseInvite={() => setInviteOpen(false)}
             />
           )}
-          {category === "Notifications" && <NotificationSettings />}
+          {/* Adding an owner or a location is done from inside the panel's
+              own tab, so this category needs no header action. */}
+          {category === "Asset Fields" && <AssetFieldSettings />}
           {category === "Security" && <SecuritySettings />}
-          {category === "Integrations" && <IntegrationsSettings />}
           {category === "Agent Config" && <AgentConfigSettings />}
-          {category === "Backup & Data" && <BackupSettings />}
-          {category === "Billing" && <BillingSettings />}
         </div>
       </div>
     </div>
