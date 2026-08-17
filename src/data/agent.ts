@@ -37,15 +37,36 @@ const btoaSafe = (value: string): string =>
   typeof btoa === "function" ? btoa(value) : value;
 
 /**
+ * base64 of the UTF-16LE bytes of `value` — the exact encoding PowerShell's
+ * `-EncodedCommand` expects. Plain base64 (btoaSafe) is UTF-8 and PowerShell
+ * rejects it, so this must be used for any `-EncodedCommand` payload.
+ */
+const btoaSafe16 = (value: string): string => {
+  if (typeof btoa !== "function") return value;
+  let binary = "";
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    binary += String.fromCharCode(code & 0xff, (code >> 8) & 0xff);
+  }
+  return btoa(binary);
+};
+
+/**
  * Windows one-liner. Pulls and runs backend/scripts/audit.ps1 via `/api/sys-win`
  * — the same script a downloaded launcher invokes. The obfuscated form ships
  * the command as a base64 payload; the plain form is the readable pipe.
+ *
+ * The URL is single-quoted and the script is fetched into a variable before
+ * `iex` runs it. Piping `irm` straight into `iex` executes whatever came back —
+ * so a connection error (the server restarting, wrong host) gets run as code
+ * and produces a wall of unrelated parser errors. Guarding on `$s` means a
+ * failed fetch simply does nothing instead.
  */
 const winCommand = (url: string, clientId: string, obfuscate: boolean): string => {
-  const command = `irm ${url}/api/sys-win?client_id=${clientId} | iex`;
+  const inner = `$s = irm '${url}/api/sys-win?client_id=${clientId}'; if ($s) { iex $s }`;
   return obfuscate
-    ? `powershell -c "${command}"`
-    : `powershell -enc ${btoaSafe(command)}`;
+    ? `powershell -NoProfile -ExecutionPolicy Bypass -Command "${inner}"`
+    : `powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${btoaSafe16(inner)}`;
 };
 
 /** macOS/Linux one-liner. Pulls and runs backend/scripts/audit.sh via `/api/sys-agent-mac`. */
@@ -85,7 +106,7 @@ export const daemonSnippets = (config: AgentConfig): CommandSnippet[] => {
     {
       id: "daemon-win",
       title: "Windows (Scheduled Task Daemon)",
-      command: `powershell -c "irm '${url}/api/install-daemon?os=windows' | iex"`,
+      command: `powershell -NoProfile -ExecutionPolicy Bypass -Command "$s = irm '${url}/api/install-daemon?os=windows'; if ($s) { iex $s }"`,
     },
     {
       id: "daemon-nix",
