@@ -1,4 +1,6 @@
 import { CURRENT_COMPANY } from "@/config/company";
+import { parseCsv } from "@/lib/csv";
+import { isValidEmail } from "@/lib/validation";
 import type {
   AdminCity,
   AdminOrganization,
@@ -524,3 +526,134 @@ export const ADMIN_COUNTRY_OPTIONS: readonly string[] = [
   "Australia",
   "Germany",
 ];
+
+/* --- bulk upload -------------------------------------------------- */
+
+/**
+ * Inviting people one dialog at a time does not scale past a handful, so a
+ * spreadsheet can be uploaded instead. Every row is checked against the same
+ * rules the invite dialog enforces — the file is only a different way in,
+ * never a way around them.
+ */
+
+export const USER_IMPORT_COLUMNS = ["Name", "Email", "Role", "Site"] as const;
+
+/** What a row without a role becomes — the least privileged working role. */
+const DEFAULT_IMPORT_ROLE = "Technician";
+
+/** One line of an uploaded file, checked against the roster it will join. */
+export interface UserImportRow {
+  /** 1-based line in the file, so an error points at something findable. */
+  line: number;
+  name: string;
+  email: string;
+  role: string;
+  siteName: string;
+  /** Why the row cannot be imported; undefined means it is ready. */
+  error?: string;
+}
+
+/**
+ * The first rule that fails wins, so a row reports the thing to fix rather
+ * than a list. `seen` carries the addresses earlier rows already claimed —
+ * a file that repeats somebody imports them once.
+ */
+const importError = (
+  row: Omit<UserImportRow, "error">,
+  seen: Set<string>,
+): string | undefined => {
+  if (!row.name) return "Name is missing.";
+  if (!row.email) return "Email address is missing.";
+  if (!isValidEmail(row.email)) return "Email address is not valid.";
+
+  const address = row.email.toLowerCase();
+
+  if (seen.has(address)) return "This address appears twice in the file.";
+  seen.add(address);
+
+  if (ADMIN_USERS.some((user) => user.email.toLowerCase() === address))
+    return "Already a team member.";
+
+  if (!ADMIN_ROLE_OPTIONS.includes(row.role))
+    return `Unknown role "${row.role}".`;
+
+  if (!row.siteName) return "Site is missing.";
+  if (!findSiteByName(row.siteName)) return `Unknown site "${row.siteName}".`;
+
+  return undefined;
+};
+
+/**
+ * Reads an uploaded file into rows, each one carrying its verdict. Nothing
+ * is written here — the caller shows the preview first, and only then calls
+ * `importUsers`.
+ */
+export const parseUserImport = (text: string): UserImportRow[] => {
+  const table = parseCsv(text);
+  if (table.length === 0) return [];
+
+  const header = table[0].map((cell) => cell.trim().toLowerCase());
+  const hasHeader = header.includes("email");
+
+  /* Columns are matched by name when the file carries a header row, so a
+     spreadsheet with them reordered still imports; a headerless file falls
+     back to the template's own order. */
+  const columnFor = (name: string, fallback: number): number => {
+    if (!hasHeader) return fallback;
+    return header.indexOf(name);
+  };
+
+  const columns = {
+    name: columnFor("name", 0),
+    email: columnFor("email", 1),
+    role: columnFor("role", 2),
+    site: columnFor("site", 3),
+  };
+
+  const seen = new Set<string>();
+
+  return (hasHeader ? table.slice(1) : table).map((cells, index) => {
+    const cellAt = (column: number): string =>
+      column >= 0 ? (cells[column] ?? "").trim() : "";
+
+    const row = {
+      line: index + (hasHeader ? 2 : 1),
+      name: cellAt(columns.name),
+      email: cellAt(columns.email),
+      /* A blank role is a common omission, not a mistake. */
+      role: cellAt(columns.role) || DEFAULT_IMPORT_ROLE,
+      siteName: cellAt(columns.site),
+    };
+
+    return { ...row, error: importError(row, seen) };
+  });
+};
+
+/** Commits the rows that passed; the ones that failed are left behind. */
+export const importUsers = (rows: UserImportRow[]): AdminUser[] =>
+  rows.flatMap((row) => {
+    if (row.error) return [];
+
+    const site = findSiteByName(row.siteName);
+    if (!site) return [];
+
+    const user = addUser({
+      name: row.name,
+      email: row.email,
+      role: row.role,
+      siteId: site.id,
+    });
+
+    return user ? [user] : [];
+  });
+
+/** Example rows for the downloadable template, on this org's real sites. */
+export const userImportTemplate = (): string[][] => {
+  const sites = siteOptions();
+
+  return [
+    ["Priya Sharma", `priya.sharma@${ORGANIZATION_DOMAIN}`, "Technician", sites[0] ?? ""],
+    ["Rahul Verma", `rahul.verma@${ORGANIZATION_DOMAIN}`, "IT Manager", sites[1] ?? sites[0] ?? ""],
+    ["Aisha Khan", `aisha.khan@${ORGANIZATION_DOMAIN}`, "Help Desk Agent", sites[0] ?? ""],
+  ];
+};

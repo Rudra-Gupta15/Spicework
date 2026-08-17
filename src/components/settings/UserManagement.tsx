@@ -15,10 +15,13 @@ import {
   ADMIN_ROLE_FILTER_OPTIONS,
   ADMIN_USERS,
   addUser,
+  importUsers,
   type AdminUserDraft,
+  type UserImportRow,
 } from "@/data/admin";
 import type { AdminUser } from "@/types/admin";
 
+import { BulkUploadUsersModal } from "./BulkUploadUsersModal";
 import { InviteMemberModal } from "./InviteMemberModal";
 
 const PAGE_SIZE = 8;
@@ -28,6 +31,9 @@ interface UserManagementProps {
   /** Controlled by the page's "Invite User" header button. */
   inviteOpen: boolean;
   onCloseInvite: () => void;
+  /** Controlled by the page's "Bulk Upload" header button. */
+  bulkOpen: boolean;
+  onCloseBulk: () => void;
 }
 
 const columns: Column<AdminUser>[] = [
@@ -72,6 +78,8 @@ const columns: Column<AdminUser>[] = [
 export const UserManagement = ({
   inviteOpen,
   onCloseInvite,
+  bulkOpen,
+  onCloseBulk,
 }: UserManagementProps) => {
   const [search, setSearch] = useState("");
   const [role, setRole] = useState(ALL_ROLES);
@@ -115,6 +123,19 @@ export const UserManagement = ({
       onCloseInvite();
     },
     [onCloseInvite],
+  );
+
+  const bulkImport = useCallback(
+    (rows: UserImportRow[]) => {
+      /* The modal has already told the user which rows will be left out, so
+         the ones that failed are dropped here without further ceremony. */
+      const added = importUsers(rows);
+      if (added.length > 0) setRoster((current) => [...added, ...current]);
+
+      setPage(1);
+      onCloseBulk();
+    },
+    [onCloseBulk],
   );
 
   return (
@@ -169,6 +190,10 @@ export const UserManagement = ({
 
       {inviteOpen && (
         <InviteMemberModal onClose={onCloseInvite} onInvite={invite} />
+      )}
+
+      {bulkOpen && (
+        <BulkUploadUsersModal onClose={onCloseBulk} onImport={bulkImport} />
       )}
     </div>
   );

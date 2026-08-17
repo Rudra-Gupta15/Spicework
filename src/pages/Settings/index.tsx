@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, UploadCloud } from "lucide-react";
 
 import { AgentConfigSettings } from "@/components/settings/AgentConfigSettings";
 import { AssetFieldSettings } from "@/components/settings/AssetFieldSettings";
@@ -40,6 +40,7 @@ const SettingsPage = () => {
   const [category, setCategory] = useState<SettingsCategory>("General");
   const [saved, setSaved] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   /* General owns its own fields; it hands its commit back through this so
      the header button can fire it. */
@@ -74,13 +75,22 @@ const SettingsPage = () => {
             </Button>
           )}
           {category === "User Management" && (
-            <Button
-              variant="brand"
-              leftIcon={<Plus className="h-4 w-4" strokeWidth={2.4} />}
-              onClick={() => setInviteOpen(true)}
-            >
-              Invite User
-            </Button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                leftIcon={<UploadCloud className="h-4 w-4" strokeWidth={2.1} />}
+                onClick={() => setBulkOpen(true)}
+              >
+                Bulk Upload
+              </Button>
+              <Button
+                variant="brand"
+                leftIcon={<Plus className="h-4 w-4" strokeWidth={2.4} />}
+                onClick={() => setInviteOpen(true)}
+              >
+                Invite User
+              </Button>
+            </div>
           )}
         </header>
 
@@ -90,6 +100,8 @@ const SettingsPage = () => {
             <UserManagement
               inviteOpen={inviteOpen}
               onCloseInvite={() => setInviteOpen(false)}
+              bulkOpen={bulkOpen}
+              onCloseBulk={() => setBulkOpen(false)}
             />
           )}
           {/* Adding an owner or a location is done from inside the panel's
