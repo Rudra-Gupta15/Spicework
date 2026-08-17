@@ -40,7 +40,7 @@ export const StatCard = ({ metric }: { metric: StatMetric }) => {
       </div>
 
       <div className="mt-3 flex items-end gap-2">
-        <p className="text-[30px] leading-none font-bold text-heading tabular-nums">
+        <p className="text-[22px] leading-none font-bold text-heading tabular-nums">
           {value}
         </p>
 
