@@ -21,15 +21,11 @@ import AdminSitesPage from "@/pages/AdminSites";
 import AdminUsersPage from "@/pages/AdminUsers";
 import AgentPage from "@/pages/Agent";
 import AuthComingSoon from "@/pages/AuthComingSoon";
-import CloudAssetDetailPage from "@/pages/CloudAssetDetail";
-import CloudAssetEditPage from "@/pages/CloudAssetEdit";
-import CloudAssetsPage from "@/pages/CloudAssets";
 import DashboardPage from "@/pages/Dashboard";
 import HardwarePage from "@/pages/Hardware";
 import HardwareDetailPage from "@/pages/HardwareDetail";
 import LogPage from "@/pages/Log";
 import LoginPage from "@/pages/Login";
-import NetworkWifiPage from "@/pages/NetworkWifi";
 import NotFoundPage from "@/pages/NotFound";
 import ReportPage from "@/pages/Report";
 import SavedSearchPage from "@/pages/SavedSearch";
@@ -52,8 +48,6 @@ const PAGES: Record<string, ComponentType> = {
   "/dashboard": DashboardPage,
   "/inventory/hardware": HardwarePage,
   "/inventory/software": SoftwarePage,
-  "/inventory/cloud-assets": CloudAssetsPage,
-  "/inventory/network-wifi": NetworkWifiPage,
   "/inventory/ticket": TicketPage,
   "/reports": ReportPage,
   "/agent": AgentPage,
@@ -135,14 +129,6 @@ export const AppRoutes = () => (
       <Route
         path="/inventory/software/:deviceId"
         element={<SoftwareDetailPage />}
-      />
-      <Route
-        path="/inventory/cloud-assets/:serviceId"
-        element={<CloudAssetDetailPage />}
-      />
-      <Route
-        path="/inventory/cloud-assets/:serviceId/edit"
-        element={<CloudAssetEditPage />}
       />
       {/* Static segment is ranked above `:ticketId`, so it wins. */}
       <Route path="/inventory/ticket/new" element={<TicketCreatePage />} />

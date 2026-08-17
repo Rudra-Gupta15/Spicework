@@ -14,6 +14,9 @@ export interface StatMetric {
   id: string;
   label: string;
   value: string;
+  /** Small secondary line under the hero value — e.g. the device a count
+      belongs to. Kept to one truncated line so the tile stays uniform. */
+  caption?: string;
   icon: LucideIcon;
   tone: Tone;
   /** Makes the whole tile a link to the drill-down list. */

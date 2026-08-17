@@ -42,18 +42,6 @@ export const NAVIGATION: NavItem[] = [
         subtitle: "Track installed software, licenses and renewals.",
       },
       {
-        id: "cloud-assets",
-        label: "Cloud Assets",
-        path: "/inventory/cloud-assets",
-        subtitle: "Monitor cloud subscriptions, instances and spend.",
-      },
-      {
-        id: "network-wifi",
-        label: "Network WiFi",
-        path: "/inventory/network-wifi",
-        subtitle: "Manage access points, SSIDs and connected clients.",
-      },
-      {
         id: "ticket",
         label: "Ticket",
         path: "/inventory/ticket",

@@ -97,7 +97,8 @@ const SoftwarePage = () => {
       {
         id: "top-device",
         label: "Most Applications On",
-        value: kpis.topDevice ? `${kpis.topDevice.name} (${kpis.topDevice.count})` : "No data",
+        value: kpis.topDevice ? kpis.topDevice.count.toLocaleString() : "No data",
+        caption: kpis.topDevice ? (kpis.topDevice.name.trim() || "Unknown device") : undefined,
         icon: Trophy,
         tone: "success",
       },

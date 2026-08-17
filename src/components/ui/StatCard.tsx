@@ -17,7 +17,7 @@ const ICON_TONES: Record<Tone, string> = {
 
 /** KPI tile: label, hero number and an optional period-over-period delta. */
 export const StatCard = ({ metric }: { metric: StatMetric }) => {
-  const { label, value, icon: Icon, tone, delta, to, onClick } = metric;
+  const { label, value, caption, icon: Icon, tone, delta, to, onClick } = metric;
   const TrendIcon = delta?.direction === "up" ? TrendingUp : TrendingDown;
 
   const tile = (
@@ -56,6 +56,15 @@ export const StatCard = ({ metric }: { metric: StatMetric }) => {
           </span>
         )}
       </div>
+
+      {caption && (
+        <p
+          className="mt-1.5 truncate text-[13px] font-medium text-muted"
+          title={caption}
+        >
+          {caption}
+        </p>
+      )}
     </Card>
   );
 
