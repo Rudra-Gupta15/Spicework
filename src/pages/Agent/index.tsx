@@ -13,6 +13,7 @@ import {
   daemonSnippets,
   downloadLauncher,
   fetchAuditStatus,
+  fetchServerInfo,
   generateClientId,
   localSnippets,
   remoteSnippets,
@@ -41,6 +42,8 @@ const AgentPage = () => {
   /* The saved settings; edits stay in `draft` until Save. */
   const [config, setConfig] = useState<AgentConfig>(DEFAULT_AGENT_CONFIG);
   const [draft, setDraft] = useState<AgentConfig>(DEFAULT_AGENT_CONFIG);
+  /* What "Reset Defaults" returns to — the detected address once it arrives. */
+  const [defaults, setDefaults] = useState<AgentConfig>(DEFAULT_AGENT_CONFIG);
   const [launcher, setLauncher] = useState<LauncherId>("win-exe");
   const [download, setDownload] = useState<DownloadInfo | null>(null);
   const [isDownloading, setDownloading] = useState(false);
@@ -67,8 +70,35 @@ const AgentPage = () => {
   const save = useCallback(() => setConfig(draft), [draft]);
 
   const reset = useCallback(() => {
-    setDraft(DEFAULT_AGENT_CONFIG);
-    setConfig(DEFAULT_AGENT_CONFIG);
+    setDraft(defaults);
+    setConfig(defaults);
+  }, [defaults]);
+
+  /* Ask the backend what address it is reachable on and adopt it as the
+     default. Only applied while the fields are still untouched, so it can
+     never overwrite an address the user typed. */
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchServerInfo()
+      .then(({ ip, port }) => {
+        if (cancelled || !ip) return;
+        const detected: AgentConfig = {
+          ...DEFAULT_AGENT_CONFIG,
+          serverIp: ip,
+          serverPort: port || DEFAULT_AGENT_CONFIG.serverPort,
+        };
+        setDefaults(detected);
+        setConfig((current) => (current === DEFAULT_AGENT_CONFIG ? detected : current));
+        setDraft((current) => (current === DEFAULT_AGENT_CONFIG ? detected : current));
+      })
+      .catch(() => {
+        /* Detection is a convenience — keep the hard-coded default on failure. */
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   /* Selecting a launcher fetches the real file from the backend, which also

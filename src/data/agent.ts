@@ -1,11 +1,22 @@
 import { api } from "@/lib/api";
 import type { AgentConfig, CommandSnippet, LauncherId } from "@/types/agent";
 
+/** Used only until `fetchServerInfo` resolves, and if that call fails. */
 export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   serverIp: "192.168.1.67",
   serverPort: "8000",
   obfuscate: true,
 };
+
+interface ServerInfo {
+  ip: string;
+  port: string;
+}
+
+/** GET /api/server-info — the address the backend sees itself on, so the
+    generated commands follow the host's current DHCP lease instead of a
+    hard-coded address that goes stale the moment the network changes. */
+export const fetchServerInfo = () => api.get<ServerInfo>("/api/server-info");
 
 /** Loopback address a machine uses to reach the audit server on itself. */
 export const LOCAL_HOST = "127.0.0.1";
