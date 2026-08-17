@@ -9,6 +9,17 @@ export interface AgentConfig {
 /** Downloadable launcher formats, one per host platform. */
 export type LauncherId = "win-exe" | "win-vbs" | "macos" | "linux";
 
+/**
+ * Where the machine about to be audited belongs. Collected before a launcher
+ * is handed over, so the report that comes back can be filed against a real
+ * place instead of arriving anonymously.
+ */
+export interface LauncherRegistration {
+  companyName: string;
+  city: string;
+  site: string;
+}
+
 /** One shell snippet inside a deployment card. */
 export interface CommandSnippet {
   id: string;

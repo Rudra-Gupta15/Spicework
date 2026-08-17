@@ -8,14 +8,19 @@ import {
   CreateSearchModal,
   type NewSearchDraft,
 } from "@/components/savedSearch/CreateSearchModal";
+import { SavedSearchFilters } from "@/components/savedSearch/SavedSearchFilters";
 import { SavedSearchTable } from "@/components/savedSearch/SavedSearchTable";
 import { Button, Card, ConfirmDialog, Loader, Pagination } from "@/components/ui";
 import { CURRENT_COMPANY } from "@/config/company";
 import {
+  DEFAULT_SAVED_SEARCH_FILTERS,
   SAVED_SEARCH_TABS,
   createSavedSearch,
   deleteSavedSearch,
+  filterSavedSearches,
+  isSavedSearchFiltered,
   useSavedSearches,
+  type SavedSearchFilterState,
 } from "@/data/savedSearches";
 import { ApiError } from "@/lib/api";
 import { useDisclosure } from "@/hooks/useDisclosure";
@@ -35,6 +40,9 @@ const SavedSearchPage = () => {
      saved to, e.g. navigate("/saved-search", { state: { tab: "Software" } }). */
   const initialTab = (location.state as { tab?: SavedSearchCategory } | null)?.tab;
   const [tab, setTab] = useState<SavedSearchCategory>(initialTab ?? "Hardware");
+  const [filters, setFilters] = useState<SavedSearchFilterState>(
+    DEFAULT_SAVED_SEARCH_FILTERS,
+  );
   const [page, setPage] = useState(1);
   const [pendingDelete, setPendingDelete] = useState<SavedSearch | null>(null);
   const [createError, setCreateError] = useState<string>();
@@ -42,13 +50,34 @@ const SavedSearchPage = () => {
 
   const { searches, isLoading, error, reload } = useSavedSearches(tab);
 
+  const matches = useMemo(
+    () => filterSavedSearches(searches, filters),
+    [searches, filters],
+  );
+
+  /* Clamping beats resetting: narrowing the filters can never strand the
+     view on a page that no longer exists. */
+  const lastPage = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
+  const currentPage = Math.min(page, lastPage);
+
   const visible = useMemo(
-    () => searches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [searches, page],
+    () => matches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [matches, currentPage],
+  );
+
+  const changeFilters = useCallback(
+    (patch: Partial<SavedSearchFilterState>) => {
+      setFilters((current) => ({ ...current, ...patch }));
+      setPage(1);
+    },
+    [],
   );
 
   const selectTab = (next: SavedSearchCategory) => {
     setTab(next);
+    /* Each tab is its own list — a term typed for Hardware would silently
+       hide most of Software. */
+    setFilters(DEFAULT_SAVED_SEARCH_FILTERS);
     setPage(1);
   };
 
@@ -84,15 +113,8 @@ const SavedSearchPage = () => {
     if (!pendingDelete) return;
     const id = pendingDelete.id;
     setPendingDelete(null);
-    void deleteSavedSearch(id).then(() => {
-      reload();
-      setPage((current) => {
-        const remaining = searches.length - 1;
-        const lastPage = Math.max(Math.ceil((remaining || 1) / PAGE_SIZE), 1);
-        return Math.min(current, lastPage);
-      });
-    });
-  }, [pendingDelete, reload, searches.length]);
+    void deleteSavedSearch(id).then(reload);
+  }, [pendingDelete, reload]);
 
   return (
     <>
@@ -122,6 +144,13 @@ const SavedSearchPage = () => {
       <div className="mt-6 space-y-5">
         <DetailTabs tabs={SAVED_SEARCH_TABS} active={tab} onChange={selectTab} />
 
+        <SavedSearchFilters
+          filters={filters}
+          onChange={changeFilters}
+          matchCount={matches.length}
+          totalCount={searches.length}
+        />
+
         <Card className="px-5 py-5">
           <h2 className="mb-4 text-base font-bold text-heading">
             {tab} Saved Searches
@@ -139,14 +168,19 @@ const SavedSearchPage = () => {
               onView={openSearch}
               onEdit={openSearch}
               onDelete={setPendingDelete}
+              emptyMessage={
+                isSavedSearchFiltered(filters)
+                  ? "No saved searches match your search."
+                  : `No ${tab} saved searches yet — save one from a filter bar or use Create New.`
+              }
             />
           )}
 
           <Pagination
             className="mt-5"
-            page={page}
+            page={currentPage}
             pageSize={PAGE_SIZE}
-            totalItems={searches.length}
+            totalItems={matches.length}
             itemLabel="searches"
             onPageChange={setPage}
           />

@@ -27,7 +27,6 @@ import CloudAssetsPage from "@/pages/CloudAssets";
 import DashboardPage from "@/pages/Dashboard";
 import HardwarePage from "@/pages/Hardware";
 import HardwareDetailPage from "@/pages/HardwareDetail";
-import LogPage from "@/pages/Log";
 import LoginPage from "@/pages/Login";
 import NetworkWifiPage from "@/pages/NetworkWifi";
 import NotFoundPage from "@/pages/NotFound";
@@ -58,7 +57,6 @@ const PAGES: Record<string, ComponentType> = {
   "/reports": ReportPage,
   "/agent": AgentPage,
   "/saved-search": SavedSearchPage,
-  "/log": LogPage,
   "/settings": SettingsPage,
 };
 

@@ -1,6 +1,5 @@
 import {
   Boxes,
-  Clock,
   FileText,
   Funnel,
   Monitor,
@@ -49,13 +48,6 @@ export const NAVIGATION: NavItem[] = [
     icon: FileText,
     path: "/reports",
     subtitle: "Generate and schedule reports across your organisation.",
-  },
-  {
-    id: "log",
-    label: "Log",
-    icon: Clock,
-    path: "/log",
-    subtitle: "Audit every scan, sync and change made to your assets.",
   },
   {
     id: "saved-search",

@@ -16,6 +16,53 @@ export const SAVED_SEARCH_TABS: SavedSearchCategory[] = [
 
 export const SAVED_SEARCH_SCOPES = ["Public", "Private"] as const;
 
+/* --- filtering the list itself ------------------------------------ */
+
+/** Extra option on the scope filter; never a value a search can hold. */
+const ALL_SCOPES = "All Scopes";
+
+export const SAVED_SEARCH_SCOPE_OPTIONS: readonly string[] = [
+  ALL_SCOPES,
+  ...SAVED_SEARCH_SCOPES,
+];
+
+/** Active values of the saved-search filter bar. */
+export interface SavedSearchFilterState {
+  search: string;
+  scope: string;
+}
+
+export const DEFAULT_SAVED_SEARCH_FILTERS: SavedSearchFilterState = {
+  search: "",
+  scope: ALL_SCOPES,
+};
+
+/** True when a filter would narrow the list — drives the empty message. */
+export const isSavedSearchFiltered = (
+  filters: SavedSearchFilterState,
+): boolean => filters.search.trim() !== "" || filters.scope !== ALL_SCOPES;
+
+/**
+ * Narrows one tab's saved searches. The free-text term is matched against
+ * the name, the dimensions the query filters on and who saved it — the three
+ * things somebody would have in mind when hunting for one they made earlier.
+ */
+export const filterSavedSearches = (
+  searches: SavedSearch[],
+  filters: SavedSearchFilterState,
+): SavedSearch[] => {
+  const term = filters.search.trim().toLowerCase();
+
+  return searches.filter(
+    (search) =>
+      (filters.scope === ALL_SCOPES || search.scope === filters.scope) &&
+      (term === "" ||
+        `${search.name} ${search.filters} ${search.createdBy}`
+          .toLowerCase()
+          .includes(term)),
+  );
+};
+
 /**
  * What the "Create New" dialog opens pre-filled with when there's no active
  * filter state to seed it from (e.g. opened directly from the Saved Search

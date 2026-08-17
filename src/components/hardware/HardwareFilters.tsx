@@ -1,7 +1,9 @@
-import { ChevronDown, Search } from "lucide-react";
+import { Search } from "lucide-react";
 
+import { SaveFilterMenu } from "@/components/common/SaveFilterMenu";
 import { Button, Input, Select } from "@/components/ui";
 import { HARDWARE_FILTER_OPTIONS } from "@/data/hardware";
+import type { ExportFormat } from "@/lib/exportRows";
 import type { HardwareFilterState } from "@/types/hardware";
 
 interface HardwareFiltersProps {
@@ -10,6 +12,10 @@ interface HardwareFiltersProps {
   /** Saves the current selection immediately — no naming dialog. */
   onSaveFilter?: () => void;
   isSavingFilter?: boolean;
+  /** Writes the matched devices out as a file. */
+  onExport?: (format: ExportFormat) => void;
+  /** How many devices the filter matches, quoted on the export items. */
+  matchCount: number;
   onCustomizeView?: () => void;
 }
 
@@ -19,6 +25,8 @@ export const HardwareFilters = ({
   onChange,
   onSaveFilter,
   isSavingFilter = false,
+  onExport,
+  matchCount,
   onCustomizeView,
 }: HardwareFiltersProps) => (
   <div className="flex flex-wrap items-center gap-2">
@@ -58,15 +66,12 @@ export const HardwareFilters = ({
     />
 
     <div className="ml-auto flex items-center gap-2">
-      <Button
-        variant="brand"
-        size="sm"
-        onClick={onSaveFilter}
-        isLoading={isSavingFilter}
-      >
-        Save Filter
-        {!isSavingFilter && <ChevronDown className="h-4 w-4" strokeWidth={2.2} />}
-      </Button>
+      <SaveFilterMenu
+        onSaveFilter={onSaveFilter}
+        isSaving={isSavingFilter}
+        onExport={onExport}
+        rowCount={matchCount}
+      />
 
       <Button variant="brand" size="sm" onClick={onCustomizeView}>
         Customize View

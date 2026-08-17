@@ -1,13 +1,21 @@
-import { ChevronDown, Search } from "lucide-react";
+import { Search } from "lucide-react";
 
-import { Button, Input, Select } from "@/components/ui";
+import { SaveFilterMenu } from "@/components/common/SaveFilterMenu";
+import { Input, Select } from "@/components/ui";
 import { CLOUD_FILTER_OPTIONS } from "@/data/cloudAssets";
+import type { ExportFormat } from "@/lib/exportRows";
 import type { CloudFilterState } from "@/types/cloud";
 
 interface CloudFiltersProps {
   filters: CloudFilterState;
   onChange: (patch: Partial<CloudFilterState>) => void;
+  /** Saves the current selection immediately — no naming dialog. */
   onSaveFilter?: () => void;
+  isSavingFilter?: boolean;
+  /** Writes the matched services out as a file. */
+  onExport?: (format: ExportFormat) => void;
+  /** How many services the filter matches, quoted on the export items. */
+  matchCount: number;
 }
 
 /** Search + dimension filters + view actions, in one row above the table. */
@@ -15,6 +23,9 @@ export const CloudFilters = ({
   filters,
   onChange,
   onSaveFilter,
+  isSavingFilter = false,
+  onExport,
+  matchCount,
 }: CloudFiltersProps) => (
   <div className="flex flex-wrap items-center gap-2">
     <Input
@@ -52,14 +63,13 @@ export const CloudFilters = ({
       onChange={(provider) => onChange({ provider })}
     />
 
-    <Button
-      variant="brand"
-      size="sm"
-      className="ml-auto"
-      onClick={onSaveFilter}
-    >
-      Save Filter
-      <ChevronDown className="h-4 w-4" strokeWidth={2.2} />
-    </Button>
+    <div className="ml-auto">
+      <SaveFilterMenu
+        onSaveFilter={onSaveFilter}
+        isSaving={isSavingFilter}
+        onExport={onExport}
+        rowCount={matchCount}
+      />
+    </div>
   </div>
 );

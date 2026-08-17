@@ -19,7 +19,9 @@ import { autoFilterName, createSavedSearch } from "@/data/savedSearches";
 import { useViewColumns } from "@/data/viewPreferences";
 import { CURRENT_COMPANY } from "@/config/company";
 import { ApiError } from "@/lib/api";
+import { exportRows, type ExportColumn, type ExportFormat } from "@/lib/exportRows";
 import { useDisclosure } from "@/hooks/useDisclosure";
+import { useToast } from "@/hooks/useToast";
 import type {
   HardwareColumnKey,
   HardwareDevice,
@@ -42,13 +44,14 @@ const filterChips = (filters: HardwareFilterState): string[] => {
 
 const HardwarePage = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const { devices: allDevices, isLoading, error } = useDeviceList();
   const { assets, isLoading: assetsLoading } = useAllAssetMetadata();
   const [filters, setFilters] = useState<HardwareFilterState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const { columns, save: saveColumns } = useViewColumns<HardwareColumnKey>("hardware", DEFAULT_COLUMNS);
   const customize = useDisclosure();
-  const [saveError, setSaveError] = useState<string>();
+  /* A failed save reports through the toast — see `handleSaveFilter`. */
   const [isSaving, setSaving] = useState(false);
 
   const handleFilterChange = useCallback(
@@ -128,28 +131,72 @@ const HardwarePage = () => {
   /* No dialog — Save Filter persists the current selection immediately and
      jumps straight to where it landed. */
   const handleSaveFilter = useCallback(async () => {
-    setSaveError(undefined);
     setSaving(true);
     try {
       const chips = filterChips(filters);
+      const name = autoFilterName("Hardware", chips);
+
       await createSavedSearch("Hardware", {
-        name: autoFilterName("Hardware", chips),
+        name,
         scope: "Private",
         filters: chips,
         resultsCount: devices.length,
         createdBy: CURRENT_COMPANY.name,
       });
+
+      /* Raised before the navigation — the toast host lives above the
+         router, so it carries over to the Saved Search screen. */
+      toast({ tone: "success", title: "Filter saved", description: name });
       navigate("/saved-search", { state: { tab: "Hardware" } });
     } catch (err) {
-      setSaveError(
-        err instanceof ApiError || err instanceof Error
-          ? err.message
-          : "Could not save this filter.",
-      );
+      toast({
+        tone: "danger",
+        title: "Could not save this filter",
+        description:
+          err instanceof ApiError || err instanceof Error
+            ? err.message
+            : undefined,
+      });
     } finally {
       setSaving(false);
     }
-  }, [filters, devices.length, navigate]);
+  }, [filters, devices.length, navigate, toast]);
+
+  /* Exports carry the columns the table is currently showing, so a
+     customised view exports as it reads. */
+  const exportColumns = useMemo<ExportColumn<HardwareDevice>[]>(
+    () =>
+      HARDWARE_COLUMNS.filter((column) => columns.includes(column.key)).map(
+        (column) => ({
+          key: column.key,
+          label: column.label,
+          value: (device) => String(device[column.key] ?? ""),
+        }),
+      ),
+    [columns],
+  );
+
+  /* Every matched device, not just the page on screen — the filter is what
+     is being exported, and it rarely fits in six rows. */
+  const handleExport = useCallback(
+    (format: ExportFormat) => {
+      const filename = exportRows(
+        "hardware-inventory",
+        format,
+        exportColumns,
+        devices,
+      );
+
+      toast({
+        tone: "success",
+        title: `Exported ${devices.length.toLocaleString()} ${
+          devices.length === 1 ? "device" : "devices"
+        } as ${format.toUpperCase()}`,
+        description: filename,
+      });
+    },
+    [exportColumns, devices, toast],
+  );
 
   return (
     <>
@@ -169,12 +216,10 @@ const HardwarePage = () => {
           onChange={handleFilterChange}
           onSaveFilter={() => void handleSaveFilter()}
           isSavingFilter={isSaving}
+          onExport={handleExport}
+          matchCount={devices.length}
           onCustomizeView={customize.open}
         />
-
-        {saveError && (
-          <p className="text-[13px] text-status-offline">{saveError}</p>
-        )}
 
         <div id={TABLE_ANCHOR_ID}>
           <Card className="p-5">
