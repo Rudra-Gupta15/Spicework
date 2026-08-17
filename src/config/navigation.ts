@@ -41,12 +41,6 @@ export const NAVIGATION: NavItem[] = [
         path: "/inventory/software",
         subtitle: "Track installed software, licenses and renewals.",
       },
-      {
-        id: "ticket",
-        label: "Ticket",
-        path: "/inventory/ticket",
-        subtitle: "Review tickets raised against inventory items.",
-      },
     ],
   },
   {

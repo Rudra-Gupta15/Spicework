@@ -135,7 +135,7 @@ const HardwareDetailPage = () => {
               <Button
                 variant="brand"
                 leftIcon={<Plus className="h-4 w-4" />}
-                onClick={() => navigate("/inventory/ticket")}
+                onClick={() => navigate("/inventory/ticket/new")}
               >
                 Create Ticket
               </Button>

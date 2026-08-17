@@ -48,7 +48,6 @@ const PAGES: Record<string, ComponentType> = {
   "/dashboard": DashboardPage,
   "/inventory/hardware": HardwarePage,
   "/inventory/software": SoftwarePage,
-  "/inventory/ticket": TicketPage,
   "/reports": ReportPage,
   "/agent": AgentPage,
   "/saved-search": SavedSearchPage,
@@ -130,6 +129,10 @@ export const AppRoutes = () => (
         path="/inventory/software/:deviceId"
         element={<SoftwareDetailPage />}
       />
+      {/* Ticket is hidden from the sidebar nav, so its list route is declared
+          explicitly here (rather than generated from the nav) — this keeps the
+          ticket pages and their "back to list" links working. */}
+      <Route path="/inventory/ticket" element={<TicketPage />} />
       {/* Static segment is ranked above `:ticketId`, so it wins. */}
       <Route path="/inventory/ticket/new" element={<TicketCreatePage />} />
       <Route
