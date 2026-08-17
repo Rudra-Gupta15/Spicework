@@ -77,18 +77,18 @@ const NOT_AVAILABLE = "Not available";
 
 /* ── API calls ────────────────────────────────────────────────────────── */
 
-/** GET /wifi/networks — nearby access points visible to the host running the backend. */
+/** GET /api/wifi/networks — nearby access points visible to the host running the backend. */
 export const fetchWifiNetworks = async (): Promise<WifiNetwork[]> => {
-  const data = await api.get<{ networks: RawWifiNetwork[] }>("/wifi/networks");
+  const data = await api.get<{ networks: RawWifiNetwork[] }>("/api/wifi/networks");
   return data.networks.map(toWifiNetwork);
 };
 
-/** GET /wifi/current — the connection the backend host is currently on, if any. */
-export const fetchCurrentWifi = () => api.get<RawCurrentWifi>("/wifi/current");
+/** GET /api/wifi/current — the connection the backend host is currently on, if any. */
+export const fetchCurrentWifi = () => api.get<RawCurrentWifi>("/api/wifi/current");
 
 /**
- * Combines /wifi/current with the matching row from /wifi/networks (for the
- * fields — encryption, signal — that /wifi/current alone doesn't report).
+ * Combines /api/wifi/current with the matching row from /api/wifi/networks (for
+ * the fields — encryption, signal — that /api/wifi/current alone doesn't report).
  */
 export const resolveConnection = (
   current: RawCurrentWifi,
@@ -108,10 +108,10 @@ export const resolveConnection = (
   };
 };
 
-/** POST /wifi/connect — joins an access point; the backend persists the credential. */
+/** POST /api/wifi/connect — joins an access point; the backend persists the credential. */
 export const connectToWifi = (ssid: string, password: string) =>
   api.post<{ status: string; ssid: string; ip?: string; subnet?: string; message?: string }>(
-    "/wifi/connect",
+    "/api/wifi/connect",
     { ssid, password },
   );
 
@@ -125,10 +125,10 @@ const toNetworkDevice = (raw: RawScanDevice): NetworkDevice => ({
   status: raw.audit_status === "audited" ? "Audited" : "Unaudited",
 });
 
-/** GET /wifi/scan-devices — sweeps the given (or current) subnet for live hosts. */
+/** GET /api/wifi/scan-devices — sweeps the given (or current) subnet for live hosts. */
 export const scanConnectedDevices = async (subnet?: string): Promise<NetworkDevice[]> => {
   const query = subnet ? `?subnet=${encodeURIComponent(subnet)}` : "";
-  const data = await api.get<RawScanResult>(`/wifi/scan-devices${query}`);
+  const data = await api.get<RawScanResult>(`/api/wifi/scan-devices${query}`);
   return data.discovered.map(toNetworkDevice);
 };
 

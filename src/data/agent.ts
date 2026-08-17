@@ -26,20 +26,20 @@ const btoaSafe = (value: string): string =>
   typeof btoa === "function" ? btoa(value) : value;
 
 /**
- * Windows one-liner. Pulls and runs backend/scripts/audit.ps1 via `/sys-win`
+ * Windows one-liner. Pulls and runs backend/scripts/audit.ps1 via `/api/sys-win`
  * — the same script a downloaded launcher invokes. The obfuscated form ships
  * the command as a base64 payload; the plain form is the readable pipe.
  */
 const winCommand = (url: string, clientId: string, obfuscate: boolean): string => {
-  const command = `irm ${url}/sys-win?client_id=${clientId} | iex`;
+  const command = `irm ${url}/api/sys-win?client_id=${clientId} | iex`;
   return obfuscate
     ? `powershell -c "${command}"`
     : `powershell -enc ${btoaSafe(command)}`;
 };
 
-/** macOS/Linux one-liner. Pulls and runs backend/scripts/audit.sh via `/sys-agent-mac`. */
+/** macOS/Linux one-liner. Pulls and runs backend/scripts/audit.sh via `/api/sys-agent-mac`. */
 const nixCommand = (url: string, clientId: string, obfuscate: boolean): string => {
-  const command = `curl -s ${url}/sys-agent-mac?client_id=${clientId}`;
+  const command = `curl -s ${url}/api/sys-agent-mac?client_id=${clientId}`;
   return obfuscate
     ? `bash <(${command})`
     : `bash <(echo ${btoaSafe(command)} | base64 -d | sh)`;
@@ -65,7 +65,7 @@ export const remoteSnippets = (config: AgentConfig, clientId: string): CommandSn
 
 /**
  * Daemon card: pulls the real installer script the backend serves at
- * `/install-daemon` (backend/scripts/install_service.ps1 or .sh) and runs it —
+ * `/api/install-daemon` (backend/scripts/install_service.ps1 or .sh) and runs it —
  * that script is what actually registers the recurring 2-hour task/cron job.
  */
 export const daemonSnippets = (config: AgentConfig): CommandSnippet[] => {
@@ -74,22 +74,22 @@ export const daemonSnippets = (config: AgentConfig): CommandSnippet[] => {
     {
       id: "daemon-win",
       title: "Windows (Scheduled Task Daemon)",
-      command: `powershell -c "irm '${url}/install-daemon?os=windows' | iex"`,
+      command: `powershell -c "irm '${url}/api/install-daemon?os=windows' | iex"`,
     },
     {
       id: "daemon-nix",
       title: "macOS & Linux (cron / Daemon)",
-      command: `bash <(curl -s "${url}/install-daemon?os=mac")`,
+      command: `bash <(curl -s "${url}/api/install-daemon?os=mac")`,
     },
   ];
 };
 
 /** Endpoint per launcher format — each returns the actual runnable file. */
 const LAUNCHER_ENDPOINT: Record<LauncherId, string> = {
-  "win-exe": "/download-exe-launcher",
-  "win-vbs": "/download-vbs-launcher",
-  macos: "/download-mac-launcher",
-  linux: "/download-linux-launcher",
+  "win-exe": "/api/download-exe-launcher",
+  "win-vbs": "/api/download-vbs-launcher",
+  macos: "/api/download-mac-launcher",
+  linux: "/api/download-linux-launcher",
 };
 
 const LAUNCHER_FALLBACK_NAME: Record<LauncherId, string> = {
@@ -115,6 +115,6 @@ interface AuditSession {
   status: "pending" | "completed" | "failed" | string;
 }
 
-/** GET /check-status — whether the audit triggered by this client_id has reported back. */
+/** GET /api/check-status — whether the audit triggered by this client_id has reported back. */
 export const fetchAuditStatus = (clientId: string) =>
-  api.get<AuditSession>(`/check-status?client_id=${clientId}`);
+  api.get<AuditSession>(`/api/check-status?client_id=${clientId}`);
