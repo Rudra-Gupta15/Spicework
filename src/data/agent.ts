@@ -52,29 +52,33 @@ const btoaSafe16 = (value: string): string => {
 };
 
 /**
- * Windows one-liner. Pulls and runs backend/scripts/audit.ps1 via `/api/sys-win`
- * — the same script a downloaded launcher invokes. The obfuscated form ships
- * the command as a base64 payload; the plain form is the readable pipe.
+ * Windows one-liner. Pulls and runs backend/scripts/audit.ps1 via `/api/sys-win`.
  *
- * The URL is single-quoted and the script is fetched into a variable before
- * `iex` runs it. Piping `irm` straight into `iex` executes whatever came back —
- * so a connection error (the server restarting, wrong host) gets run as code
- * and produces a wall of unrelated parser errors. Guarding on `$s` means a
- * failed fetch simply does nothing instead.
+ * The readable form is a plain `irm '…' | iex`, which is safe to paste straight
+ * into a PowerShell window. The old `powershell -Command "$s = irm …"` wrapper
+ * broke there: pasted into an existing PowerShell, the *outer* shell expanded
+ * `$s` to nothing before the inner powershell.exe ran, leaving `if () { … }`
+ * and a "Missing condition" parser error. It only worked from cmd.exe.
+ *
+ * The obfuscated form hides the URL behind a base64 `-EncodedCommand` payload
+ * (immune to that outer expansion, so it runs from any shell). It keeps the
+ * `$s` guard so a failed fetch simply does nothing instead of running an error.
  */
 const winCommand = (url: string, clientId: string, obfuscate: boolean): string => {
-  const inner = `$s = irm '${url}/api/sys-win?client_id=${clientId}'; if ($s) { iex $s }`;
+  const target = `${url}/api/sys-win?client_id=${clientId}`;
   return obfuscate
-    ? `powershell -NoProfile -ExecutionPolicy Bypass -Command "${inner}"`
-    : `powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${btoaSafe16(inner)}`;
+    ? `powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${btoaSafe16(
+        `$s = irm '${target}'; if ($s) { iex $s }`,
+      )}`
+    : `irm '${target}' | iex`;
 };
 
 /** macOS/Linux one-liner. Pulls and runs backend/scripts/audit.sh via `/api/sys-agent-mac`. */
 const nixCommand = (url: string, clientId: string, obfuscate: boolean): string => {
   const command = `curl -s ${url}/api/sys-agent-mac?client_id=${clientId}`;
   return obfuscate
-    ? `bash <(${command})`
-    : `bash <(echo ${btoaSafe(command)} | base64 -d | sh)`;
+    ? `bash <(echo ${btoaSafe(command)} | base64 -d | sh)`
+    : `bash <(${command})`;
 };
 
 /** Local-host card: the machine audits itself over the loopback address. */
@@ -106,7 +110,7 @@ export const daemonSnippets = (config: AgentConfig): CommandSnippet[] => {
     {
       id: "daemon-win",
       title: "Windows (Scheduled Task Daemon)",
-      command: `powershell -NoProfile -ExecutionPolicy Bypass -Command "$s = irm '${url}/api/install-daemon?os=windows'; if ($s) { iex $s }"`,
+      command: `irm '${url}/api/install-daemon?os=windows' | iex`,
     },
     {
       id: "daemon-nix",
