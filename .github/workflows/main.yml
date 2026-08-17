@@ -1,0 +1,65 @@
+name: Deploy Spicework Frontend to UAT
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build and Deploy Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Verify build
+        run: |
+          test -f dist/index.html
+          echo "Frontend build successful"
+
+      - name: Deploy to UAT
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.UAT_HOST }}
+          username: ${{ secrets.UAT_USER }}
+          key: ${{ secrets.UAT_SSH_KEY }}
+          script: |
+            set -e
+
+            cd /var/www/spicework/Spicework
+
+            echo "Updating frontend source..."
+            git fetch origin
+            git reset --hard origin/main
+
+            echo "Installing dependencies..."
+            npm ci
+
+            echo "Building frontend..."
+            npm run build
+
+            echo "Verifying deployment..."
+            test -f dist/index.html
+
+            echo "Frontend deployment completed successfully."
+
+            echo "Testing application..."
+            curl -f http://127.0.0.1:8010/login > /dev/null
+
+            echo "Frontend health check passed."
