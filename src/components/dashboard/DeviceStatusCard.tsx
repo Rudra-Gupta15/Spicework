@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import { DonutChart } from "@/components/charts/DonutChart";
-import { SectionCard } from "@/components/ui";
+import { Loader, SectionCard } from "@/components/ui";
 import { useDeviceList } from "@/data/deviceApi";
 import type { Segment } from "@/types/dashboard";
 
@@ -31,7 +31,7 @@ export const DeviceStatusCard = () => {
       {error && <p className="text-[13px] text-status-offline">{error}</p>}
 
       {isLoading ? (
-        <p className="py-8 text-center text-sm text-muted">Loading device status…</p>
+        <Loader label="Loading device status…" />
       ) : (
         <div className="flex flex-col items-center">
           <DonutChart segments={segments} size={150} thickness={16} rounded>

@@ -1,24 +1,32 @@
 import { useRef } from "react";
-import { ChevronDown, LogOut, Settings, UserRound } from "lucide-react";
+import { Building2, ChevronDown, LogOut, Settings } from "lucide-react";
 
 import { Avatar, MenuItem, MenuPanel, MenuSeparator } from "@/components/ui";
-import type { CurrentUser } from "@/config/user";
+import type { CurrentCompany } from "@/config/company";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import { useOnClickOutside } from "@/hooks/useOnClickOutside";
 import { cn } from "@/lib/cn";
 
+/* The login is the organization's, so the account actions open the
+   organization — there is no personal profile behind this menu. */
 const MENU_LINKS = [
-  { id: "profile", label: "My Profile", icon: UserRound, path: "/settings" },
+  {
+    id: "organization",
+    label: "Organization Profile",
+    icon: Building2,
+    path: "/dashboard/organization",
+  },
   { id: "settings", label: "Settings", icon: Settings, path: "/settings" },
 ] as const;
 
 interface ProfileMenuProps {
-  user: CurrentUser;
+  company: CurrentCompany;
   onLogout: () => void;
 }
 
-/** Avatar button in the header with a dropdown of account actions. */
-export const ProfileMenu = ({ user, onLogout }: ProfileMenuProps) => {
+/** Account button in the header — identifies the signed-in company, with a
+    dropdown of the actions that account can take. */
+export const ProfileMenu = ({ company, onLogout }: ProfileMenuProps) => {
   const { isOpen, close, toggle } = useDisclosure();
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -31,20 +39,21 @@ export const ProfileMenu = ({ user, onLogout }: ProfileMenuProps) => {
         onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={isOpen}
+        aria-label={`${company.name} account menu`}
         className={cn(
           "flex items-center gap-2.5 rounded-full py-1 pr-2 pl-1 transition-colors",
           "focus-visible:ring-2 focus-visible:ring-auth-panel/30 focus-visible:outline-none",
           isOpen ? "bg-canvas" : "hover:bg-canvas",
         )}
       >
-        <Avatar name={user.name} />
+        <Avatar name={company.name} />
 
         <span className="hidden text-left sm:block">
-          <span className="block text-sm leading-tight font-semibold text-heading">
-            {user.name}
+          <span className="block max-w-[180px] truncate text-sm leading-tight font-semibold text-heading">
+            {company.name}
           </span>
           <span className="block text-xs leading-tight text-muted">
-            {user.role}
+            {company.accountType}
           </span>
         </span>
 
@@ -58,10 +67,17 @@ export const ProfileMenu = ({ user, onLogout }: ProfileMenuProps) => {
       </button>
 
       {isOpen && (
-        <MenuPanel className="w-56">
-          <div className="border-b border-line px-3 pt-1.5 pb-2.5 sm:hidden">
-            <p className="text-sm font-semibold text-heading">{user.name}</p>
-            <p className="text-xs text-muted">{user.role}</p>
+        <MenuPanel className="w-64">
+          {/* Who is signed in, spelled out — the button only has room for
+              the name, and on small screens not even that. */}
+          <div className="border-b border-line px-3 pt-1.5 pb-2.5">
+            <p className="truncate text-sm font-semibold text-heading">
+              {company.name}
+            </p>
+            <p className="truncate text-xs text-muted">{company.email}</p>
+            <p className="mt-1.5 text-xs text-muted">
+              {company.accountType} · {company.industry}
+            </p>
           </div>
 
           {MENU_LINKS.map(({ id, label, icon: Icon, path }) => (

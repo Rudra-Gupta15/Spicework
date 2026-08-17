@@ -6,8 +6,8 @@ import { DownloadToast } from "@/components/agent/DownloadToast";
 import { LauncherTabs } from "@/components/agent/LauncherTabs";
 import { SmartScreenModal } from "@/components/agent/SmartScreenModal";
 import { Navbar } from "@/components/layout/Navbar";
-import { Avatar, Badge } from "@/components/ui";
-import { CURRENT_USER } from "@/config/user";
+import { Avatar, Badge, Loader } from "@/components/ui";
+import { CURRENT_COMPANY } from "@/config/company";
 import {
   DEFAULT_AGENT_CONFIG,
   daemonSnippets,
@@ -193,7 +193,7 @@ const AgentPage = () => {
               />
               {isActive ? "Active" : isWaiting ? "Waiting for audit…" : "Standby"}
             </Badge>
-            <Avatar name={CURRENT_USER.name} variant="auto" />
+            <Avatar name={CURRENT_COMPANY.name} variant="auto" />
           </>
         }
       />
@@ -222,7 +222,11 @@ const AgentPage = () => {
             />
           </div>
           {isDownloading && (
-            <p className="mt-2 text-[13px] text-muted">Preparing launcher…</p>
+            <Loader
+              variant="inline"
+              label="Preparing launcher…"
+              className="mt-2"
+            />
           )}
           {downloadError && (
             <p className="mt-2 text-[13px] text-status-offline">{downloadError}</p>

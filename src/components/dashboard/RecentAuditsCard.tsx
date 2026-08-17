@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import { Badge, SectionCard } from "@/components/ui";
+import { Badge, Loader, SectionCard } from "@/components/ui";
 import { useRecentAudits } from "@/data/dashboardApi";
 import type { Tone } from "@/types/ui";
 
@@ -36,7 +36,7 @@ export const RecentAuditsCard = () => {
         <p className="pb-3 text-[13px] text-status-offline">{error}</p>
       )}
       {isLoading ? (
-        <p className="py-4 text-sm text-muted">Loading recent audits…</p>
+        <Loader label="Loading recent audits…" className="py-6" />
       ) : audits.length === 0 ? (
         <p className="py-4 text-sm text-muted">No audits recorded yet.</p>
       ) : (

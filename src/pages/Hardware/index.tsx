@@ -6,7 +6,7 @@ import { CustomizeColumnsModal } from "@/components/common/CustomizeColumnsModal
 import { HardwareFilters } from "@/components/hardware/HardwareFilters";
 import { HardwareTable } from "@/components/hardware/HardwareTable";
 import { Navbar } from "@/components/layout/Navbar";
-import { Card, Pagination, StatCard } from "@/components/ui";
+import { Card, Loader, Pagination, SkeletonTiles, StatCard } from "@/components/ui";
 import {
   DEFAULT_COLUMNS,
   DEFAULT_FILTERS,
@@ -17,7 +17,7 @@ import {
 import { computeHardwareKpis, useAllAssetMetadata, useDeviceList } from "@/data/deviceApi";
 import { autoFilterName, createSavedSearch } from "@/data/savedSearches";
 import { useViewColumns } from "@/data/viewPreferences";
-import { CURRENT_USER } from "@/config/user";
+import { CURRENT_COMPANY } from "@/config/company";
 import { ApiError } from "@/lib/api";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import type {
@@ -137,7 +137,7 @@ const HardwarePage = () => {
         scope: "Private",
         filters: chips,
         resultsCount: devices.length,
-        createdBy: CURRENT_USER.name,
+        createdBy: CURRENT_COMPANY.name,
       });
       navigate("/saved-search", { state: { tab: "Hardware" } });
     } catch (err) {
@@ -157,14 +157,11 @@ const HardwarePage = () => {
 
       <div className="mt-6 space-y-5">
         <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {kpisLoading
-            ? Array.from({ length: 4 }, (_, index) => (
-                <div
-                  key={index}
-                  className="h-[110px] animate-pulse rounded-xl border border-line bg-surface"
-                />
-              ))
-            : kpiTiles.map((tile) => <StatCard key={tile.id} metric={tile} />)}
+          {kpisLoading ? (
+            <SkeletonTiles count={4} className="h-[110px]" />
+          ) : (
+            kpiTiles.map((tile) => <StatCard key={tile.id} metric={tile} />)
+          )}
         </section>
 
         <HardwareFilters
@@ -191,9 +188,7 @@ const HardwarePage = () => {
 
             <div className="mt-4">
               {isLoading ? (
-                <p className="py-8 text-center text-sm text-muted">
-                  Loading device inventory…
-                </p>
+                <Loader label="Loading device inventory…" />
               ) : (
                 <HardwareTable
                   devices={visible}

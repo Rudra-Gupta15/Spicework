@@ -12,7 +12,7 @@ import { StorageTab } from "@/components/hardware/StorageTab";
 import { UsersTab } from "@/components/hardware/UsersTab";
 import { VideoTab } from "@/components/hardware/VideoTab";
 import { Navbar } from "@/components/layout/Navbar";
-import { Button, Card } from "@/components/ui";
+import { Button, Card, Loader } from "@/components/ui";
 import {
   mapHardwareFields,
   mapNetworkAdapters,
@@ -159,8 +159,8 @@ const HardwareDetailPage = () => {
       />
 
       {isLoading ? (
-        <Card className="mt-5 p-8 text-center">
-          <p className="text-sm text-muted">Loading device details…</p>
+        <Card className="mt-5 p-8">
+          <Loader label="Loading device details…" />
         </Card>
       ) : customPanel ? (
         <div className="mt-5">{customPanel}</div>

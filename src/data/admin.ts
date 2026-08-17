@@ -1,3 +1,4 @@
+import { CURRENT_COMPANY } from "@/config/company";
 import type {
   AdminCity,
   AdminOrganization,
@@ -21,11 +22,11 @@ import type {
 
 export const TOTAL_USERS = 342;
 
-/** The organization this install belongs to. Swap for the tenant from auth. */
-export const CURRENT_ORGANIZATION_ID = "org-prevoyance";
+/** The organization this install belongs to — the company that is signed in. */
+export const CURRENT_ORGANIZATION_ID = CURRENT_COMPANY.id;
 
 const INDUSTRIES = [
-  "Information Technology",
+  CURRENT_COMPANY.industry,
   "Financial Services",
   "Education",
   "Healthcare",
@@ -110,8 +111,8 @@ const slug = (value: string): string =>
 
 /* --- the organization --------------------------------------------- */
 
-const ORGANIZATION_NAME = "Prevoyance IT Solutions";
-const ORGANIZATION_DOMAIN = "prevoyancesolutions.com";
+const ORGANIZATION_NAME = CURRENT_COMPANY.name;
+const ORGANIZATION_DOMAIN = CURRENT_COMPANY.domain;
 
 /* --- sites -------------------------------------------------------- */
 

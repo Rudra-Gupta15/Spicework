@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 
 import { Logo } from "@/components/common/Logo";
 import { NAVIGATION } from "@/config/navigation";
-import { CURRENT_USER } from "@/config/user";
+import { CURRENT_COMPANY } from "@/config/company";
 import { useLogout } from "@/hooks/useLogout";
 import { cn } from "@/lib/cn";
 import type { NavItem } from "@/types/navigation";
@@ -41,17 +41,31 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const [expandedId, setExpandedId] = useState<string | null>(activeGroup);
   const [syncedPath, setSyncedPath] = useState(pathname);
 
-  /* Keep the group containing the active route open on navigation —
-     derived during render instead of in an effect (no extra paint). */
+  /* The expanded group always follows the route: the group owning the active
+     page opens, and landing anywhere outside every group — Dashboard, Reports,
+     a link from inside the page — collapses whatever was open, so Inventory
+     can't stay hanging open over an unrelated screen. Derived during render
+     instead of in an effect (no extra paint). */
   if (syncedPath !== pathname) {
     setSyncedPath(pathname);
-    if (activeGroup && activeGroup !== expandedId) setExpandedId(activeGroup);
+    if (activeGroup !== expandedId) setExpandedId(activeGroup);
   }
 
   /* Accordion behaviour: opening one group closes the others. */
   const handleToggle = useCallback((id: string) => {
     setExpandedId((current) => (current === id ? null : id));
   }, []);
+
+  /* A child link keeps its own group open; a top-level link (groupId `null`)
+     closes it — clicking Dashboard while Inventory is open collapses it even
+     when that page is already the one on screen. */
+  const handleNavigate = useCallback(
+    (groupId: string | null) => {
+      setExpandedId(groupId);
+      onClose();
+    },
+    [onClose],
+  );
 
   return (
     <>
@@ -94,13 +108,13 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 isActive={isItemActive(item, pathname)}
                 isExpanded={expandedId === item.id}
                 onToggle={handleToggle}
-                onNavigate={onClose}
+                onNavigate={handleNavigate}
               />
             ))}
           </ul>
         </nav>
 
-        <SidebarFooter user={CURRENT_USER} onLogout={logout} />
+        <SidebarFooter company={CURRENT_COMPANY} onLogout={logout} />
       </aside>
     </>
   );

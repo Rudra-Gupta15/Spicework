@@ -16,7 +16,12 @@ interface SidebarNavItemProps {
   /** The item itself, or one of its children, matches the current route. */
   isActive: boolean;
   onToggle: (id: string) => void;
-  onNavigate: () => void;
+  /**
+   * Called with the group the clicked link belongs to, or `null` for a
+   * top-level link that sits outside every group — that's what tells the
+   * sidebar whether the open group should survive the navigation.
+   */
+  onNavigate: (groupId: string | null) => void;
 }
 
 const SidebarNavItemComponent = ({
@@ -28,6 +33,11 @@ const SidebarNavItemComponent = ({
 }: SidebarNavItemProps) => {
   const { icon: Icon, label, path, children } = item;
   const handleToggle = useCallback(() => onToggle(item.id), [onToggle, item.id]);
+  const handleChildNavigate = useCallback(
+    () => onNavigate(item.id),
+    [onNavigate, item.id],
+  );
+  const handleLinkNavigate = useCallback(() => onNavigate(null), [onNavigate]);
 
   const iconClass = "h-[18px] w-[18px] shrink-0";
 
@@ -71,7 +81,7 @@ const SidebarNavItemComponent = ({
               <li key={child.id}>
                 <NavLink
                   to={child.path}
-                  onClick={onNavigate}
+                  onClick={handleChildNavigate}
                   tabIndex={isExpanded ? undefined : -1}
                   className={({ isActive: childActive }) =>
                     cn(
@@ -97,7 +107,7 @@ const SidebarNavItemComponent = ({
     <li>
       <NavLink
         to={path ?? "#"}
-        onClick={onNavigate}
+        onClick={handleLinkNavigate}
         className={({ isActive: linkActive }) =>
           cn(
             rowClass,
