@@ -62,7 +62,7 @@ const SettingsPage = () => {
       <div className="min-w-0 flex-1">
         <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
           <div className="min-w-0 flex-1 basis-64">
-            <h1 className="text-[22px] leading-tight font-bold break-words text-heading sm:text-[26px] lg:text-[30px]">
+            <h1 className="text-[22px] leading-tight font-bold wrap-break-word text-heading sm:text-[26px] lg:text-[30px]">
               {meta.title}
             </h1>
             <p className="mt-1 text-sm text-muted">{meta.subtitle}</p>
