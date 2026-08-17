@@ -8,6 +8,7 @@ import { TicketFeedbackCard } from "@/components/ticket/TicketFeedbackCard";
 import { TicketStatusBanner } from "@/components/ticket/TicketStatusBanner";
 import { TicketTimeline } from "@/components/ticket/TicketTimeline";
 import { Button, Textarea } from "@/components/ui";
+import { CURRENT_COMPANY } from "@/config/company";
 import { TICKETS, todayLabel, updateTicket } from "@/data/tickets";
 import {
   addTicketActivity,
@@ -17,7 +18,6 @@ import {
 import type { TicketActivity, TicketStatus } from "@/types/ticket";
 
 const TICKET_ROUTE = "/inventory/ticket";
-const CURRENT_USER = "Jane Doe";
 
 const TicketDetailPage = () => {
   const { ticketId } = useParams();
@@ -59,8 +59,9 @@ const TicketDetailPage = () => {
           timestamp,
           action: entry.action,
           body: entry.body,
-          /* Most events are the technician's; feedback is the reporter's. */
-          author: entry.author ?? CURRENT_USER,
+          /* Most events are the signed-in account's; feedback is the
+             reporter's. */
+          author: entry.author ?? CURRENT_COMPANY.name,
         }));
 
         for (const entry of added) addTicketActivity(ticket.id, entry);

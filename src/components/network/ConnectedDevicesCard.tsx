@@ -7,6 +7,7 @@ import {
   ConfirmDialog,
   DataTable,
   Input,
+  Loader,
   PRIMARY_CELL,
   type Column,
 } from "@/components/ui";
@@ -127,19 +128,25 @@ export const ConnectedDevicesCard = ({
         containerClassName="mt-4"
       />
 
-      <DataTable
-        className="mt-4"
-        columns={columns}
-        rows={devices}
-        rowKey={(device) => device.id}
-        uppercaseHeaders
-        bordered
-        emptyMessage={
-          canRescan
-            ? "No devices match the current filter."
-            : "Run “Connect & Scan Network” to discover devices on this network."
-        }
-      />
+      {/* A sweep walks the whole subnet, so it is the longest wait on this
+          page — the table would otherwise sit empty with no sign of work. */}
+      {isScanning ? (
+        <Loader label="Scanning the network for devices…" className="mt-4" />
+      ) : (
+        <DataTable
+          className="mt-4"
+          columns={columns}
+          rows={devices}
+          rowKey={(device) => device.id}
+          uppercaseHeaders
+          bordered
+          emptyMessage={
+            canRescan
+              ? "No devices match the current filter."
+              : "Run “Connect & Scan Network” to discover devices on this network."
+          }
+        />
+      )}
 
       <ConfirmDialog
         isOpen={pending !== null}

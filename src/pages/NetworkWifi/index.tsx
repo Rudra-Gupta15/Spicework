@@ -5,7 +5,7 @@ import { ConnectWifiModal } from "@/components/network/ConnectWifiModal";
 import { CurrentConnectionPanel } from "@/components/network/CurrentConnectionPanel";
 import { WifiNetworkList } from "@/components/network/WifiNetworkList";
 import { Navbar } from "@/components/layout/Navbar";
-import { SectionCard } from "@/components/ui";
+import { Loader, SectionCard } from "@/components/ui";
 import {
   connectToWifi,
   fetchCurrentWifi,
@@ -201,7 +201,7 @@ const NetworkWifiPage = () => {
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
           <SectionCard title="Available WiFi Networks">
             {isLoading ? (
-              <p className="text-sm text-muted">Scanning for nearby networks…</p>
+              <Loader label="Scanning for nearby networks…" />
             ) : networks.length === 0 ? (
               <p className="text-sm text-muted">
                 No WiFi networks found. The backend host may not have wireless
@@ -224,11 +224,11 @@ const NetworkWifiPage = () => {
                 isScanning={isScanning}
                 onScan={() => void runScan()}
               />
+            ) : isLoading ? (
+              <Loader label="Checking connection status…" />
             ) : (
               <p className="text-sm text-muted">
-                {isLoading
-                  ? "Checking connection status…"
-                  : "Not connected to a network — pick one on the left to connect."}
+                Not connected to a network — pick one on the left to connect.
               </p>
             )}
             {scanError && (

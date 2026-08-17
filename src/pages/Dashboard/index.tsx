@@ -6,7 +6,7 @@ import { ComplianceOverviewCard } from "@/components/dashboard/ComplianceOvervie
 import { DeviceStatusCard } from "@/components/dashboard/DeviceStatusCard";
 import { RecentAuditsCard } from "@/components/dashboard/RecentAuditsCard";
 import { Navbar } from "@/components/layout/Navbar";
-import { Button } from "@/components/ui";
+import { Button, SkeletonTiles } from "@/components/ui";
 import { ORGANIZATION } from "@/data/admin";
 import { useDashboardTiles } from "@/data/dashboardApi";
 
@@ -40,14 +40,11 @@ const DashboardPage = () => {
         )}
 
         <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {isLoading
-            ? Array.from({ length: 4 }, (_, index) => (
-                <div
-                  key={index}
-                  className="h-[122px] animate-pulse rounded-xl border border-line bg-surface"
-                />
-              ))
-            : tiles.map((tile) => <AdminStatTile key={tile.id} tile={tile} />)}
+          {isLoading ? (
+            <SkeletonTiles count={4} className="h-[122px]" />
+          ) : (
+            tiles.map((tile) => <AdminStatTile key={tile.id} tile={tile} />)
+          )}
         </section>
 
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">

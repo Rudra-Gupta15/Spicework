@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { ProgressBar, SectionCard } from "@/components/ui";
+import { Loader, ProgressBar, SectionCard } from "@/components/ui";
 import { useComplianceSummary } from "@/data/dashboardApi";
 
 interface Row {
@@ -56,7 +56,7 @@ export const ComplianceOverviewCard = () => {
       {error && <p className="text-[13px] text-status-offline">{error}</p>}
 
       {isLoading ? (
-        <p className="py-8 text-center text-sm text-muted">Loading compliance data…</p>
+        <Loader label="Loading compliance data…" />
       ) : rows.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted">No audited devices yet.</p>
       ) : (

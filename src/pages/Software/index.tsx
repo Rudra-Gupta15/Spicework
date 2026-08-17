@@ -6,7 +6,7 @@ import { CustomizeColumnsModal } from "@/components/common/CustomizeColumnsModal
 import { Navbar } from "@/components/layout/Navbar";
 import { SoftwareFilters } from "@/components/software/SoftwareFilters";
 import { SoftwareInventoryTable } from "@/components/software/SoftwareInventoryTable";
-import { Card, Pagination, StatCard } from "@/components/ui";
+import { Card, Loader, Pagination, SkeletonTiles, StatCard } from "@/components/ui";
 import {
   DEFAULT_SOFTWARE_FILTERS,
   DEFAULT_SOFTWARE_INVENTORY_COLUMNS,
@@ -19,7 +19,7 @@ import {
 } from "@/data/softwareInventory";
 import { autoFilterName, createSavedSearch } from "@/data/savedSearches";
 import { useViewColumns } from "@/data/viewPreferences";
-import { CURRENT_USER } from "@/config/user";
+import { CURRENT_COMPANY } from "@/config/company";
 import { ApiError } from "@/lib/api";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import type { SoftwareColumnKey, SoftwareFilterState } from "@/types/software";
@@ -127,7 +127,7 @@ const SoftwarePage = () => {
         scope: "Private",
         filters: chips,
         resultsCount: matches.length,
-        createdBy: CURRENT_USER.name,
+        createdBy: CURRENT_COMPANY.name,
       });
       navigate("/saved-search", { state: { tab: "Software" } });
     } catch (err) {
@@ -147,14 +147,11 @@ const SoftwarePage = () => {
 
       <div className="mt-6 space-y-5">
         <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {isLoading
-            ? Array.from({ length: 4 }, (_, index) => (
-                <div
-                  key={index}
-                  className="h-[110px] animate-pulse rounded-xl border border-line bg-surface"
-                />
-              ))
-            : kpiTiles.map((tile) => <StatCard key={tile.id} metric={tile} />)}
+          {isLoading ? (
+            <SkeletonTiles count={4} className="h-[110px]" />
+          ) : (
+            kpiTiles.map((tile) => <StatCard key={tile.id} metric={tile} />)
+          )}
         </section>
 
         <SoftwareFilters
@@ -186,9 +183,7 @@ const SoftwarePage = () => {
 
             <div className="mt-4">
               {isLoading ? (
-                <p className="py-8 text-center text-sm text-muted">
-                  Loading software inventory…
-                </p>
+                <Loader label="Loading software inventory…" />
               ) : (
                 <SoftwareInventoryTable items={visible} visibleColumns={columns} />
               )}

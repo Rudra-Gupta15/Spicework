@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
-import { Badge, Button, Card, ConfirmDialog, DataTable, PRIMARY_CELL, Pagination, type Column } from "@/components/ui";
+import { Badge, Button, Card, ConfirmDialog, DataTable, Loader, PRIMARY_CELL, Pagination, type Column } from "@/components/ui";
 import { deleteSavedSearch, fetchSavedSearchById } from "@/data/savedSearches";
 import { resultsForSearch } from "@/data/savedSearchResults";
 import { ApiError } from "@/lib/api";
@@ -61,8 +61,8 @@ const SavedSearchDetailPage = () => {
 
   if (isLoading) {
     return (
-      <Card className="p-8 text-center">
-        <p className="text-sm text-muted">Loading saved search…</p>
+      <Card className="p-8">
+        <Loader label="Loading saved search…" />
       </Card>
     );
   }

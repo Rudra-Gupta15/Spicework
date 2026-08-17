@@ -2,8 +2,8 @@ import {
   Boxes,
   Clock,
   FileText,
+  Funnel,
   Monitor,
-  Search,
   Settings,
   UserRound,
 } from "lucide-react";
@@ -41,24 +41,6 @@ export const NAVIGATION: NavItem[] = [
         path: "/inventory/software",
         subtitle: "Track installed software, licenses and renewals.",
       },
-      {
-        id: "cloud-assets",
-        label: "Cloud Assets",
-        path: "/inventory/cloud-assets",
-        subtitle: "Monitor cloud subscriptions, instances and spend.",
-      },
-      {
-        id: "network-wifi",
-        label: "Network WiFi",
-        path: "/inventory/network-wifi",
-        subtitle: "Manage access points, SSIDs and connected clients.",
-      },
-      {
-        id: "ticket",
-        label: "Ticket",
-        path: "/inventory/ticket",
-        subtitle: "Review tickets raised against inventory items.",
-      },
     ],
   },
   {
@@ -77,8 +59,8 @@ export const NAVIGATION: NavItem[] = [
   },
   {
     id: "saved-search",
-    label: "Saved Search",
-    icon: Search,
+    label: "Filter",
+    icon: Funnel,
     path: "/saved-search",
     subtitle: "Re-run the searches your team uses most.",
   },

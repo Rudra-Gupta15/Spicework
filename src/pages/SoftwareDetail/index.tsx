@@ -7,7 +7,7 @@ import { AppsTable } from "@/components/software/AppsTable";
 import { LoginTab } from "@/components/software/LoginTab";
 import { UserTab } from "@/components/software/UserTab";
 import { Navbar } from "@/components/layout/Navbar";
-import { Button, Card } from "@/components/ui";
+import { Button, Card, Loader } from "@/components/ui";
 import { mapApps, mapLogins, mapUsers, useDeviceDetail } from "@/data/deviceApi";
 import { SOFTWARE_TABS, type SoftwareTab } from "@/data/softwareDetail";
 
@@ -56,8 +56,8 @@ const SoftwareDetailPage = () => {
           </Card>
         )}
         {!error && isLoading && (
-          <Card className="p-8 text-center">
-            <p className="text-sm text-muted">Loading device details…</p>
+          <Card className="p-8">
+            <Loader label="Loading device details…" />
           </Card>
         )}
         {!error && !isLoading && (

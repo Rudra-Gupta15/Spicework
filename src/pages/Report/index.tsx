@@ -5,7 +5,7 @@ import { DetailTabs } from "@/components/common/DetailTabs";
 import { Navbar } from "@/components/layout/Navbar";
 import { ReportPreviewPanel } from "@/components/report/ReportPreviewPanel";
 import { ReportSystemTable } from "@/components/report/ReportSystemTable";
-import { Card, Input, Pagination } from "@/components/ui";
+import { Card, Input, Loader, Pagination } from "@/components/ui";
 import { useDeviceList } from "@/data/deviceApi";
 import { REPORT_CATEGORIES, buildReport, fetchRecordCounts, reportSystems } from "@/data/report";
 import { ApiError } from "@/lib/api";
@@ -152,8 +152,8 @@ const ReportPage = () => {
             </Card>
           )}
           {!reportError && (reportLoading || !report) && (
-            <Card className="p-8 text-center">
-              <p className="text-sm text-muted">Generating report…</p>
+            <Card className="p-8">
+              <Loader label="Generating report…" />
             </Card>
           )}
           {!reportError && !reportLoading && report && (
@@ -196,9 +196,7 @@ const ReportPage = () => {
 
             <div className="mt-4">
               {devicesLoading ? (
-                <p className="py-8 text-center text-sm text-muted">
-                  Loading device inventory…
-                </p>
+                <Loader label="Loading device inventory…" />
               ) : (
                 <ReportSystemTable
                   systems={visibleWithCounts}

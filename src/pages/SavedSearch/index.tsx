@@ -9,8 +9,8 @@ import {
   type NewSearchDraft,
 } from "@/components/savedSearch/CreateSearchModal";
 import { SavedSearchTable } from "@/components/savedSearch/SavedSearchTable";
-import { Button, Card, ConfirmDialog, Pagination } from "@/components/ui";
-import { CURRENT_USER } from "@/config/user";
+import { Button, Card, ConfirmDialog, Loader, Pagination } from "@/components/ui";
+import { CURRENT_COMPANY } from "@/config/company";
 import {
   SAVED_SEARCH_TABS,
   createSavedSearch,
@@ -62,7 +62,7 @@ const SavedSearchPage = () => {
           scope: draft.scope,
           filters: draft.filters,
           resultsCount: 0,
-          createdBy: CURRENT_USER.name,
+          createdBy: CURRENT_COMPANY.name,
         });
         createDialog.close();
         navigate(`/saved-search/${search.id}`);
@@ -132,9 +132,7 @@ const SavedSearchPage = () => {
           )}
 
           {isLoading ? (
-            <p className="py-8 text-center text-sm text-muted">
-              Loading saved searches…
-            </p>
+            <Loader label="Loading saved searches…" />
           ) : (
             <SavedSearchTable
               searches={visible}

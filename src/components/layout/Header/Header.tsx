@@ -1,6 +1,6 @@
 import { Menu } from "lucide-react";
 
-import { CURRENT_USER } from "@/config/user";
+import { CURRENT_COMPANY } from "@/config/company";
 import { useLogout } from "@/hooks/useLogout";
 
 import { ProfileMenu } from "./ProfileMenu";
@@ -25,7 +25,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
       </button>
 
       <div className="ml-auto">
-        <ProfileMenu user={CURRENT_USER} onLogout={logout} />
+        <ProfileMenu company={CURRENT_COMPANY} onLogout={logout} />
       </div>
     </header>
   );
