@@ -182,7 +182,7 @@ const toHardwareDevice = (raw: RawDeviceListItem): HardwareDevice => ({
 });
 
 const fetchDeviceList = async (): Promise<HardwareDevice[]> => {
-  const data = await api.get<{ devices: RawDeviceListItem[] }>("/devices");
+  const data = await api.get<{ devices: RawDeviceListItem[] }>("/api/devices");
   return data.devices.map(toHardwareDevice);
 };
 
@@ -212,10 +212,10 @@ export const useDeviceList = () => {
   return { devices, isLoading, error };
 };
 
-/** GET /assets — every saved Asset Metadata record, in one call (used for
+/** GET /api/assets — every saved Asset Metadata record, in one call (used for
     the Warranty Expiring KPI rather than fetching per-device). */
 const fetchAllAssetMetadata = async (): Promise<RawAssetMetadata[]> => {
-  const data = await api.get<{ assets: RawAssetMetadata[]; total: number }>("/assets");
+  const data = await api.get<{ assets: RawAssetMetadata[]; total: number }>("/api/assets");
   return data.assets;
 };
 
@@ -276,7 +276,7 @@ export const computeHardwareKpis = (
   return { total: devices.length, online, offline, warrantyExpiring };
 };
 
-/* ── Device detail — GET /api/software/{id} + GET /asset-metadata/{id} ──── */
+/* ── Device detail — GET /api/software/{id} + GET /api/asset-metadata/{id} ── */
 
 /** Exported for callers (e.g. the Report page) that need to compose several
     fetches themselves rather than going through the `useDeviceDetail` hook. */
@@ -287,7 +287,7 @@ export const fetchDeviceDetail = (deviceId: string) =>
 
 export const fetchAssetMetadata = async (deviceId: string): Promise<RawAssetMetadata | null> => {
   try {
-    return await api.get<RawAssetMetadata>(`/asset-metadata/${encodeURIComponent(deviceId)}`);
+    return await api.get<RawAssetMetadata>(`/api/asset-metadata/${encodeURIComponent(deviceId)}`);
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;
