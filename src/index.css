@@ -76,7 +76,8 @@
   --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
 }
 
-/* Download shelf drop-in for the agent page. */
+/* Drop-in for anything that arrives at the top of the screen — the agent
+   page's download shelf and the toast stack. */
 @keyframes fadeInDown {
   from {
     opacity: 0;
@@ -119,7 +120,7 @@
     cursor: pointer;
   }
 
-  /* Slim scrollbar for the sidebar / scroll areas */
+  /* Slim scrollbar for the sidebar — navy thumb on the navy panel. */
   .scrollbar-slim {
     scrollbar-width: thin;
     scrollbar-color: var(--color-navy-600) transparent;
@@ -132,5 +133,41 @@
   .scrollbar-slim::-webkit-scrollbar-thumb {
     background-color: var(--color-navy-600);
     border-radius: 9999px;
+  }
+
+  /*
+   * The light counterpart, for scroll areas sitting on a card — every table
+   * in the app (see `DataTable`). A wide table's bar runs under the last
+   * row, where a default 15px one reads as a second border; at 6px it reads
+   * as what it is. Both axes are sized: `height` is the one that governs the
+   * horizontal bar a table actually gets.
+   */
+  .scrollbar-slim-light {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-field) transparent;
+  }
+
+  .scrollbar-slim-light::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-slim-light::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-slim-light::-webkit-scrollbar-thumb {
+    background-color: var(--color-field);
+    border-radius: 9999px;
+  }
+
+  /* Darkens once the pointer is over the table it belongs to, so the bar is
+     quiet until somebody goes looking for it. */
+  .scrollbar-slim-light:hover {
+    scrollbar-color: var(--color-navy-300) transparent;
+  }
+
+  .scrollbar-slim-light:hover::-webkit-scrollbar-thumb {
+    background-color: var(--color-navy-300);
   }
 }

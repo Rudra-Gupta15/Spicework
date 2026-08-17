@@ -21,8 +21,14 @@ import { autoFilterName, createSavedSearch } from "@/data/savedSearches";
 import { useViewColumns } from "@/data/viewPreferences";
 import { CURRENT_COMPANY } from "@/config/company";
 import { ApiError } from "@/lib/api";
+import { exportRows, type ExportColumn, type ExportFormat } from "@/lib/exportRows";
 import { useDisclosure } from "@/hooks/useDisclosure";
-import type { SoftwareColumnKey, SoftwareFilterState } from "@/types/software";
+import { useToast } from "@/hooks/useToast";
+import type {
+  SoftwareColumnKey,
+  SoftwareFilterState,
+  SoftwareInventoryItem,
+} from "@/types/software";
 import type { StatMetric } from "@/types/ui";
 
 const PAGE_SIZE = 10;
@@ -40,6 +46,7 @@ const filterChips = (filters: SoftwareFilterState): string[] => {
 
 const SoftwarePage = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const { items: allItems, isLoading, error } = useSoftwareInventory();
   const [filters, setFilters] = useState<SoftwareFilterState>(DEFAULT_SOFTWARE_FILTERS);
   const [page, setPage] = useState(1);
@@ -48,7 +55,7 @@ const SoftwarePage = () => {
     DEFAULT_SOFTWARE_INVENTORY_COLUMNS,
   );
   const customize = useDisclosure();
-  const [saveError, setSaveError] = useState<string>();
+  /* A failed save reports through the toast — see `handleSaveFilter`. */
   const [isSaving, setSaving] = useState(false);
 
   const handleFilterChange = useCallback((patch: Partial<SoftwareFilterState>) => {
@@ -119,28 +126,71 @@ const SoftwarePage = () => {
   /* No dialog — Save Filter persists the current selection immediately and
      jumps straight to where it landed. */
   const handleSaveFilter = useCallback(async () => {
-    setSaveError(undefined);
     setSaving(true);
     try {
       const chips = filterChips(filters);
+      const name = autoFilterName("Software", chips);
+
       await createSavedSearch("Software", {
-        name: autoFilterName("Software", chips),
+        name,
         scope: "Private",
         filters: chips,
         resultsCount: matches.length,
         createdBy: CURRENT_COMPANY.name,
       });
+
+      /* Raised before the navigation — the toast host lives above the
+         router, so it carries over to the Saved Search screen. */
+      toast({ tone: "success", title: "Filter saved", description: name });
       navigate("/saved-search", { state: { tab: "Software" } });
     } catch (err) {
-      setSaveError(
-        err instanceof ApiError || err instanceof Error
-          ? err.message
-          : "Could not save this filter.",
-      );
+      toast({
+        tone: "danger",
+        title: "Could not save this filter",
+        description:
+          err instanceof ApiError || err instanceof Error
+            ? err.message
+            : undefined,
+      });
     } finally {
       setSaving(false);
     }
-  }, [filters, matches.length, navigate]);
+  }, [filters, matches.length, navigate, toast]);
+
+  /* Exports carry the columns the table is currently showing, so a
+     customised view exports as it reads. */
+  const exportColumns = useMemo<ExportColumn<SoftwareInventoryItem>[]>(
+    () =>
+      SOFTWARE_INVENTORY_COLUMNS.filter((column) =>
+        columns.includes(column.key),
+      ).map((column) => ({
+        key: column.key,
+        label: column.label,
+        value: (item) => String(item[column.key] ?? ""),
+      })),
+    [columns],
+  );
+
+  /* Every match, not just the page on screen. */
+  const handleExport = useCallback(
+    (format: ExportFormat) => {
+      const filename = exportRows(
+        "software-inventory",
+        format,
+        exportColumns,
+        matches,
+      );
+
+      toast({
+        tone: "success",
+        title: `Exported ${matches.length.toLocaleString()} ${
+          matches.length === 1 ? "application" : "applications"
+        } as ${format.toUpperCase()}`,
+        description: filename,
+      });
+    },
+    [exportColumns, matches, toast],
+  );
 
   return (
     <>
@@ -161,12 +211,10 @@ const SoftwarePage = () => {
           publisherOptions={publisherOptions}
           onSaveFilter={() => void handleSaveFilter()}
           isSavingFilter={isSaving}
+          onExport={handleExport}
+          matchCount={matches.length}
           onCustomizeView={customize.open}
         />
-
-        {saveError && (
-          <p className="text-[13px] text-status-offline">{saveError}</p>
-        )}
 
         <div id={TABLE_ANCHOR_ID}>
           <Card className="p-5">

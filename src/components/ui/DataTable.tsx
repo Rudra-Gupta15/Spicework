@@ -56,7 +56,9 @@ export const DataTable = <T,>({
 }: DataTableProps<T>) => (
   <div
     className={cn(
-      "w-full overflow-x-auto",
+      /* Keeps the horizontal bar from reading as a border under the last
+         row — see `.scrollbar-slim-light` in index.css. */
+      "scrollbar-slim-light w-full overflow-x-auto",
       bordered && "rounded-lg border border-line",
       className,
     )}

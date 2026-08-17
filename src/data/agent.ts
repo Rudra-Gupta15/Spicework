@@ -1,5 +1,10 @@
 import { api } from "@/lib/api";
-import type { AgentConfig, CommandSnippet, LauncherId } from "@/types/agent";
+import type {
+  AgentConfig,
+  CommandSnippet,
+  LauncherId,
+  LauncherRegistration,
+} from "@/types/agent";
 
 /** Used only until `fetchServerInfo` resolves, and if that call fails. */
 export const DEFAULT_AGENT_CONFIG: AgentConfig = {
@@ -135,13 +140,37 @@ const LAUNCHER_FALLBACK_NAME: Record<LauncherId, string> = {
   linux: "RunAudit_Linux.sh",
 };
 
+/** What a launcher file is called once it lands, before the server renames it. */
+export const launcherFilename = (id: LauncherId): string =>
+  LAUNCHER_FALLBACK_NAME[id];
+
 /**
  * Downloads the real launcher file from the backend for the given format.
  * The backend creates a tracked session for `clientId` as a side effect, so
  * `fetchAuditStatus` can be polled afterward to see when it's been run.
+ *
+ * The company, city and site the downloader entered ride along on the query
+ * so the session is tagged with where the machine actually is.
  */
-export const downloadLauncher = (id: LauncherId, clientId: string) =>
-  api.getFile(`${LAUNCHER_ENDPOINT[id]}?client_id=${clientId}`, LAUNCHER_FALLBACK_NAME[id]);
+export const downloadLauncher = (
+  id: LauncherId,
+  clientId: string,
+  registration: LauncherRegistration,
+) => {
+  /* Built rather than concatenated — a site name carries spaces and em
+     dashes ("HQ — Mumbai") that have to survive the URL. */
+  const query = new URLSearchParams({
+    client_id: clientId,
+    company: registration.companyName,
+    city: registration.city,
+    site: registration.site,
+  });
+
+  return api.getFile(
+    `${LAUNCHER_ENDPOINT[id]}?${query.toString()}`,
+    LAUNCHER_FALLBACK_NAME[id],
+  );
+};
 
 /** `sys_1a2b3c4d5e` — matches the id shape the backend itself generates when none is given. */
 export const generateClientId = (): string =>

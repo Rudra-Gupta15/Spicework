@@ -1,6 +1,8 @@
-import { ChevronDown, Search } from "lucide-react";
+import { Search } from "lucide-react";
 
+import { SaveFilterMenu } from "@/components/common/SaveFilterMenu";
 import { Button, Input, Select } from "@/components/ui";
+import type { ExportFormat } from "@/lib/exportRows";
 import type { SoftwareFilterState, SoftwareInstallScope } from "@/types/software";
 
 const INSTALL_SCOPE_OPTIONS: SoftwareInstallScope[] = ["All", "Single Device", "Multiple Devices"];
@@ -13,6 +15,10 @@ interface SoftwareFiltersProps {
   /** Saves the current selection immediately — no naming dialog. */
   onSaveFilter?: () => void;
   isSavingFilter?: boolean;
+  /** Writes the matched applications out as a file. */
+  onExport?: (format: ExportFormat) => void;
+  /** How many applications the filter matches, quoted on the export items. */
+  matchCount: number;
   onCustomizeView?: () => void;
 }
 
@@ -24,6 +30,8 @@ export const SoftwareFilters = ({
   publisherOptions,
   onSaveFilter,
   isSavingFilter = false,
+  onExport,
+  matchCount,
   onCustomizeView,
 }: SoftwareFiltersProps) => (
   <div className="flex flex-wrap items-center gap-2">
@@ -55,15 +63,12 @@ export const SoftwareFilters = ({
     />
 
     <div className="ml-auto flex items-center gap-2">
-      <Button
-        variant="brand"
-        size="sm"
-        onClick={onSaveFilter}
-        isLoading={isSavingFilter}
-      >
-        Save Filter
-        {!isSavingFilter && <ChevronDown className="h-4 w-4" strokeWidth={2.2} />}
-      </Button>
+      <SaveFilterMenu
+        onSaveFilter={onSaveFilter}
+        isSaving={isSavingFilter}
+        onExport={onExport}
+        rowCount={matchCount}
+      />
 
       <Button variant="brand" size="sm" onClick={onCustomizeView}>
         Customize View

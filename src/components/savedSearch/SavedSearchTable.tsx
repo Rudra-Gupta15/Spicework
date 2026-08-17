@@ -7,6 +7,8 @@ interface SavedSearchTableProps {
   onView: (search: SavedSearch) => void;
   onEdit: (search: SavedSearch) => void;
   onDelete: (search: SavedSearch) => void;
+  /** "Nothing saved yet" and "nothing matched" are different problems. */
+  emptyMessage?: string;
 }
 
 const actionBtn =
@@ -17,6 +19,7 @@ export const SavedSearchTable = ({
   onView,
   onEdit,
   onDelete,
+  emptyMessage = "No saved searches in this category yet.",
 }: SavedSearchTableProps) => {
   const columns: Column<SavedSearch>[] = [
     { key: "name", header: "Search Name", cellClassName: PRIMARY_CELL },
@@ -86,7 +89,7 @@ export const SavedSearchTable = ({
       onRowClick={onView}
       uppercaseHeaders
       bordered
-      emptyMessage="No saved searches in this category yet."
+      emptyMessage={emptyMessage}
     />
   );
 };

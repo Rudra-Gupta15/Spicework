@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AgentConfigCard } from "@/components/agent/AgentConfigCard";
 import { DeploymentCard } from "@/components/agent/DeploymentCard";
 import { DownloadToast } from "@/components/agent/DownloadToast";
+import { LauncherDetailsModal } from "@/components/agent/LauncherDetailsModal";
 import { LauncherTabs } from "@/components/agent/LauncherTabs";
 import { SmartScreenModal } from "@/components/agent/SmartScreenModal";
 import { Navbar } from "@/components/layout/Navbar";
@@ -20,7 +21,11 @@ import {
 } from "@/data/agent";
 import { ApiError } from "@/lib/api";
 import { downloadBlob, formatBytes } from "@/lib/download";
-import type { AgentConfig, LauncherId } from "@/types/agent";
+import type {
+  AgentConfig,
+  LauncherId,
+  LauncherRegistration,
+} from "@/types/agent";
 
 interface DownloadInfo {
   filename: string;
@@ -28,6 +33,17 @@ interface DownloadInfo {
   /** Windows launchers trip SmartScreen when run. */
   isWindows: boolean;
 }
+
+/**
+ * What the details dialog opens on. The company is known — this install
+ * belongs to it — but where the machine sits is not, so those stay blank
+ * until somebody says.
+ */
+const BLANK_REGISTRATION: LauncherRegistration = {
+  companyName: CURRENT_COMPANY.name,
+  city: "",
+  site: "",
+};
 
 /** How often to check whether a triggered audit has reported back. */
 const STATUS_POLL_MS = 3000;
@@ -45,6 +61,12 @@ const AgentPage = () => {
   /* What "Reset Defaults" returns to — the detected address once it arrives. */
   const [defaults, setDefaults] = useState<AgentConfig>(DEFAULT_AGENT_CONFIG);
   const [launcher, setLauncher] = useState<LauncherId>("win-exe");
+  /* The format whose details dialog is open, if any — nothing is fetched
+     until it is filled in and confirmed. */
+  const [pending, setPending] = useState<LauncherId | null>(null);
+  /* Carried between downloads so grabbing a second format is one click. */
+  const [registration, setRegistration] =
+    useState<LauncherRegistration>(BLANK_REGISTRATION);
   const [download, setDownload] = useState<DownloadInfo | null>(null);
   const [isDownloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string>();
@@ -101,15 +123,17 @@ const AgentPage = () => {
     };
   }, []);
 
-  /* Selecting a launcher fetches the real file from the backend, which also
-     opens a tracked session for `clientId` on the server. */
-  const pickLauncher = useCallback(
-    async (id: LauncherId) => {
+  /* Confirming the details dialog fetches the real file from the backend,
+     which also opens a tracked session for `clientId` on the server. */
+  const fetchLauncher = useCallback(
+    async (id: LauncherId, details: LauncherRegistration) => {
       setLauncher(id);
+      setPending(null);
+      setRegistration(details);
       setDownloading(true);
       setDownloadError(undefined);
       try {
-        const { blob, filename } = await downloadLauncher(id, clientId);
+        const { blob, filename } = await downloadLauncher(id, clientId, details);
         downloadBlob(filename, blob);
         setDownload({
           filename,
@@ -216,10 +240,7 @@ const AgentPage = () => {
           </p>
 
           <div className="mt-4">
-            <LauncherTabs
-              value={launcher}
-              onChange={(id) => void pickLauncher(id)}
-            />
+            <LauncherTabs value={launcher} onChange={setPending} />
           </div>
           {isDownloading && (
             <Loader
@@ -254,6 +275,15 @@ const AgentPage = () => {
           badge={<Badge tone="success">Recommended</Badge>}
         />
       </div>
+
+      {pending && (
+        <LauncherDetailsModal
+          launcher={pending}
+          initial={registration}
+          onClose={() => setPending(null)}
+          onDownload={(details) => void fetchLauncher(pending, details)}
+        />
+      )}
 
       {download && (
         <DownloadToast
