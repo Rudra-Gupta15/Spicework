@@ -29,3 +29,8 @@ dist-ssr
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Environment files
+.env
+.env.*
+!.env.example
