@@ -12,7 +12,7 @@ const renderDevices = (item: SoftwareInventoryItem) => (
       <span key={device.id}>
         <Link
           to={`/inventory/software/${encodeURIComponent(device.id)}`}
-          className="text-brand-600 hover:underline"
+          className="text-status-info hover:underline"
         >
           {device.name}
         </Link>
