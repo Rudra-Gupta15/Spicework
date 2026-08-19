@@ -1,9 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download } from "lucide-react";
 
 import { Button, Field, Input, Modal, Select } from "@/components/ui";
 import { LAUNCHERS, launcherFilename } from "@/data/agent";
-import { citiesInOrder } from "@/data/admin";
+import {
+  citiesOf,
+  sitesInCity,
+  useOrganizations,
+  useOrganizationSites,
+} from "@/data/organizations";
 import type { FieldErrors } from "@/lib/validation";
 import type { LauncherId, LauncherRegistration } from "@/types/agent";
 
@@ -34,7 +39,7 @@ export const LauncherDetailsModal = ({
   onClose,
   onDownload,
 }: LauncherDetailsModalProps) => {
-  const cities = useMemo(() => citiesInOrder(), []);
+  const { organizations, isLoading: loadingOrgs, error: orgError } = useOrganizations();
 
   const [companyName, setCompanyName] = useState(initial.companyName);
   const [city, setCity] = useState(initial.city);
@@ -44,25 +49,69 @@ export const LauncherDetailsModal = ({
   const label =
     LAUNCHERS.find((entry) => entry.id === launcher)?.label ?? "Launcher";
 
+  /* The backend files an incoming audit against a company by matching this
+     name against the organizations table, so it has to be one of those names
+     exactly — a near miss ("Prevoyance IT Solutions" for "Prevoyance
+     Solutions") stores the machine unattributed. Hence a picker, not a text
+     box. City and Site then come from that company's own registered sites. */
+  const companyOptions = useMemo(
+    () => organizations.map((entry) => entry.name),
+    [organizations],
+  );
+
+  const organizationId = useMemo(
+    () => organizations.find((entry) => entry.name === companyName)?.id,
+    [organizations, companyName],
+  );
+
+  /* Drop a pre-filled company that is not a real organization. The dialog opens
+     seeded from the signed-in account's name, which is a placeholder constant
+     ("Prevoyance IT Solutions") rather than a tenant read from the database
+     ("Prevoyance Solutions"). Left in place it looks like a valid choice, and
+     the machine uploads unattributed — forcing a pick is the only way the name
+     can be trusted to match. */
+  useEffect(() => {
+    if (organizations.length === 0) return;
+    setCompanyName((current) =>
+      organizations.some((entry) => entry.name === current) ? current : "",
+    );
+  }, [organizations]);
+
+  const { sites: orgSites } = useOrganizationSites(organizationId);
+
+  const cities = useMemo(() => citiesOf(orgSites), [orgSites]);
+
   /* Only the offices in the chosen city — picking a city the machine is not
      in and a site that is would be a contradiction the form should not
      allow in the first place. */
-  const sites = useMemo(
-    () => cities.find((entry) => entry.city === city)?.siteNames ?? [],
-    [cities, city],
+  const sites = useMemo(() => sitesInCity(orgSites, city), [orgSites, city]);
+
+  const changeCompany = (next: string) => {
+    setCompanyName(next);
+    /* City and site belong to the previous company's places. */
+    setCity("");
+    setSite("");
+    setErrors({});
+  };
+
+  /* Fallback suggestions: every site the company has, for when the typed city
+     is a new one and so matches none of them. */
+  const knownSiteNames = useMemo(
+    () => [...new Set(orgSites.map((entry) => entry.name))].sort((a, b) => a.localeCompare(b)),
+    [orgSites],
   );
 
   const changeCity = (next: string) => {
     setCity(next);
-    /* The old site almost certainly belongs to the old city. */
-    setSite("");
-    setErrors((current) => ({ ...current, city: undefined, site: undefined }));
+    /* Deliberately does not clear Site: this is a free-text field now, and
+       wiping the site on every keystroke would fight anyone correcting a typo. */
+    setErrors((current) => ({ ...current, city: undefined }));
   };
 
   const submit = () => {
     const next: RegistrationErrors = {};
 
-    if (!companyName.trim()) next.companyName = "Enter the company name.";
+    if (!companyName.trim()) next.companyName = "Pick the company this machine belongs to.";
     if (!city) next.city = "Pick the city this machine is in.";
     if (!site) next.site = "Pick the site this machine is at.";
 
@@ -71,6 +120,12 @@ export const LauncherDetailsModal = ({
 
     onDownload({ companyName: companyName.trim(), city, site });
   };
+
+  const companyPlaceholder = loadingOrgs
+    ? "Loading companies..."
+    : companyOptions.length === 0
+      ? "No companies registered yet"
+      : "Select Company...";
 
   return (
     <Modal
@@ -100,51 +155,65 @@ export const LauncherDetailsModal = ({
           label="Company Name"
           htmlFor="launcher-company"
           required
-          error={errors.companyName}
+          error={errors.companyName ?? orgError}
         >
-          <Input
+          <Select
             id="launcher-company"
+            size="lg"
+            fullWidth
+            options={companyOptions}
             value={companyName}
-            onChange={(event) => {
-              setCompanyName(event.target.value);
-              setErrors((current) => ({ ...current, companyName: undefined }));
-            }}
-            placeholder="e.g. Prevoyance IT Solutions"
-            error={errors.companyName}
+            onChange={changeCompany}
+            placeholder={companyPlaceholder}
+            aria-label="Company Name"
+            error={errors.companyName !== undefined}
           />
         </Field>
 
+        {/* Type or pick. Most companies have no sites on record yet, so a
+            pick-only control would be a dead end for them; a typed office is
+            registered under the company on download and offered as a
+            suggestion to whoever sets up the next machine there. */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="City" htmlFor="launcher-city" required error={errors.city}>
-            <Select
+            <Input
               id="launcher-city"
               size="lg"
-              fullWidth
-              options={cities.map((entry) => entry.city)}
+              list="launcher-city-options"
               value={city}
-              onChange={changeCity}
-              placeholder="Select City..."
+              onChange={(event) => changeCity(event.target.value)}
+              disabled={!companyName}
+              placeholder={companyName ? "e.g. Nagpur" : "Pick a company first"}
               aria-label="City"
-              error={errors.city !== undefined}
+              error={errors.city}
             />
+            <datalist id="launcher-city-options">
+              {cities.map((entry) => (
+                <option key={entry} value={entry} />
+              ))}
+            </datalist>
           </Field>
 
           <Field label="Site" htmlFor="launcher-site" required error={errors.site}>
-            <Select
+            <Input
               id="launcher-site"
               size="lg"
-              fullWidth
-              align="right"
-              options={sites}
+              list="launcher-site-options"
               value={site}
-              onChange={(next) => {
-                setSite(next);
+              onChange={(event) => {
+                setSite(event.target.value);
                 setErrors((current) => ({ ...current, site: undefined }));
               }}
-              placeholder={city ? "Select Site..." : "Pick a city first"}
+              disabled={!city}
+              placeholder={city ? "e.g. Head Office" : "Enter a city first"}
               aria-label="Site"
-              error={errors.site !== undefined}
+              error={errors.site}
             />
+            <datalist id="launcher-site-options">
+              {(sites.length > 0 ? sites : knownSiteNames).map((entry) => (
+                <option key={entry} value={entry} />
+              ))}
+            </datalist>
           </Field>
         </div>
 

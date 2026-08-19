@@ -26,6 +26,10 @@ interface RawDeviceListItem {
   os_name: string;
   username: string;
   last_seen: string;
+  serial_number?: string;
+  ip_address?: string;
+  device_type?: string;
+  location?: string;
 }
 
 interface RawSoftwareEntry {
@@ -123,6 +127,14 @@ interface RawDeviceDetail {
   secure_boot: string;
   tpm: string;
   hardware_details: RawHardwareDetails;
+  /* Audit-derived fallbacks for the Overview card's asset fields — the agent can
+     read these off the machine, so they stand in until someone records the
+     authoritative value in Asset Metadata. */
+  asset_tag?: string;
+  location_info?: string;
+  device_type?: string;
+  life_cycle?: string;
+  domain?: string;
   network_details: { ip_address?: string; gateway?: string; mac?: string }[];
   user_accounts: RawUserAccount[];
   login_history: RawLoginHistory[];
@@ -153,11 +165,20 @@ export interface RawAssetMetadata {
 const errorMessage = (error: unknown, fallback: string) =>
   error instanceof ApiError || error instanceof Error ? error.message : fallback;
 
+/* Agents write these placeholders when a probe returns nothing, so they must be
+   treated as absent rather than as a real reading. */
+const PLACEHOLDERS = new Set(["", "unknown", "n/a", "none", "null", "undefined"]);
+
+const isReal = (value: string | undefined): value is string =>
+  !!value && !PLACEHOLDERS.has(value.trim().toLowerCase());
+
+/** First genuinely-populated candidate, e.g. manual asset record before audit reading. */
+const firstReal = (...candidates: (string | undefined)[]) => candidates.find(isReal);
+
 /* ── Device list — GET /devices ──────────────────────────────────────────
-   Backing store is the legacy single-tenant audit log, which is far
-   thinner than the estate-management fields this page's design calls for
-   (no tracked type/serial/IP/location). Those are shown as "Unknown"
-   rather than invented. */
+   Serial, IP, chassis type and location all come off the audit itself. Any
+   that a given agent could not read stay "Unknown" rather than invented —
+   e.g. Linux without root cannot read the DMI product serial. */
 
 const RECENT_MS = 24 * 60 * 60 * 1000;
 
@@ -167,19 +188,26 @@ const deriveStatus = (lastSeen: string): HardwareDevice["status"] => {
   return Date.now() - parsed <= RECENT_MS ? "ONLINE" : "OFFLINE";
 };
 
-const toHardwareDevice = (raw: RawDeviceListItem): HardwareDevice => ({
-  id: raw.id,
-  name: raw.computer_name || raw.id,
-  type: "Computer",
-  manufacturer: raw.model_name?.split(" ")[0] || "Unknown",
-  serialNumber: "Unknown",
-  status: raw.last_seen ? deriveStatus(raw.last_seen) : "OFFLINE",
-  lastScan: raw.last_seen || "Unknown",
-  ipAddress: "—",
-  osVersion: raw.os_name || "Unknown",
-  location: "Unknown",
-  assignedTo: raw.username || "Unassigned",
-});
+const toHardwareDevice = (raw: RawDeviceListItem): HardwareDevice => {
+  const name = raw.computer_name || raw.id;
+  return {
+    id: raw.id,
+    name,
+    type: firstReal(raw.device_type) ?? "Computer",
+    manufacturer: raw.model_name?.split(" ")[0] || "Unknown",
+    /* Some agents genuinely cannot read a hardware serial — Linux needs root for
+       the DMI product serial. Rather than a bare "Unknown", identify the row by
+       device name suffixed "(D)", so the value still points at a real machine and
+       the reader can see at a glance it is a name and not a serial. */
+    serialNumber: firstReal(raw.serial_number) ?? `${name} (D)`,
+    status: raw.last_seen ? deriveStatus(raw.last_seen) : "OFFLINE",
+    lastScan: raw.last_seen || "Unknown",
+    ipAddress: firstReal(raw.ip_address) ?? "—",
+    osVersion: firstReal(raw.os_name) ?? "—",
+    location: firstReal(raw.location) ?? "Unknown",
+    assignedTo: raw.username || "Unassigned",
+  };
+};
 
 const fetchDeviceList = async (): Promise<HardwareDevice[]> => {
   const data = await api.get<{ devices: RawDeviceListItem[] }>("/api/devices");
@@ -392,7 +420,7 @@ export const useDeviceDiff = (deviceId: string) => {
 const field = (key: string, label: string, value: string | undefined, note?: string): DetailField => ({
   key,
   label,
-  value: value?.trim() ? value : "Unknown",
+  value: isReal(value) ? value.trim() : "Unknown",
   note,
 });
 
@@ -402,7 +430,9 @@ export const mapOverviewFields = (
   asset: RawAssetMetadata | null,
 ): DetailField[] => {
   const hw = detail.hardware_details ?? {};
-  const primaryIp = detail.network_details?.[0]?.ip_address;
+  // Not just [0]: older audits stored the "Unknown" sentinel for every adapter,
+  // so take the first entry that carries a genuine address.
+  const primaryIp = detail.network_details?.map((n) => n.ip_address).find(isReal);
   const antivirus = detail.antivirus?.length ? detail.antivirus.join(", ") : undefined;
 
   return [
@@ -416,12 +446,12 @@ export const mapOverviewFields = (
     ),
     field("architecture", "Architecture", detail.architecture),
     field("publicIp", "IP Address", primaryIp),
-    field("assetTag", "Asset Tag", asset?.asset_tag),
-    field("owner", "Owner", asset?.owner || detail.current_user),
+    field("assetTag", "Asset Tag", firstReal(asset?.asset_tag, detail.asset_tag)),
+    field("owner", "Owner", firstReal(asset?.owner, detail.current_user)),
     field("department", "Department", asset?.department),
-    field("location", "Location", asset?.location),
-    field("vendor", "Vendor", asset?.vendor),
-    field("lifeCycleStage", "Lifecycle Stage", asset?.life_cycle_stage),
+    field("location", "Location", firstReal(asset?.location, detail.location_info)),
+    field("vendor", "Vendor", firstReal(asset?.vendor, hw.manufacturer)),
+    field("lifeCycleStage", "Lifecycle Stage", firstReal(asset?.life_cycle_stage, detail.life_cycle)),
     field("warrantyExpiry", "Warranty Expiry", asset?.warranty_expiry),
     field("lastBoot", "Last Boot", detail.last_boot),
     field("uptime", "Uptime", detail.uptime),
