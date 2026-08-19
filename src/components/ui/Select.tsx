@@ -160,7 +160,7 @@ export const Select = ({
           role="listbox"
           align={align}
           className={cn(
-            "max-h-64 min-w-full overflow-y-auto",
+            "min-w-full",
             fullWidth ? "w-full" : "w-max max-w-[260px]",
           )}
           onKeyDown={handleKeyDown}

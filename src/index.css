@@ -136,11 +136,15 @@
   }
 
   /*
-   * The light counterpart, for scroll areas sitting on a card — every table
-   * in the app (see `DataTable`). A wide table's bar runs under the last
-   * row, where a default 15px one reads as a second border; at 6px it reads
-   * as what it is. Both axes are sized: `height` is the one that governs the
-   * horizontal bar a table actually gets.
+   * The light counterpart, for every scroll area sitting on a surface: the
+   * tables (see `DataTable`), the dropdown panels (see `MenuPanel`, which
+   * every Select opens) and the dialog bodies that hold both. One utility on
+   * purpose — a slim bar in a menu beside a default 15px one in the dialog
+   * around it is the kind of mismatch nobody can unsee.
+   *
+   * A wide table's bar runs under the last row, where a default one reads as
+   * a second border; at 6px it reads as what it is. Both axes are sized:
+   * `height` is the one that governs the horizontal bar a table gets.
    */
   .scrollbar-slim-light {
     scrollbar-width: thin;

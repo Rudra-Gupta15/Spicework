@@ -56,6 +56,51 @@ const dayStart = (year: number, month: number, day: number): number | undefined 
     : undefined;
 };
 
+const startOfToday = (): Date => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
+/** How long each unit a relative time can be written in lasts, in days. */
+const UNIT_DAYS: Record<string, number> = {
+  sec: 0,
+  min: 0,
+  hour: 0,
+  day: 1,
+  week: 7,
+  month: 30,
+  year: 365,
+};
+
+/**
+ * "3 days ago", "15 mins ago", "just now" — how a scan time is written once
+ * it is recent enough for a clock reading to be less useful than a rough
+ * one. Anything under a day lands on today, which is the day it happened.
+ */
+const parseRelative = (value: string): number | undefined => {
+  const lower = value.toLowerCase();
+
+  if (lower === "just now" || lower === "today") return startOfToday().getTime();
+
+  if (lower === "yesterday") {
+    const day = startOfToday();
+    day.setDate(day.getDate() - 1);
+    return day.getTime();
+  }
+
+  const relative = /^(?:about\s+)?(\d+)\s+([a-z]+?)s?\s+ago$/.exec(lower);
+  if (!relative) return undefined;
+
+  const unit = relative[2].replace(/^mins?$/, "min").replace(/^secs?$/, "sec");
+  const days = UNIT_DAYS[unit];
+  if (days === undefined) return undefined;
+
+  const day = startOfToday();
+  day.setDate(day.getDate() - days * Number(relative[1]));
+
+  return day.getTime();
+};
+
 /** Values that mean "there is no date here", not "the date is missing". */
 const NOT_A_DATE = new Set(["", "unknown", "never", "n/a", "-", "—"]);
 
@@ -68,6 +113,9 @@ const NOT_A_DATE = new Set(["", "unknown", "never", "n/a", "-", "—"]);
 export const parseReportedDate = (raw: string): number | undefined => {
   const value = raw.trim();
   if (NOT_A_DATE.has(value.toLowerCase())) return undefined;
+
+  const relative = parseRelative(value);
+  if (relative !== undefined) return relative;
 
   /* `20260729` — how the scan writes an install date. */
   const packed = /^(\d{4})(\d{2})(\d{2})$/.exec(value);
@@ -105,11 +153,6 @@ export interface DateBounds {
   start?: number;
   end?: number;
 }
-
-const startOfToday = (): Date => {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-};
 
 /** `Last 7 Days` counts today as one of the seven, the way a person would. */
 const daysBack = (days: number): number => {

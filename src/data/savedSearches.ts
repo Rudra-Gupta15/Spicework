@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 
 import { api, ApiError } from "@/lib/api";
+import {
+  ALL_TIME,
+  isDateRangeActive,
+  matchesDateRange,
+  type DateRange,
+} from "@/lib/dateRange";
 import type {
   SavedSearch,
   SavedSearchCategory,
@@ -30,17 +36,23 @@ export const SAVED_SEARCH_SCOPE_OPTIONS: readonly string[] = [
 export interface SavedSearchFilterState {
   search: string;
   scope: string;
+  /** When the search was saved — the list grows by date, so it narrows by it. */
+  created: DateRange;
 }
 
 export const DEFAULT_SAVED_SEARCH_FILTERS: SavedSearchFilterState = {
   search: "",
   scope: ALL_SCOPES,
+  created: ALL_TIME,
 };
 
 /** True when a filter would narrow the list — drives the empty message. */
 export const isSavedSearchFiltered = (
   filters: SavedSearchFilterState,
-): boolean => filters.search.trim() !== "" || filters.scope !== ALL_SCOPES;
+): boolean =>
+  filters.search.trim() !== "" ||
+  filters.scope !== ALL_SCOPES ||
+  isDateRangeActive(filters.created);
 
 /**
  * Narrows one tab's Filter Search. The free-text term is matched against
@@ -56,6 +68,7 @@ export const filterSavedSearches = (
   return searches.filter(
     (search) =>
       (filters.scope === ALL_SCOPES || search.scope === filters.scope) &&
+      matchesDateRange(search.created, filters.created) &&
       (term === "" ||
         `${search.name} ${search.filters} ${search.createdBy}`
           .toLowerCase()

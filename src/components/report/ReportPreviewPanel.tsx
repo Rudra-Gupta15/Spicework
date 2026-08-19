@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CalendarClock, CheckCircle2 } from "lucide-react";
 
-import { Badge, Button, Card, DataTable, PRIMARY_CELL, type Column } from "@/components/ui";
-import type { ReportFormat, ReportPreview, ReportSection } from "@/types/report";
+import { Badge, Button, Card, DataTable, PRIMARY_CELL, Select, type Column } from "@/components/ui";
+import type {
+  ReportFormat,
+  ReportPreview,
+  ReportScope,
+  ReportSection,
+} from "@/types/report";
 
 import { ReportDownloadMenu } from "./ReportDownloadMenu";
 
@@ -24,8 +29,14 @@ const sectionColumns = (section: ReportSection): Column<string[]>[] =>
     render: (row) => row[index] ?? "—",
   }));
 
+/** The two things a report can be, as the picker lists them. */
+const SCOPE_OPTIONS: readonly string[] = ["Public", "Private"];
+
 interface ReportPreviewPanelProps {
   report: ReportPreview;
+  /** Who this report is for — Public unless somebody said otherwise. */
+  scope: ReportScope;
+  onScopeChange: (scope: ReportScope) => void;
   /** Returns to the system list. */
   onBack: () => void;
   onDownload: (format: ReportFormat) => void;
@@ -34,6 +45,8 @@ interface ReportPreviewPanelProps {
 /** The generated report as it appears on screen, before it is downloaded. */
 export const ReportPreviewPanel = ({
   report,
+  scope,
+  onScopeChange,
   onBack,
   onDownload,
 }: ReportPreviewPanelProps) => {
@@ -71,6 +84,9 @@ export const ReportPreviewPanel = ({
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-lg font-bold text-heading">{report.title}</h2>
             <Badge tone="brand">{report.category} Report</Badge>
+            <Badge tone={scope === "Private" ? "neutral" : "success"}>
+              {scope}
+            </Badge>
           </div>
 
           <p className="mt-1.5 text-sm text-muted">{report.subtitle}</p>
@@ -83,6 +99,17 @@ export const ReportPreviewPanel = ({
 
         <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {/* Who may pull this report. Changing it takes effect on the
+                list behind straight away — nothing else to save. */}
+            <Select
+              label="Scope:"
+              aria-label="Who this report is for"
+              align="right"
+              options={SCOPE_OPTIONS}
+              value={scope}
+              onChange={(next) => onScopeChange(next as ReportScope)}
+            />
+
             <Button
               variant="outline"
               leftIcon={<ArrowLeft className="h-4 w-4" strokeWidth={2.2} />}

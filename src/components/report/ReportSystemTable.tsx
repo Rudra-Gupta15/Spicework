@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 
-import { DataTable, PRIMARY_CELL, type Column } from "@/components/ui";
+import { Badge, DataTable, PRIMARY_CELL, type Column } from "@/components/ui";
 import { RECORD_LABEL } from "@/data/report";
 import { cn } from "@/lib/cn";
 import type { ReportCategory, ReportSystem } from "@/types/report";
@@ -46,6 +46,15 @@ export const ReportSystemTable = ({
         ),
       },
       {
+        key: "scope",
+        header: "Scope",
+        render: (system) => (
+          <Badge tone={system.scope === "Private" ? "neutral" : "success"}>
+            {system.scope}
+          </Badge>
+        ),
+      },
+      {
         key: "records",
         header: RECORD_LABEL[category],
         align: "right",
@@ -75,7 +84,7 @@ export const ReportSystemTable = ({
       onRowClick={onSelect}
       bordered
       uppercaseHeaders
-      emptyMessage="No systems match this search."
+      emptyMessage="No systems match these filters."
     />
   );
 };

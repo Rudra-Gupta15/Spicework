@@ -1,17 +1,35 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
 
 import { DetailTabs } from "@/components/common/DetailTabs";
 import { Navbar } from "@/components/layout/Navbar";
+import { ReportFilters } from "@/components/report/ReportFilters";
 import { ReportPreviewPanel } from "@/components/report/ReportPreviewPanel";
 import { ReportSystemTable } from "@/components/report/ReportSystemTable";
-import { Card, Input, Loader, Pagination } from "@/components/ui";
+import { Card, Loader, Pagination } from "@/components/ui";
 import { useDeviceList } from "@/data/deviceApi";
-import { REPORT_CATEGORIES, buildReport, fetchRecordCounts, reportSystems } from "@/data/report";
+import {
+  DEFAULT_REPORT_FILTERS,
+  REPORT_CATEGORIES,
+  buildReport,
+  fetchRecordCounts,
+  filterReportSystems,
+  isReportFiltered,
+  reportFilterOptions,
+  reportScope,
+  reportSystems,
+  setReportScope,
+} from "@/data/report";
 import { ApiError } from "@/lib/api";
 import { downloadReport } from "@/lib/reportExport";
 import type { HardwareDevice } from "@/types/hardware";
-import type { ReportCategory, ReportFormat, ReportPreview, ReportSystem } from "@/types/report";
+import type {
+  ReportCategory,
+  ReportFilterState,
+  ReportFormat,
+  ReportPreview,
+  ReportScope,
+  ReportSystem,
+} from "@/types/report";
 
 const PAGE_SIZE = 5;
 
@@ -28,8 +46,11 @@ const ReportPage = () => {
 
   const [category, setCategory] = useState<ReportCategory>("Hardware");
   const [selectedDevice, setSelectedDevice] = useState<HardwareDevice | null>(null);
-  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<ReportFilterState>(DEFAULT_REPORT_FILTERS);
   const [page, setPage] = useState(1);
+  /* Bumped whenever a report is made Public or Private, so the list behind
+     the preview is rebuilt with the new scope on it. */
+  const [scopeVersion, setScopeVersion] = useState(0);
 
   const [recordCounts, setRecordCounts] = useState<Record<string, number>>({});
   const [report, setReport] = useState<ReportPreview | null>(null);
@@ -40,31 +61,53 @@ const ReportPage = () => {
   const handleCategoryChange = useCallback((next: ReportCategory) => {
     setCategory(next);
     setSelectedDevice(null);
-    setSearch("");
+    setFilters(DEFAULT_REPORT_FILTERS);
     setPage(1);
   }, []);
 
-  const handleSearch = useCallback((value: string) => {
-    setSearch(value);
+  const handleFilterChange = useCallback((patch: Partial<ReportFilterState>) => {
+    setFilters((current) => ({ ...current, ...patch }));
     setPage(1);
   }, []);
 
-  const systems = useMemo(() => reportSystems(allDevices), [allDevices]);
+  const clearFilters = useCallback(() => {
+    setFilters(DEFAULT_REPORT_FILTERS);
+    setPage(1);
+  }, []);
 
-  const matches = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (term === "") return systems;
+  const systems = useMemo(
+    () => reportSystems(allDevices),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- scopeVersion is the signal that a scope changed
+    [allDevices, scopeVersion],
+  );
 
-    return systems.filter((system) =>
-      `${system.name} ${system.type} ${system.manufacturer} ${system.serialNumber} ${system.assignedTo}`
-        .toLowerCase()
-        .includes(term),
-    );
-  }, [systems, search]);
+  const changeScope = useCallback(
+    (scope: ReportScope) => {
+      if (!selectedDevice) return;
+
+      setReportScope(selectedDevice.id, scope);
+      setScopeVersion((version) => version + 1);
+    },
+    [selectedDevice],
+  );
+
+  const matches = useMemo(
+    () => filterReportSystems(systems, filters),
+    [systems, filters],
+  );
+
+  /* Options come from every loaded system rather than the narrowed list, so
+     picking one dimension never empties the others. */
+  const filterOptions = useMemo(() => reportFilterOptions(systems), [systems]);
+
+  /* Clamping beats resetting: narrowing the filters can never strand the
+     view on a page that no longer exists. */
+  const lastPage = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
+  const currentPage = Math.min(page, lastPage);
 
   const visible = useMemo(
-    () => matches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [matches, page],
+    () => matches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [matches, currentPage],
   );
 
   /* Record counts require a full detail fetch per device — only ever run
@@ -159,6 +202,8 @@ const ReportPage = () => {
           {!reportError && !reportLoading && report && (
             <ReportPreviewPanel
               report={report}
+              scope={reportScope(selectedDevice.id)}
+              onScopeChange={changeScope}
               onBack={() => setSelectedDevice(null)}
               onDownload={handleDownload}
             />
@@ -167,7 +212,7 @@ const ReportPage = () => {
       ) : (
         <div className="mt-5 space-y-5">
           <Card className="p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-base font-bold text-heading">
                   {category} Reports
@@ -178,15 +223,20 @@ const ReportPage = () => {
                 </p>
               </div>
 
-              <Input
-                type="search"
-                value={search}
-                onChange={(event) => handleSearch(event.target.value)}
-                placeholder={`Search ${category.toLowerCase()} systems...`}
-                aria-label={`Search ${category.toLowerCase()} systems`}
-                leading={<Search className="h-4 w-4" strokeWidth={1.9} />}
-                size="sm"
-                containerClassName="w-full sm:w-auto sm:min-w-[240px]"
+              <p className="text-[13px] text-muted tabular-nums">
+                {matches.length} of {systems.length}{" "}
+                {systems.length === 1 ? "system" : "systems"}
+              </p>
+            </div>
+
+            <div className="mt-4">
+              <ReportFilters
+                category={category}
+                filters={filters}
+                onChange={handleFilterChange}
+                options={filterOptions}
+                isFiltered={isReportFiltered(filters)}
+                onClear={clearFilters}
               />
             </div>
 
@@ -208,7 +258,7 @@ const ReportPage = () => {
 
             <Pagination
               className="mt-5"
-              page={page}
+              page={currentPage}
               pageSize={PAGE_SIZE}
               totalItems={matches.length}
               itemLabel="systems"

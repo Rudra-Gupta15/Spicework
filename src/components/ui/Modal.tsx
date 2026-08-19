@@ -132,7 +132,7 @@ export const Modal = ({
 
         <div
           className={cn(
-            "flex-1 overflow-y-auto",
+            "scrollbar-slim-light flex-1 overflow-y-auto",
             variant === "bar" ? "px-5 py-4" : "px-6 pt-4",
           )}
         >

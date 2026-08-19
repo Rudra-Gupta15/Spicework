@@ -64,6 +64,12 @@ export const MenuPanel = ({
       onKeyDown={onKeyDown}
       className={cn(
         "absolute z-30 mt-2 max-w-[calc(100vw-1rem)] rounded-xl border border-line bg-surface p-1.5 shadow-lg",
+        /* A long list (every manufacturer in the estate, every column of an
+           uploaded file) scrolls inside the panel instead of running off the
+           screen, and does it with the app's own slim bar rather than the
+           browser's. `overscroll-contain` keeps the page still once the list
+           reaches its end. */
+        "scrollbar-slim-light max-h-[min(18rem,60vh)] overflow-y-auto overscroll-contain",
         align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left",
         className,
       )}

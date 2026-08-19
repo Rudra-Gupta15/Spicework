@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 
+import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 import { Input, Select } from "@/components/ui";
 import { SAVED_SEARCH_SCOPE_OPTIONS } from "@/data/savedSearches";
 import type { SavedSearchFilterState } from "@/data/savedSearches";
@@ -41,6 +42,14 @@ export const SavedSearchFilters = ({
       options={SAVED_SEARCH_SCOPE_OPTIONS}
       value={filters.scope}
       onChange={(scope) => onChange({ scope })}
+    />
+
+    {/* Saved searches pile up over months, so "the one I made last week" is
+        how somebody actually looks for one. */}
+    <DateRangeFilter
+      label="Created"
+      value={filters.created}
+      onChange={(created) => onChange({ created })}
     />
 
     <p className="ml-auto text-[13px] text-muted">

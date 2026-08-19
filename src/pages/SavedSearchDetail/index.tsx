@@ -3,8 +3,16 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
 import { Badge, Button, Card, ConfirmDialog, DataTable, Loader, PRIMARY_CELL, Pagination, type Column } from "@/components/ui";
+import { SearchResultFilters } from "@/components/savedSearch/SearchResultFilters";
 import { deleteSavedSearch, fetchSavedSearchById } from "@/data/savedSearches";
-import { resultsForSearch } from "@/data/savedSearchResults";
+import {
+  DEFAULT_RESULT_FILTERS,
+  filterResults,
+  isResultFiltered,
+  resultFilterOptions,
+  resultsForSearch,
+  type SearchResultFilterState,
+} from "@/data/savedSearchResults";
 import { ApiError } from "@/lib/api";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import type { SavedSearch, SavedSearchCategory, SearchResultDevice } from "@/types/savedSearch";
@@ -17,6 +25,7 @@ const SavedSearchDetailPage = () => {
   const navigate = useNavigate();
   const deletePrompt = useDisclosure();
   const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState<SearchResultFilterState>(DEFAULT_RESULT_FILTERS);
 
   const [found, setFound] = useState<{ category: SavedSearchCategory; search: SavedSearch } | null>(null);
   const [isLoading, setLoading] = useState(true);
@@ -52,10 +61,35 @@ const SavedSearchDetailPage = () => {
     [found],
   );
 
-  const visible = useMemo(
-    () => results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [results, page],
+  /* What the saved query returned, narrowed by the bar above the table. */
+  const matches = useMemo(
+    () => filterResults(results, filters),
+    [results, filters],
   );
+
+  /* Options come from the whole result set rather than the narrowed list, so
+     picking one dimension never empties the others. */
+  const filterOptions = useMemo(() => resultFilterOptions(results), [results]);
+
+  /* Clamping beats resetting: narrowing can never strand the view on a page
+     that no longer exists. */
+  const lastPage = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
+  const currentPage = Math.min(page, lastPage);
+
+  const visible = useMemo(
+    () => matches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [matches, currentPage],
+  );
+
+  const changeFilters = (patch: Partial<SearchResultFilterState>) => {
+    setFilters((current) => ({ ...current, ...patch }));
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setFilters(DEFAULT_RESULT_FILTERS);
+    setPage(1);
+  };
 
   if (!searchId || notFound) return <Navigate to={SAVED_ROUTE} replace />;
 
@@ -165,9 +199,25 @@ const SavedSearchDetailPage = () => {
         </Card>
 
         <Card className="px-5 py-5">
-          <h2 className="mb-4 text-base font-bold text-heading">
-            Search Results
-          </h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-bold text-heading">Search Results</h2>
+
+            <p className="text-[13px] text-muted tabular-nums">
+              {matches.length === results.length
+                ? `${results.length} ${results.length === 1 ? "result" : "results"}`
+                : `${matches.length} of ${results.length} results`}
+            </p>
+          </div>
+
+          <div className="mb-4">
+            <SearchResultFilters
+              filters={filters}
+              onChange={changeFilters}
+              options={filterOptions}
+              isFiltered={isResultFiltered(filters)}
+              onClear={clearFilters}
+            />
+          </div>
 
           <DataTable
             columns={columns}
@@ -175,14 +225,18 @@ const SavedSearchDetailPage = () => {
             rowKey={(device) => device.id}
             uppercaseHeaders
             bordered
-            emptyMessage="This search returned no matching records."
+            emptyMessage={
+              isResultFiltered(filters)
+                ? "No results match these filters."
+                : "This search returned no matching records."
+            }
           />
 
           <Pagination
             className="mt-5"
-            page={page}
+            page={currentPage}
             pageSize={PAGE_SIZE}
-            totalItems={results.length}
+            totalItems={matches.length}
             itemLabel="results"
             onPageChange={setPage}
           />

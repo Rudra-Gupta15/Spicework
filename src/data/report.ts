@@ -9,10 +9,13 @@ import {
   mapUsers,
   type RawDeviceDetail,
 } from "./deviceApi";
+import { ALL_TIME, isDateRangeActive, matchesDateRange } from "@/lib/dateRange";
 import type { HardwareDevice } from "@/types/hardware";
 import type {
   ReportCategory,
+  ReportFilterState,
   ReportPreview,
+  ReportScope,
   ReportSection,
   ReportSystem,
 } from "@/types/report";
@@ -23,6 +26,38 @@ export const REPORT_CATEGORIES: ReportCategory[] = ["Hardware", "Software"];
 export const RECORD_LABEL: Record<ReportCategory, string> = {
   Hardware: "Components",
   Software: "Applications",
+};
+
+/* --- who a report is for ------------------------------------------ */
+
+/**
+ * A report is the team's by default — anybody who can open the page can pull
+ * it. Marking one Private keeps it to whoever did: the machine under
+ * investigation, the director's laptop, the licence audit nobody else needs
+ * to stumble into.
+ *
+ * Held in a module-level map, the same way the admin area holds its sites: a
+ * change mutates it in place and every screen reading it on mount picks the
+ * change up. Swap for the API once reports are stored server-side.
+ */
+const SCOPES = new Map<string, ReportScope>();
+
+export const DEFAULT_REPORT_SCOPE: ReportScope = "Public";
+
+/** Extra option on the filter bar; never a value a report is saved with. */
+export const ALL_SCOPES = "All Scopes";
+
+export const REPORT_SCOPE_OPTIONS: readonly string[] = [
+  ALL_SCOPES,
+  "Public",
+  "Private",
+];
+
+export const reportScope = (systemId: string): ReportScope =>
+  SCOPES.get(systemId) ?? DEFAULT_REPORT_SCOPE;
+
+export const setReportScope = (systemId: string, scope: ReportScope): void => {
+  SCOPES.set(systemId, scope);
 };
 
 /** The picker table's rows, before per-row record counts are known. */
@@ -38,7 +73,76 @@ export const reportSystems = (devices: HardwareDevice[]): ReportSystem[] =>
     assignedTo: device.assignedTo,
     lastScan: device.lastScan,
     records: 0,
+    scope: reportScope(device.id),
   }));
+
+/* --- narrowing the list -------------------------------------------- */
+
+const ALL = "All";
+
+export const DEFAULT_REPORT_FILTERS: ReportFilterState = {
+  search: "",
+  type: ALL,
+  status: ALL,
+  manufacturer: ALL,
+  scope: ALL_SCOPES,
+  lastScan: ALL_TIME,
+};
+
+export interface ReportFilterOptions {
+  type: string[];
+  status: string[];
+  manufacturer: string[];
+}
+
+/**
+ * Dropdown choices derived from the systems actually loaded, so every option
+ * matches something in the table — the same rule the inventory bars follow.
+ */
+export const reportFilterOptions = (
+  systems: ReportSystem[],
+): ReportFilterOptions => {
+  const distinct = (pick: (system: ReportSystem) => string): string[] => [
+    ALL,
+    ...[...new Set(systems.map(pick).filter(Boolean))].sort(),
+  ];
+
+  return {
+    type: distinct((system) => system.type),
+    status: distinct((system) => system.status),
+    manufacturer: distinct((system) => system.manufacturer),
+  };
+};
+
+/** True when a filter would narrow the list. */
+export const isReportFiltered = (filters: ReportFilterState): boolean =>
+  filters.search.trim() !== "" ||
+  filters.type !== ALL ||
+  filters.status !== ALL ||
+  filters.manufacturer !== ALL ||
+  filters.scope !== ALL_SCOPES ||
+  isDateRangeActive(filters.lastScan);
+
+/** Applies the filter bar to the systems a report can be generated for. */
+export const filterReportSystems = (
+  systems: ReportSystem[],
+  { search, type, status, manufacturer, scope, lastScan }: ReportFilterState,
+): ReportSystem[] => {
+  const term = search.trim().toLowerCase();
+
+  return systems.filter(
+    (system) =>
+      (type === ALL || system.type === type) &&
+      (status === ALL || system.status === status) &&
+      (manufacturer === ALL || system.manufacturer === manufacturer) &&
+      (scope === ALL_SCOPES || system.scope === scope) &&
+      matchesDateRange(system.lastScan, lastScan) &&
+      (term === "" ||
+        `${system.name} ${system.type} ${system.manufacturer} ${system.serialNumber} ${system.assignedTo}`
+          .toLowerCase()
+          .includes(term)),
+  );
+};
 
 /**
  * Record counts require a full detail fetch, which is too expensive to run
