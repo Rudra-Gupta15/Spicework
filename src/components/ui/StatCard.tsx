@@ -2,22 +2,13 @@ import { Link } from "react-router-dom";
 import { TrendingDown, TrendingUp } from "lucide-react";
 
 import { cn } from "@/lib/cn";
-import type { StatMetric, Tone } from "@/types/ui";
+import type { StatMetric } from "@/types/ui";
 
 import { Card } from "./Card";
 
-const ICON_TONES: Record<Tone, string> = {
-  info: "bg-blue-50 text-status-info",
-  success: "bg-green-50 text-status-online",
-  danger: "bg-red-50 text-status-offline",
-  warning: "bg-amber-50 text-status-maintenance",
-  brand: "bg-brand-50 text-brand-600",
-  neutral: "bg-canvas text-muted",
-};
-
 /** KPI tile: label, hero number and an optional period-over-period delta. */
 export const StatCard = ({ metric }: { metric: StatMetric }) => {
-  const { label, value, caption, icon: Icon, tone, delta, to, onClick } = metric;
+  const { label, value, caption, icon: Icon, delta, to, onClick } = metric;
   const TrendIcon = delta?.direction === "up" ? TrendingUp : TrendingDown;
 
   const tile = (
@@ -29,13 +20,8 @@ export const StatCard = ({ metric }: { metric: StatMetric }) => {
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-[13px] font-medium text-heading">{label}</p>
-        <span
-          className={cn(
-            "grid h-8 w-8 shrink-0 place-items-center rounded-lg",
-            ICON_TONES[tone],
-          )}
-        >
-          <Icon className="h-4 w-4" strokeWidth={1.9} />
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600">
+          <Icon className="h-5 w-5" strokeWidth={1.9} />
         </span>
       </div>
 
