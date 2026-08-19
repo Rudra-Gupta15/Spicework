@@ -65,7 +65,7 @@ const AgentPage = () => {
   const [draft, setDraft] = useState<AgentConfig>(DEFAULT_AGENT_CONFIG);
   /* What "Reset Defaults" returns to — the detected address once it arrives. */
   const [defaults, setDefaults] = useState<AgentConfig>(DEFAULT_AGENT_CONFIG);
-  const [launcher, setLauncher] = useState<LauncherId>("win-exe");
+  const [launcher, setLauncher] = useState<LauncherId>("win-vbs");
   /* The format whose details dialog is open, if any — nothing is fetched
      until it is filled in and confirmed. */
   const [pending, setPending] = useState<LauncherId | null>(null);

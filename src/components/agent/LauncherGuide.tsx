@@ -34,11 +34,10 @@ const CARDS: GuideCard[] = [
   {
     id: "windows",
     title: "1. Windows Setup",
-    badge: ".exe / .vbs",
+    badge: ".vbs",
     steps: [
       <>
-        Download <Ref>Windows Binary (.exe)</Ref> or <Ref>VBS (.vbs)</Ref>{" "}
-        above.
+        Download <Ref>Windows VBS (.vbs)</Ref> above.
       </>,
       <>
         Open your <Ref>Downloads</Ref> folder and double-click the file.
