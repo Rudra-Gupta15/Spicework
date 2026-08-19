@@ -613,3 +613,19 @@ export const mapPrinters = (detail: RawDeviceDetail | null): Printer[] =>
     status: entry.extended_printer_status || "Unknown",
     bidirectional: entry.enable_bidi || "Unknown",
   }));
+
+/* ── On-demand rescan ─────────────────────────────────────────────────────
+   Agents are not reachable inbound — each sits behind its office's NAT — so
+   this leaves a flag the machine's own watcher collects on its next poll
+   (every ~2 minutes). The scan itself then takes a minute or two, so the
+   inventory will not change the instant the button is pressed. */
+
+export interface RescanResult {
+  status: string;
+  device_id: string;
+  computer_name?: string;
+  message?: string;
+}
+
+export const requestRescan = (deviceId: string) =>
+  api.post<RescanResult>(`/api/trigger-scan/${encodeURIComponent(deviceId)}`);

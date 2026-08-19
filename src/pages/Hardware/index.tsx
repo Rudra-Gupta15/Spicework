@@ -248,6 +248,12 @@ const HardwarePage = () => {
                 <Loader label="Loading device inventory…" />
               ) : (
                 <HardwareTable
+                  onRescanDone={(description) =>
+                    toast({ tone: "success", title: "Rescan requested", description })
+                  }
+                  onRescanError={(description) =>
+                    toast({ tone: "danger", title: "Rescan failed", description })
+                  }
                   devices={visible}
                   visibleColumns={columns}
                   onSelect={openDevice}

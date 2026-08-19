@@ -237,7 +237,16 @@ const SoftwarePage = () => {
               {isLoading ? (
                 <Loader label="Loading software inventory…" />
               ) : (
-                <SoftwareInventoryTable items={visible} visibleColumns={columns} />
+                <SoftwareInventoryTable
+                  items={visible}
+                  visibleColumns={columns}
+                  onRescanDone={(description) =>
+                    toast({ tone: "success", title: "Rescan requested", description })
+                  }
+                  onRescanError={(description) =>
+                    toast({ tone: "danger", title: "Rescan failed", description })
+                  }
+                />
               )}
             </div>
 
