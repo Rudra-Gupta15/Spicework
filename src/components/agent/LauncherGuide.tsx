@@ -34,17 +34,25 @@ const CARDS: GuideCard[] = [
   {
     id: "windows",
     title: "1. Windows Setup",
-    badge: ".exe / .vbs",
+    badge: ".vbs",
     steps: [
       <>
-        Download <Ref>Windows Binary (.exe)</Ref> or <Ref>VBS (.vbs)</Ref>{" "}
-        above.
+        Download <Ref>Windows VBS (.vbs)</Ref> above.
       </>,
       <>
         Open your <Ref>Downloads</Ref> folder and double-click the file.
       </>,
+      <>
+        Or run it in PowerShell:
+        <Code>cd $env:USERPROFILE\Downloads</Code>
+        <Code>.\{launcherFilename("win-vbs")}</Code>
+      </>,
       <>Runs silently in the background and reports audit data to portal.</>,
     ],
+    /* The downloaded file carries the client id it was registered against, so
+       the name on disk is longer than the one named above — tab completion is
+       the shortest honest way to say that without printing a fake id. */
+    note: "The file name ends with your download's id — press Tab to complete it.",
   },
   {
     id: "macos",

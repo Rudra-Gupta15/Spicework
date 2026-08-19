@@ -26,6 +26,17 @@ export const fetchServerInfo = () => api.get<ServerInfo>("/api/server-info");
 /** Loopback address a machine uses to reach the audit server on itself. */
 export const LOCAL_HOST = "127.0.0.1";
 
+/**
+ * The formats offered for download.
+ *
+ * `win-exe` is deliberately absent. The backend compiles that launcher on
+ * demand with `C:\Windows\...\csc.exe`, which only exists when the API itself
+ * runs on Windows; on the Linux host it serves a VBS file under an .exe name
+ * instead. Offering a button that hands people the wrong kind of file is worse
+ * than not offering it — `win-vbs` does the identical job with no compiler.
+ * The endpoint and id are kept below so the option can return if the server
+ * ever gains a real Windows compiler.
+ */
 export const LAUNCHERS: { id: LauncherId; label: string }[] = [
   { id: "win-vbs", label: "Windows VBS (.vbs)" },
   { id: "macos", label: "macOS Launcher (.command)" },

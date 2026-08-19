@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 
+import { RescanButton } from "@/components/common/RescanButton";
 import { DataTable, PRIMARY_CELL, type Column } from "@/components/ui";
 import { SOFTWARE_INVENTORY_COLUMNS } from "@/data/softwareInventory";
 import type { SoftwareColumnKey, SoftwareInventoryItem } from "@/types/software";
@@ -34,23 +35,45 @@ const COLUMN_STYLES: Partial<
 interface SoftwareInventoryTableProps {
   items: SoftwareInventoryItem[];
   visibleColumns: SoftwareColumnKey[];
+  onRescanDone?: (message: string) => void;
+  onRescanError?: (message: string) => void;
 }
 
 /** Estate-wide software table — one row per distinct application + version. */
 export const SoftwareInventoryTable = ({
   items,
   visibleColumns,
+  onRescanDone,
+  onRescanError,
 }: SoftwareInventoryTableProps) => {
   const columns = useMemo<Column<SoftwareInventoryItem>[]>(
-    () =>
-      SOFTWARE_INVENTORY_COLUMNS.filter((column) => visibleColumns.includes(column.key)).map(
+    () => [
+      ...SOFTWARE_INVENTORY_COLUMNS.filter((column) => visibleColumns.includes(column.key)).map(
         (column) => ({
           key: column.key,
           header: column.label,
           ...COLUMN_STYLES[column.key],
         }),
       ),
-    [visibleColumns],
+      /* A row here is an application, not a machine, so rescanning it means
+         asking every device that reports it to scan again — that is what would
+         refresh this row's install count and dates. */
+      {
+        key: "rescan",
+        header: "",
+        align: "right" as const,
+        className: "w-px whitespace-nowrap",
+        render: (item: SoftwareInventoryItem) => (
+          <RescanButton
+            deviceIds={item.devices.map((device) => device.id)}
+            label={item.name}
+            onDone={onRescanDone}
+            onError={onRescanError}
+          />
+        ),
+      },
+    ],
+    [visibleColumns, onRescanDone, onRescanError],
   );
 
   return (

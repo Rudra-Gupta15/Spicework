@@ -88,10 +88,11 @@ export const LauncherDetailsModal = ({
 
   const changeCompany = (next: string) => {
     setCompanyName(next);
-    /* City and site belong to the previous company's places. */
-    setCity("");
-    setSite("");
-    setErrors({});
+    /* Deliberately keeps City and Site. They can be filled in any order, and
+       wiping them on a company change would throw away typing that is usually
+       still correct — the company is often picked last, once the person has
+       already written down where the machine sits. */
+    setErrors((current) => ({ ...current, companyName: undefined }));
   };
 
   /* Fallback suggestions: every site the company has, for when the typed city
@@ -170,10 +171,13 @@ export const LauncherDetailsModal = ({
           />
         </Field>
 
-        {/* Type or pick. Most companies have no sites on record yet, so a
-            pick-only control would be a dead end for them; a typed office is
-            registered under the company on download and offered as a
-            suggestion to whoever sets up the next machine there. */}
+        {/* Always typeable, and fillable in any order. Suggestions appear once a
+            company is chosen — most companies have no sites on record yet, so a
+            pick-only control would be a dead end; a typed office is registered
+            under the company on download and offered to whoever sets up the next
+            machine there. Nothing is gated on the company being chosen first:
+            the fields are independent to fill, and only the submit needs all
+            three. */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="City" htmlFor="launcher-city" required error={errors.city}>
             <Input
@@ -182,8 +186,7 @@ export const LauncherDetailsModal = ({
               list="launcher-city-options"
               value={city}
               onChange={(event) => changeCity(event.target.value)}
-              disabled={!companyName}
-              placeholder={companyName ? "e.g. Nagpur" : "Pick a company first"}
+              placeholder="e.g. Nagpur"
               aria-label="City"
               error={errors.city}
             />
@@ -204,8 +207,7 @@ export const LauncherDetailsModal = ({
                 setSite(event.target.value);
                 setErrors((current) => ({ ...current, site: undefined }));
               }}
-              disabled={!city}
-              placeholder={city ? "e.g. Head Office" : "Enter a city first"}
+              placeholder="e.g. Head Office"
               aria-label="Site"
               error={errors.site}
             />
