@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 
+import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 import { SaveFilterMenu } from "@/components/common/SaveFilterMenu";
 import { Button, Input, Select } from "@/components/ui";
 import type { ExportFormat } from "@/lib/exportRows";
@@ -60,6 +61,14 @@ export const SoftwareFilters = ({
       options={INSTALL_SCOPE_OPTIONS}
       value={filters.installScope}
       onChange={(installScope) => onChange({ installScope: installScope as SoftwareInstallScope })}
+    />
+
+    {/* Applications are dated by when they were installed, so that is what a
+        window here narrows — an app with no reported date drops out. */}
+    <DateRangeFilter
+      label="Installed"
+      value={filters.installed}
+      onChange={(installed) => onChange({ installed })}
     />
 
     <div className="ml-auto flex items-center gap-2">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { api, ApiError } from "@/lib/api";
+import { ALL_TIME, isDateRangeActive, matchesDateRange } from "@/lib/dateRange";
 import type {
   SoftwareColumnKey,
   SoftwareFilterState,
@@ -109,13 +110,15 @@ export const DEFAULT_SOFTWARE_FILTERS: SoftwareFilterState = {
   search: "",
   publisher: ALL,
   installScope: ALL,
+  installed: ALL_TIME,
 };
 
 /** True when a filter would narrow the result set. */
 export const isSoftwareFiltered = (filters: SoftwareFilterState): boolean =>
   filters.search.trim() !== "" ||
   filters.publisher !== ALL ||
-  filters.installScope !== ALL;
+  filters.installScope !== ALL ||
+  isDateRangeActive(filters.installed);
 
 /** Publisher options, derived from whatever's actually in the fetched list —
     there's no fixed catalog to draw them from like Hardware's mock data has. */
@@ -125,7 +128,7 @@ export const softwareFilterOptions = (items: SoftwareInventoryItem[]) => ({
 
 export const filterSoftware = (
   items: SoftwareInventoryItem[],
-  { search, publisher, installScope }: SoftwareFilterState,
+  { search, publisher, installScope, installed }: SoftwareFilterState,
 ): SoftwareInventoryItem[] => {
   const term = search.trim().toLowerCase();
 
@@ -133,6 +136,9 @@ export const filterSoftware = (
     if (publisher !== ALL && item.publisher !== publisher) return false;
     if (installScope === "Single Device" && item.installCount !== 1) return false;
     if (installScope === "Multiple Devices" && item.installCount <= 1) return false;
+    /* Install dates come off the scan as `YYYYMMDD`, or "Unknown" for an app
+       that never reported one. */
+    if (!matchesDateRange(item.installDate, installed)) return false;
     if (term === "") return true;
     return `${item.name} ${item.version} ${item.publisher} ${item.installedOn}`
       .toLowerCase()

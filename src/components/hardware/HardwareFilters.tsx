@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 
+import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 import { SaveFilterMenu } from "@/components/common/SaveFilterMenu";
 import { Button, Input, Select } from "@/components/ui";
 import type { HardwareFilterOptions } from "@/data/hardware";
@@ -66,6 +67,14 @@ export const HardwareFilters = ({
       options={options.manufacturer}
       value={filters.manufacturer}
       onChange={(manufacturer) => onChange({ manufacturer })}
+    />
+
+    {/* Devices are dated by when a scan last reached them, so that is what
+        a window here narrows — a machine nothing has scanned drops out. */}
+    <DateRangeFilter
+      label="Last Scan"
+      value={filters.lastScan}
+      onChange={(lastScan) => onChange({ lastScan })}
     />
 
     <div className="ml-auto flex items-center gap-2">

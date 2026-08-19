@@ -20,6 +20,7 @@ import { autoFilterName, createSavedSearch } from "@/data/savedSearches";
 import { useViewColumns } from "@/data/viewPreferences";
 import { CURRENT_COMPANY } from "@/config/company";
 import { ApiError } from "@/lib/api";
+import { describeDateRange, isDateRangeActive } from "@/lib/dateRange";
 import { exportRows, type ExportColumn, type ExportFormat } from "@/lib/exportRows";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import { useToast } from "@/hooks/useToast";
@@ -40,6 +41,8 @@ const filterChips = (filters: HardwareFilterState): string[] => {
   if (filters.type !== "All") chips.push(`Type: ${filters.type}`);
   if (filters.status !== "All") chips.push(`Status: ${filters.status}`);
   if (filters.manufacturer !== "All") chips.push(`Manufacturer: ${filters.manufacturer}`);
+  if (isDateRangeActive(filters.lastScan))
+    chips.push(`Last Scan: ${describeDateRange(filters.lastScan)}`);
   return chips;
 };
 

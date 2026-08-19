@@ -1,3 +1,4 @@
+import { ALL_TIME, isDateRangeActive, matchesDateRange } from "@/lib/dateRange";
 import type {
   HardwareColumnKey,
   HardwareDevice,
@@ -165,6 +166,7 @@ export const DEFAULT_FILTERS: HardwareFilterState = {
   type: ALL,
   status: ALL,
   manufacturer: ALL,
+  lastScan: ALL_TIME,
 };
 
 export const SAVE_FILTER_OPTIONS = [
@@ -178,12 +180,13 @@ export const isFiltered = (filters: HardwareFilterState): boolean =>
   filters.search.trim() !== "" ||
   filters.type !== ALL ||
   filters.status !== ALL ||
-  filters.manufacturer !== ALL;
+  filters.manufacturer !== ALL ||
+  isDateRangeActive(filters.lastScan);
 
 /** Applies the filter bar to the device list. */
 export const filterDevices = (
   devices: HardwareDevice[],
-  { search, type, status, manufacturer }: HardwareFilterState,
+  { search, type, status, manufacturer, lastScan }: HardwareFilterState,
 ): HardwareDevice[] => {
   const term = search.trim().toLowerCase();
 
@@ -192,6 +195,7 @@ export const filterDevices = (
       (type === ALL || device.type === type) &&
       (status === ALL || device.status === status) &&
       (manufacturer === ALL || device.manufacturer === manufacturer) &&
+      matchesDateRange(device.lastScan, lastScan) &&
       (term === "" ||
         `${device.name} ${device.manufacturer} ${device.serialNumber} ${device.osVersion}`
           .toLowerCase()

@@ -21,6 +21,7 @@ import { autoFilterName, createSavedSearch } from "@/data/savedSearches";
 import { useViewColumns } from "@/data/viewPreferences";
 import { CURRENT_COMPANY } from "@/config/company";
 import { ApiError } from "@/lib/api";
+import { describeDateRange, isDateRangeActive } from "@/lib/dateRange";
 import { exportRows, type ExportColumn, type ExportFormat } from "@/lib/exportRows";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import { useToast } from "@/hooks/useToast";
@@ -41,6 +42,8 @@ const filterChips = (filters: SoftwareFilterState): string[] => {
   if (filters.search.trim()) chips.push(`Search: ${filters.search.trim()}`);
   if (filters.publisher !== "All") chips.push(`Publisher: ${filters.publisher}`);
   if (filters.installScope !== "All") chips.push(`Installed On: ${filters.installScope}`);
+  if (isDateRangeActive(filters.installed))
+    chips.push(`Installed: ${describeDateRange(filters.installed)}`);
   return chips;
 };
 

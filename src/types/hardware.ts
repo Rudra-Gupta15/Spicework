@@ -1,3 +1,5 @@
+import type { DateRange } from "@/lib/dateRange";
+
 import type { AssetFieldValues } from "./assetFields";
 
 export type DeviceStatus = "ONLINE" | "OFFLINE" | "MAINTENANCE";
@@ -31,6 +33,8 @@ export interface HardwareFilterState {
   type: string;
   status: string;
   manufacturer: string;
+  /** When the device was last scanned — "Unknown" drops out once set. */
+  lastScan: DateRange;
 }
 
 /** Every value shown on a device's Overview tab, in display order. */

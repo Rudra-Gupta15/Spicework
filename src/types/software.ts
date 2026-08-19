@@ -1,3 +1,5 @@
+import type { DateRange } from "@/lib/dateRange";
+
 /** One device that has a given application+version installed. */
 export interface SoftwareInstall {
   id: string;
@@ -32,4 +34,6 @@ export interface SoftwareFilterState {
   search: string;
   publisher: string;
   installScope: SoftwareInstallScope;
+  /** When the application was installed — "Unknown" drops out once set. */
+  installed: DateRange;
 }
