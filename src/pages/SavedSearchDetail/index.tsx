@@ -10,9 +10,11 @@ import {
   filterResults,
   isResultFiltered,
   resultFilterOptions,
-  resultsForSearch,
   type SearchResultFilterState,
 } from "@/data/savedSearchResults";
+import { runSavedSearch } from "@/data/savedSearchRun";
+import { useDeviceList } from "@/data/deviceApi";
+import { useSoftwareInventory } from "@/data/softwareInventory";
 import { ApiError } from "@/lib/api";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import type { SavedSearch, SavedSearchCategory, SearchResultDevice } from "@/types/savedSearch";
@@ -54,12 +56,18 @@ const SavedSearchDetailPage = () => {
     };
   }, [searchId]);
 
-  /* The result set below is still mocked — running a saved query against
-     live data is a separate piece of work from persisting the search itself. */
+  /* The saved query is re-run against current data rather than replaying the
+     row count stored the day it was saved — a saved search exists to be asked
+     again, and an estate that has grown since should show that it has. */
+  const { devices: allDevices, isLoading: devicesLoading } = useDeviceList();
+  const { items: allSoftware, isLoading: softwareLoading } = useSoftwareInventory();
+
   const results = useMemo(
-    () => (found ? resultsForSearch(found.search) : []),
-    [found],
+    () => (found ? runSavedSearch(found.category, found.search, allDevices, allSoftware) : []),
+    [found, allDevices, allSoftware],
   );
+
+  const resultsLoading = devicesLoading || (found?.category === "Software" && softwareLoading);
 
   /* What the saved query returned, narrowed by the bar above the table. */
   const matches = useMemo(
@@ -193,8 +201,15 @@ const SavedSearchDetailPage = () => {
               {chip}
             </span>
           ))}
+          {/* Live, not the count stored when this was saved — that number goes
+              stale the moment a device is added, and reads as a bug. The saved
+              figure is kept alongside it when the two have drifted. */}
           <span className="ml-1 text-[13px] text-muted">
-            {search.results} results found
+            {resultsLoading
+              ? "Running…"
+              : `${results.length} results found${
+                  results.length === search.results ? "" : ` (was ${search.results} when saved)`
+                }`}
           </span>
         </Card>
 

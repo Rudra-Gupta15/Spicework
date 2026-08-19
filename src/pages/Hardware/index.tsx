@@ -151,6 +151,9 @@ const HardwarePage = () => {
         name,
         scope: "Private",
         filters: chips,
+        /* The bar's own state, so opening this search re-runs it against the
+           estate as it is now rather than replaying a stale row count. */
+        filterState: { ...filters },
         resultsCount: devices.length,
         createdBy: CURRENT_COMPANY.name,
       });

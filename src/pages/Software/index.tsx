@@ -138,6 +138,9 @@ const SoftwarePage = () => {
         name,
         scope: "Private",
         filters: chips,
+        /* The bar's own state, so opening this search re-runs it against the
+           inventory as it is now rather than replaying a stale row count. */
+        filterState: { ...filters },
         resultsCount: matches.length,
         createdBy: CURRENT_COMPANY.name,
       });

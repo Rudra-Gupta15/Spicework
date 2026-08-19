@@ -17,6 +17,8 @@ export interface SavedSearch {
   filters: string;
   /** Full `label: value` chips the query runs with, when known. */
   appliedFilters?: string[];
+  /** The filter bar state it was saved from, replayed to re-run the query. */
+  filterState?: Record<string, unknown>;
   /** Matches the query returned last time it ran. */
   results: number;
   createdBy: string;

@@ -126,6 +126,8 @@ interface RawSavedSearch {
   name: string;
   scope: string;
   applied_filters: string[];
+  /** The filter bar's own state, so the search can be re-run on current data. */
+  filter_state?: Record<string, unknown> | null;
   results_count: number;
   created_by: string;
   created_at: string;
@@ -144,6 +146,7 @@ const toSavedSearch = (raw: RawSavedSearch): SavedSearch => ({
   scope: raw.scope as SavedSearchScope,
   filters: filtersLabel(raw.applied_filters),
   appliedFilters: raw.applied_filters,
+  filterState: raw.filter_state ?? undefined,
   results: raw.results_count,
   createdBy: raw.created_by,
   created: formatDate(raw.created_at),
@@ -184,6 +187,8 @@ export const createSavedSearch = async (
     name: string;
     scope: SavedSearchScope;
     filters: string[];
+    /** Structured filter bar state — what the search actually re-runs with. */
+    filterState?: Record<string, unknown>;
     resultsCount: number;
     createdBy: string;
   },
@@ -193,6 +198,7 @@ export const createSavedSearch = async (
     name: draft.name,
     scope: draft.scope,
     applied_filters: draft.filters,
+    filter_state: draft.filterState ?? null,
     results_count: draft.resultsCount,
     created_by: draft.createdBy,
   });
