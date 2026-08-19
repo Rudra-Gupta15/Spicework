@@ -1,9 +1,13 @@
 import { Badge, DataTable, PRIMARY_CELL, type Column } from "@/components/ui";
+import { SavedSearchHistoryMenu } from "./SavedSearchHistoryMenu";
+import { type SavedSearchGroup } from "@/data/savedSearches";
 import { cn } from "@/lib/cn";
 import type { SavedSearch } from "@/types/savedSearch";
 
 interface SavedSearchTableProps {
-  searches: SavedSearch[];
+  /** Already grouped and paginated by the page — grouping a single page would
+      split a group whose saves straddle a page boundary. */
+  groups: SavedSearchGroup[];
   onView: (search: SavedSearch) => void;
   onEdit: (search: SavedSearch) => void;
   onDelete: (search: SavedSearch) => void;
@@ -15,33 +19,53 @@ const actionBtn =
   "h-8 rounded-md border px-3 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2";
 
 export const SavedSearchTable = ({
-  searches,
+  groups,
   onView,
   onEdit,
   onDelete,
   emptyMessage = "No Filter Search in this category yet.",
 }: SavedSearchTableProps) => {
-  const columns: Column<SavedSearch>[] = [
-    { key: "name", header: "Search Name", cellClassName: PRIMARY_CELL },
+  const columns: Column<SavedSearchGroup>[] = [
+    {
+      key: "name",
+      header: "Search Name",
+      cellClassName: PRIMARY_CELL,
+      render: (group) => group.latest.name,
+    },
     {
       key: "scope",
       header: "Scope",
-      render: (search) => (
-        <Badge tone={search.scope === "Public" ? "info" : "neutral"}>
-          {search.scope}
+      render: ({ latest }) => (
+        <Badge tone={latest.scope === "Public" ? "info" : "neutral"}>
+          {latest.scope}
         </Badge>
       ),
     },
-    { key: "filters", header: "Filters", cellClassName: "text-muted" },
-    { key: "results", header: "Results", cellClassName: "font-semibold" },
-    { key: "created", header: "Created", cellClassName: "text-muted" },
+    {
+      key: "filters",
+      header: "Filters",
+      cellClassName: "text-muted",
+      render: (group) => group.latest.filters,
+    },
+    {
+      key: "results",
+      header: "Results",
+      cellClassName: "font-semibold",
+      render: (group) => group.latest.results,
+    },
+    {
+      key: "created",
+      header: "Created",
+      cellClassName: "text-muted",
+      render: (group) => group.latest.created,
+    },
     {
       key: "actions",
       header: "Actions",
       /* Reserve the hover width so the row does not jump on hover. */
       className: "w-[230px]",
       /* The row itself opens the search, so the actions keep the click. */
-      render: (search) => (
+      render: ({ latest: search, saves }) => (
         <div
           className="flex items-center gap-2"
           onClick={(event) => event.stopPropagation()}
@@ -76,6 +100,11 @@ export const SavedSearchTable = ({
           >
             Delete
           </button>
+          <SavedSearchHistoryMenu
+            saves={saves}
+            onView={onView}
+            onDelete={onDelete}
+          />
         </div>
       ),
     },
@@ -84,9 +113,9 @@ export const SavedSearchTable = ({
   return (
     <DataTable
       columns={columns}
-      rows={searches}
-      rowKey={(search) => search.id}
-      onRowClick={onView}
+      rows={groups}
+      rowKey={(group) => group.latest.id}
+      onRowClick={(group) => onView(group.latest)}
       uppercaseHeaders
       bordered
       emptyMessage={emptyMessage}

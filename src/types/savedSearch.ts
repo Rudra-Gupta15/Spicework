@@ -24,6 +24,8 @@ export interface SavedSearch {
   createdBy: string;
   /** Creation date, already formatted for display. */
   created: string;
+  /** Raw ISO timestamp — a date groups several saves, the time tells them apart. */
+  createdAt: string;
 }
 
 /** One row in a hardware saved-search result set. */

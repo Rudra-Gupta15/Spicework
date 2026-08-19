@@ -150,6 +150,7 @@ const toSavedSearch = (raw: RawSavedSearch): SavedSearch => ({
   results: raw.results_count,
   createdBy: raw.created_by,
   created: formatDate(raw.created_at),
+  createdAt: raw.created_at,
 });
 
 /** GET /api/saved-searches?category= */
@@ -238,4 +239,47 @@ export const useSavedSearches = (category: SavedSearchCategory) => {
   const reload = () => setReloadTick((n) => n + 1);
 
   return { searches, isLoading, error, reload };
+};
+
+/* ── Grouping repeat saves ────────────────────────────────────────────────
+   An unfiltered save is named "All <category> — <today>", so saving twice in
+   a day leaves two rows with nothing on screen to tell them apart. The list
+   shows one row per name and keeps the repeats behind it, newest first. */
+
+export interface SavedSearchGroup {
+  /** What the rows have in common — the name they were all saved under. */
+  key: string;
+  /** The most recent save; what the row itself shows. */
+  latest: SavedSearch;
+  /** Every save under this name, newest first. One entry when it is not a repeat. */
+  saves: SavedSearch[];
+}
+
+const savedAtMs = (search: SavedSearch): number => {
+  const at = Date.parse(search.createdAt);
+  return Number.isNaN(at) ? 0 : at;
+};
+
+export const groupSavedSearches = (searches: SavedSearch[]): SavedSearchGroup[] => {
+  const groups = new Map<string, SavedSearch[]>();
+
+  searches.forEach((search) => {
+    const key = search.name.trim().toLowerCase();
+    groups.set(key, [...(groups.get(key) ?? []), search]);
+  });
+
+  return [...groups.values()]
+    .map((saves) => {
+      const ordered = [...saves].sort((a, b) => savedAtMs(b) - savedAtMs(a));
+      return { key: ordered[0].name, latest: ordered[0], saves: ordered };
+    })
+    .sort((a, b) => savedAtMs(b.latest) - savedAtMs(a.latest));
+};
+
+/** `6:34 PM` — how one save in a group is told apart from the others. */
+export const savedAtLabel = (search: SavedSearch): string => {
+  const at = Date.parse(search.createdAt);
+  return Number.isNaN(at)
+    ? search.created
+    : new Date(at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 };

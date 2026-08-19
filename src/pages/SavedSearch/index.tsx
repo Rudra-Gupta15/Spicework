@@ -24,6 +24,7 @@ import {
   createSavedSearch,
   deleteSavedSearch,
   filterSavedSearches,
+  groupSavedSearches,
   isSavedSearchFiltered,
   useSavedSearches,
   type SavedSearchFilterState,
@@ -66,11 +67,15 @@ const SavedSearchPage = () => {
 
   /* Clamping beats resetting: narrowing the filters can never strand the
      view on a page that no longer exists. */
-  const lastPage = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
+  /* Grouped before paging: one row per name, so the page count reflects rows
+     on screen rather than saves in the database. */
+  const groups = useMemo(() => groupSavedSearches(matches), [matches]);
+
+  const lastPage = Math.max(1, Math.ceil(groups.length / PAGE_SIZE));
   const currentPage = Math.min(page, lastPage);
 
   const visible = useMemo(
-    () => matches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    () => groups.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
     [matches, currentPage],
   );
 
@@ -177,7 +182,7 @@ const SavedSearchPage = () => {
             <Loader label="Loading Filter Search…" />
           ) : (
             <SavedSearchTable
-              searches={visible}
+              groups={visible}
               onView={openSearch}
               onEdit={openSearch}
               onDelete={setPendingDelete}
@@ -193,7 +198,7 @@ const SavedSearchPage = () => {
             className="mt-5"
             page={currentPage}
             pageSize={PAGE_SIZE}
-            totalItems={matches.length}
+            totalItems={groups.length}
             itemLabel="searches"
             onPageChange={setPage}
           />
