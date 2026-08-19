@@ -10,7 +10,13 @@ import {
 } from "@/components/savedSearch/CreateSearchModal";
 import { SavedSearchFilters } from "@/components/savedSearch/SavedSearchFilters";
 import { SavedSearchTable } from "@/components/savedSearch/SavedSearchTable";
-import { Button, Card, ConfirmDialog, Loader, Pagination } from "@/components/ui";
+import {
+  Button,
+  Card,
+  ConfirmDialog,
+  Loader,
+  Pagination,
+} from "@/components/ui";
 import { CURRENT_COMPANY } from "@/config/company";
 import {
   DEFAULT_SAVED_SEARCH_FILTERS,
@@ -29,7 +35,9 @@ import type { SavedSearch, SavedSearchCategory } from "@/types/savedSearch";
 const PAGE_SIZE = 8;
 
 const errorMessage = (error: unknown, fallback: string) =>
-  error instanceof ApiError || error instanceof Error ? error.message : fallback;
+  error instanceof ApiError || error instanceof Error
+    ? error.message
+    : fallback;
 
 const SavedSearchPage = () => {
   const navigate = useNavigate();
@@ -38,7 +46,8 @@ const SavedSearchPage = () => {
 
   /* A filter bar's "Save Filter" button lands here with the category it
      saved to, e.g. navigate("/saved-search", { state: { tab: "Software" } }). */
-  const initialTab = (location.state as { tab?: SavedSearchCategory } | null)?.tab;
+  const initialTab = (location.state as { tab?: SavedSearchCategory } | null)
+    ?.tab;
   const [tab, setTab] = useState<SavedSearchCategory>(initialTab ?? "Hardware");
   const [filters, setFilters] = useState<SavedSearchFilterState>(
     DEFAULT_SAVED_SEARCH_FILTERS,
@@ -119,7 +128,7 @@ const SavedSearchPage = () => {
   return (
     <>
       <Navbar
-        title="Saved Searches"
+        title="Filter Search"
         subtitle="Manage and run your saved search queries across all asset categories."
         actions={
           <>
@@ -142,7 +151,11 @@ const SavedSearchPage = () => {
       />
 
       <div className="mt-6 space-y-5">
-        <DetailTabs tabs={SAVED_SEARCH_TABS} active={tab} onChange={selectTab} />
+        <DetailTabs
+          tabs={SAVED_SEARCH_TABS}
+          active={tab}
+          onChange={selectTab}
+        />
 
         <SavedSearchFilters
           filters={filters}
@@ -153,7 +166,7 @@ const SavedSearchPage = () => {
 
         <Card className="px-5 py-5">
           <h2 className="mb-4 text-base font-bold text-heading">
-            {tab} Saved Searches
+            {tab} Filter Search
           </h2>
 
           {error && (
@@ -161,7 +174,7 @@ const SavedSearchPage = () => {
           )}
 
           {isLoading ? (
-            <Loader label="Loading saved searches…" />
+            <Loader label="Loading Filter Search…" />
           ) : (
             <SavedSearchTable
               searches={visible}
@@ -170,8 +183,8 @@ const SavedSearchPage = () => {
               onDelete={setPendingDelete}
               emptyMessage={
                 isSavedSearchFiltered(filters)
-                  ? "No saved searches match your search."
-                  : `No ${tab} saved searches yet — save one from a filter bar or use Create New.`
+                  ? "No Filter Search match your search."
+                  : `No ${tab} Filter Search yet — save one from a filter bar or use Create New.`
               }
             />
           )}

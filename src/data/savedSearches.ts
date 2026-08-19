@@ -43,7 +43,7 @@ export const isSavedSearchFiltered = (
 ): boolean => filters.search.trim() !== "" || filters.scope !== ALL_SCOPES;
 
 /**
- * Narrows one tab's saved searches. The free-text term is matched against
+ * Narrows one tab's Filter Search. The free-text term is matched against
  * the name, the dimensions the query filters on and who saved it — the three
  * things somebody would have in mind when hunting for one they made earlier.
  */
@@ -84,7 +84,7 @@ export const filtersLabel = (filters: string[]): string =>
     ? "None"
     : filters.map((filter) => filter.split(":")[0].trim()).join(", ");
 
-/** Today, in the "Aug 15, 2026" format saved searches are named/dated with. */
+/** Today, in the "Aug 15, 2026" format Filter Search are named/dated with. */
 export const todayLabel = (): string =>
   new Date().toLocaleDateString("en-US", {
     month: "short",
@@ -96,11 +96,16 @@ export const todayLabel = (): string =>
  * Auto-generated name for a filter saved straight from a list page's filter
  * bar — no naming dialog, so the chips themselves have to say what it is.
  */
-export const autoFilterName = (category: SavedSearchCategory, chips: string[]): string =>
+export const autoFilterName = (
+  category: SavedSearchCategory,
+  chips: string[],
+): string =>
   chips.length === 0 ? `All ${category} — ${todayLabel()}` : chips.join(" · ");
 
 const errorMessage = (error: unknown, fallback: string) =>
-  error instanceof ApiError || error instanceof Error ? error.message : fallback;
+  error instanceof ApiError || error instanceof Error
+    ? error.message
+    : fallback;
 
 interface RawSavedSearch {
   id: string;
@@ -146,8 +151,13 @@ export const fetchSavedSearchById = async (
   id: string,
 ): Promise<{ category: SavedSearchCategory; search: SavedSearch } | null> => {
   try {
-    const raw = await api.get<RawSavedSearch>(`/api/saved-searches/${encodeURIComponent(id)}`);
-    return { category: raw.category as SavedSearchCategory, search: toSavedSearch(raw) };
+    const raw = await api.get<RawSavedSearch>(
+      `/api/saved-searches/${encodeURIComponent(id)}`,
+    );
+    return {
+      category: raw.category as SavedSearchCategory,
+      search: toSavedSearch(raw),
+    };
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;
@@ -157,7 +167,13 @@ export const fetchSavedSearchById = async (
 /** POST /api/saved-searches */
 export const createSavedSearch = async (
   category: SavedSearchCategory,
-  draft: { name: string; scope: SavedSearchScope; filters: string[]; resultsCount: number; createdBy: string },
+  draft: {
+    name: string;
+    scope: SavedSearchScope;
+    filters: string[];
+    resultsCount: number;
+    createdBy: string;
+  },
 ): Promise<SavedSearch> => {
   const raw = await api.post<RawSavedSearch>("/api/saved-searches", {
     category,
@@ -172,7 +188,9 @@ export const createSavedSearch = async (
 
 /** DELETE /api/saved-searches/{id} */
 export const deleteSavedSearch = (id: string) =>
-  api.delete<{ status: string }>(`/api/saved-searches/${encodeURIComponent(id)}`);
+  api.delete<{ status: string }>(
+    `/api/saved-searches/${encodeURIComponent(id)}`,
+  );
 
 export const useSavedSearches = (category: SavedSearchCategory) => {
   const [searches, setSearches] = useState<SavedSearch[]>([]);
@@ -187,7 +205,8 @@ export const useSavedSearches = (category: SavedSearchCategory) => {
         if (!cancelled) setSearches(data);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(errorMessage(err, "Could not load saved searches."));
+        if (!cancelled)
+          setError(errorMessage(err, "Could not load Filter Search."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

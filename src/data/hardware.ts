@@ -198,3 +198,94 @@ export const filterDevices = (
           .includes(term)),
   );
 };
+
+
+/* --- writes ------------------------------------------------------- */
+
+/**
+ * The inventory is a plain module-level array, the same way the admin area
+ * holds its sites and users: a create or an edit mutates it in place, so
+ * every screen that reads it on mount picks the change up without a store in
+ * between. A bulk upload writes through these two and nothing else.
+ */
+
+/** The serial number is an asset identity, so it is what a lookup goes by. */
+export const findDeviceBySerial = (
+  serialNumber: string,
+): HardwareDevice | undefined => {
+  const wanted = serialNumber.trim().toLowerCase();
+  return HARDWARE_DEVICES.find(
+    (device) => device.serialNumber.trim().toLowerCase() === wanted,
+  );
+};
+
+/** `SN-DL5420-3891` becomes `sn-dl5420-3891`, with collisions numbered off. */
+const deviceIdFor = (serialNumber: string): string => {
+  const base =
+    serialNumber
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "asset";
+
+  let id = base;
+  let suffix = 2;
+
+  while (HARDWARE_DEVICES.some((device) => device.id === id)) {
+    id = `${base}-${suffix}`;
+    suffix += 1;
+  }
+
+  return id;
+};
+
+/** Stands in for anything only a scan can tell us. */
+const UNKNOWN = "—";
+
+/** What a row without an owner becomes — the value the table already uses. */
+export const UNASSIGNED = "Unassigned";
+
+/** Everything a caller has to say to put an asset on the books. */
+export type NewDevice = Pick<
+  HardwareDevice,
+  "name" | "type" | "manufacturer" | "serialNumber" | "location" | "assignedTo"
+> &
+  Partial<Pick<HardwareDevice, "fields">>;
+
+/**
+ * An asset entered by hand has never been contacted by the agent, so it
+ * lands offline with nothing scanned on it — the first scan fills the rest
+ * in. Newest first, so somebody who has just uploaded a file sees it.
+ */
+export const addDevice = (draft: NewDevice): HardwareDevice => {
+  const device: HardwareDevice = {
+    ...draft,
+    id: deviceIdFor(draft.serialNumber),
+    status: "OFFLINE",
+    lastScan: "Never",
+    ipAddress: UNKNOWN,
+    osVersion: UNKNOWN,
+  };
+
+  HARDWARE_DEVICES.unshift(device);
+  return device;
+};
+
+/**
+ * Applies what a caller actually said. Anything left undefined is left
+ * alone, so an update carries only the columns its file bothered to include
+ * rather than clearing the rest of the record on its way past.
+ */
+export const updateDevice = (
+  id: string,
+  changes: Partial<Omit<HardwareDevice, "id">>,
+): HardwareDevice | undefined => {
+  const device = HARDWARE_DEVICES.find((entry) => entry.id === id);
+  if (!device) return undefined;
+
+  Object.entries(changes).forEach(([key, value]) => {
+    if (value !== undefined)
+      (device as unknown as Record<string, unknown>)[key] = value;
+  });
+
+  return device;
+};

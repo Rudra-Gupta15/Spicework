@@ -29,7 +29,7 @@ export const SavedSearchFilters = ({
       value={filters.search}
       onChange={(event) => onChange({ search: event.target.value })}
       placeholder="Search by name, filter or who saved it..."
-      aria-label="Search saved searches"
+      aria-label="Search Filter Search"
       leading={<Search className="h-4 w-4" strokeWidth={1.9} />}
       size="sm"
       containerClassName="w-full sm:w-auto sm:min-w-[150px] sm:max-w-[300px] sm:flex-1"

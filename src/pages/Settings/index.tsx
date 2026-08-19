@@ -1,14 +1,21 @@
 import { useRef, useState } from "react";
-import { Plus, UploadCloud } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { AgentConfigSettings } from "@/components/settings/AgentConfigSettings";
 import { AssetFieldSettings } from "@/components/settings/AssetFieldSettings";
+import { BulkUploadAssetsModal } from "@/components/settings/BulkUploadAssetsModal";
+import {
+  BulkUploadMenu,
+  type BulkUploadKind,
+} from "@/components/settings/BulkUploadMenu";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { SecuritySettings } from "@/components/settings/SecuritySettings";
 import { SettingsNav } from "@/components/settings/SettingsNav";
 import { UserManagement } from "@/components/settings/UserManagement";
 import { Button } from "@/components/ui";
 import type { SettingsCategory } from "@/data/settings";
+import type { ImportSummary } from "@/types/bulkImport";
+import { useToast } from "@/hooks/useToast";
 
 /** Header title + subtitle per category. */
 const META: Record<SettingsCategory, { title: string; subtitle: string }> = {
@@ -37,10 +44,12 @@ const META: Record<SettingsCategory, { title: string; subtitle: string }> = {
 };
 
 const SettingsPage = () => {
+  const toast = useToast();
   const [category, setCategory] = useState<SettingsCategory>("General");
   const [saved, setSaved] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [bulkOpen, setBulkOpen] = useState(false);
+  /* Which of the two uploads is open, if either. */
+  const [bulkKind, setBulkKind] = useState<BulkUploadKind | null>(null);
 
   /* General owns its own fields; it hands its commit back through this so
      the header button can fire it. */
@@ -54,6 +63,27 @@ const SettingsPage = () => {
     saveGeneral.current?.();
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1800);
+  };
+
+  /* The upload writes to the inventory itself, a row at a time, and says
+     what it did once it has finished — the page only has to report it. */
+  const assetsImported = (summary: ImportSummary) => {
+    const written = summary.created + summary.updated;
+    const left = summary.invalid + summary.failed;
+
+    toast({
+      tone: written > 0 ? "success" : "danger",
+      title:
+        written > 0
+          ? `${summary.created} added · ${summary.updated} updated`
+          : "Nothing was imported",
+      description:
+        written > 0
+          ? left > 0
+            ? `${left} ${left === 1 ? "row was" : "rows were"} left out — download the error report to fix and re-upload.`
+            : "New assets stay Offline until an agent scan reaches them."
+          : "Every row in that file was left out.",
+    });
   };
 
   return (
@@ -76,13 +106,7 @@ const SettingsPage = () => {
           )}
           {category === "User Management" && (
             <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="outline"
-                leftIcon={<UploadCloud className="h-4 w-4" strokeWidth={2.1} />}
-                onClick={() => setBulkOpen(true)}
-              >
-                Bulk Upload
-              </Button>
+              <BulkUploadMenu onPick={setBulkKind} />
               <Button
                 variant="brand"
                 leftIcon={<Plus className="h-4 w-4" strokeWidth={2.4} />}
@@ -92,6 +116,9 @@ const SettingsPage = () => {
               </Button>
             </div>
           )}
+          {/* Assets are uploaded against the owners, locations and custom
+              fields this screen defines, so the button belongs here too. */}
+          {category === "Asset Fields" && <BulkUploadMenu onPick={setBulkKind} />}
         </header>
 
         <div className="mt-6">
@@ -100,8 +127,8 @@ const SettingsPage = () => {
             <UserManagement
               inviteOpen={inviteOpen}
               onCloseInvite={() => setInviteOpen(false)}
-              bulkOpen={bulkOpen}
-              onCloseBulk={() => setBulkOpen(false)}
+              bulkOpen={bulkKind === "users"}
+              onCloseBulk={() => setBulkKind(null)}
             />
           )}
           {/* Adding an owner or a location is done from inside the panel's
@@ -111,6 +138,15 @@ const SettingsPage = () => {
           {category === "Agent Config" && <AgentConfigSettings />}
         </div>
       </div>
+
+      {/* Assets belong to the estate rather than to any settings category,
+          so the upload lives on the page instead of inside a panel. */}
+      {bulkKind === "assets" && (
+        <BulkUploadAssetsModal
+          onClose={() => setBulkKind(null)}
+          onFinished={assetsImported}
+        />
+      )}
     </div>
   );
 };

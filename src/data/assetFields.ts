@@ -1,4 +1,5 @@
 import type {
+  AssetCustomField,
   AssetFieldEntry,
   AssetFieldSpec,
   AssetFieldValues,
@@ -178,6 +179,38 @@ export const ASSET_LOCATIONS: AssetLocation[] = [
   },
 ];
 
+/* ── custom fields ─────────────────────────────────────────────────── */
+
+/**
+ * What this organization tracks on an asset beyond the fields the product
+ * ships with. Seeded with the three that come up on every estate; the list
+ * is a plain array like the two above, so it grows the same way.
+ */
+export const ASSET_CUSTOM_FIELDS: AssetCustomField[] = [
+  {
+    id: "custom-asset-tag",
+    label: "Asset Tag",
+    type: "text",
+    description: "The sticker on the case — the number an audit counts by",
+    scope: "Global",
+  },
+  {
+    id: "custom-cost-centre",
+    label: "Cost Centre",
+    type: "text",
+    description: "Which budget the asset is charged to",
+    ...OWNED_BY_ORG,
+  },
+  {
+    id: "custom-department",
+    label: "Department",
+    type: "select",
+    options: ["IT", "Finance", "Operations", "Sales", "Support", "Engineering"],
+    description: "The team the asset sits with, whoever holds it",
+    ...OWNED_BY_ORG,
+  },
+];
+
 /* ── writes ────────────────────────────────────────────────────────── */
 
 /** Next free number in an `owner-3` / `location-7` style id. */
@@ -267,6 +300,29 @@ export const locationsInScope = (
   organizationId: string = CURRENT_ORGANIZATION_ID,
 ): AssetLocation[] => inScope(ASSET_LOCATIONS, organizationId);
 
+export const customFieldsInScope = (
+  organizationId: string = CURRENT_ORGANIZATION_ID,
+): AssetCustomField[] => inScope(ASSET_CUSTOM_FIELDS, organizationId);
+
+/**
+ * A file names an owner or a location the way a person would, so the name is
+ * what has to be matched back to the entry — case and spacing forgiven,
+ * because a spreadsheet is typed by hand.
+ */
+const byName = <T extends AssetFieldEntry & { name: string }>(
+  entries: T[],
+  name: string,
+): T | undefined => {
+  const wanted = name.trim().toLowerCase();
+  return entries.find((entry) => entry.name.trim().toLowerCase() === wanted);
+};
+
+export const findOwnerByName = (name: string): AssetOwner | undefined =>
+  byName(ownersInScope(), name);
+
+export const findLocationByName = (name: string): AssetLocation | undefined =>
+  byName(locationsInScope(), name);
+
 /** Owner dropdown for an asset form — blank first, then who is available. */
 export const ownerPickerOptions = (
   organizationId?: string,
@@ -331,6 +387,7 @@ export const blankAssetFields = (): AssetFieldValues => ({
   lifecycleStatus: DEFAULT_LIFECYCLE_STATUS,
   purchase: blankPurchase(),
   warranty: blankWarranty(),
+  custom: {},
 });
 
 /** Rows for the read-only reference tables on the settings screen. */

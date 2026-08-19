@@ -33,10 +33,29 @@ export interface AssetLocation extends AssetFieldEntry {
   description: string;
 }
 
+/**
+ * A column the organization added for itself — an asset tag scheme, a cost
+ * centre, whatever this estate tracks that the product does not ship with.
+ * It carries a type so a bulk upload can hold a file to it the same way it
+ * holds one to a purchase date.
+ */
+export type AssetCustomFieldType = "text" | "number" | "date" | "select";
+
+export interface AssetCustomField extends AssetFieldEntry {
+  label: string;
+  type: AssetCustomFieldType;
+  /** The values allowed — `select` only. */
+  options?: string[];
+  /** Fine print under the control on the asset form. */
+  description: string;
+}
+
 /** What the owner dialog collects — the id is assigned on save. */
 export type AssetOwnerDraft = Omit<AssetOwner, "id">;
 
 export type AssetLocationDraft = Omit<AssetLocation, "id">;
+
+export type AssetCustomFieldDraft = Omit<AssetCustomField, "id">;
 
 /**
  * Fixed by the product, not by the organization — the settings screen shows
@@ -79,6 +98,8 @@ export interface AssetFieldValues {
   lifecycleStatus: LifecycleStatus;
   purchase: AssetPurchaseInfo;
   warranty: AssetWarrantyInfo;
+  /** The organization's own columns, keyed by custom field id. */
+  custom: Record<string, string>;
 }
 
 /** One row of the read-only "what this field is" reference table. */

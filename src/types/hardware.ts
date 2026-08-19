@@ -1,3 +1,5 @@
+import type { AssetFieldValues } from "./assetFields";
+
 export type DeviceStatus = "ONLINE" | "OFFLINE" | "MAINTENANCE";
 
 export interface HardwareDevice {
@@ -12,10 +14,16 @@ export interface HardwareDevice {
   osVersion: string;
   location: string;
   assignedTo: string;
+  /**
+   * What a person filled in rather than the agent — owner, location,
+   * lifecycle, purchase, warranty and the organization's own columns. Absent
+   * on a device nobody has recorded anything against yet.
+   */
+  fields?: AssetFieldValues;
 }
 
 /** Every column the inventory table can show. */
-export type HardwareColumnKey = Exclude<keyof HardwareDevice, "id">;
+export type HardwareColumnKey = Exclude<keyof HardwareDevice, "id" | "fields">;
 
 /** Active values of the hardware filter bar. */
 export interface HardwareFilterState {

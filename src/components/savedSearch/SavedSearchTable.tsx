@@ -19,7 +19,7 @@ export const SavedSearchTable = ({
   onView,
   onEdit,
   onDelete,
-  emptyMessage = "No saved searches in this category yet.",
+  emptyMessage = "No Filter Search in this category yet.",
 }: SavedSearchTableProps) => {
   const columns: Column<SavedSearch>[] = [
     { key: "name", header: "Search Name", cellClassName: PRIMARY_CELL },

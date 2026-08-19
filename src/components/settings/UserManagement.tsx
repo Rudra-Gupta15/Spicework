@@ -15,11 +15,10 @@ import {
   ADMIN_ROLE_FILTER_OPTIONS,
   ADMIN_USERS,
   addUser,
-  importUsers,
   type AdminUserDraft,
-  type UserImportRow,
 } from "@/data/admin";
 import type { AdminUser } from "@/types/admin";
+import type { ImportSummary } from "@/types/bulkImport";
 
 import { BulkUploadUsersModal } from "./BulkUploadUsersModal";
 import { InviteMemberModal } from "./InviteMemberModal";
@@ -125,18 +124,15 @@ export const UserManagement = ({
     [onCloseInvite],
   );
 
-  const bulkImport = useCallback(
-    (rows: UserImportRow[]) => {
-      /* The modal has already told the user which rows will be left out, so
-         the ones that failed are dropped here without further ceremony. */
-      const added = importUsers(rows);
-      if (added.length > 0) setRoster((current) => [...added, ...current]);
+  /* The upload writes straight to the shared roster a row at a time and says
+     what it did; the screen re-reads it rather than being handed the rows,
+     so an update shows the changed record and not a second copy of it. */
+  const bulkFinished = useCallback((summary: ImportSummary) => {
+    if (summary.created + summary.updated === 0) return;
 
-      setPage(1);
-      onCloseBulk();
-    },
-    [onCloseBulk],
-  );
+    setRoster([...ADMIN_USERS]);
+    setPage(1);
+  }, []);
 
   return (
     <div className="space-y-5">
@@ -193,7 +189,7 @@ export const UserManagement = ({
       )}
 
       {bulkOpen && (
-        <BulkUploadUsersModal onClose={onCloseBulk} onImport={bulkImport} />
+        <BulkUploadUsersModal onClose={onCloseBulk} onFinished={bulkFinished} />
       )}
     </div>
   );
