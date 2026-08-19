@@ -27,7 +27,6 @@ export const fetchServerInfo = () => api.get<ServerInfo>("/api/server-info");
 export const LOCAL_HOST = "127.0.0.1";
 
 export const LAUNCHERS: { id: LauncherId; label: string }[] = [
-  { id: "win-exe", label: "Windows Binary (.exe Launcher)" },
   { id: "win-vbs", label: "Windows VBS (.vbs)" },
   { id: "macos", label: "macOS Launcher (.command)" },
   { id: "linux", label: "Linux Launcher (.sh)" },
@@ -127,14 +126,12 @@ export const daemonSnippets = (config: AgentConfig): CommandSnippet[] => {
 
 /** Endpoint per launcher format — each returns the actual runnable file. */
 const LAUNCHER_ENDPOINT: Record<LauncherId, string> = {
-  "win-exe": "/api/download-exe-launcher",
   "win-vbs": "/api/download-vbs-launcher",
   macos: "/api/download-mac-launcher",
   linux: "/api/download-linux-launcher",
 };
 
 const LAUNCHER_FALLBACK_NAME: Record<LauncherId, string> = {
-  "win-exe": "RunAudit_Windows.exe",
   "win-vbs": "RunAudit_Windows.vbs",
   macos: "RunAudit_Mac.command",
   linux: "RunAudit_Linux.sh",

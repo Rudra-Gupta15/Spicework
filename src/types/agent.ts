@@ -7,7 +7,7 @@ export interface AgentConfig {
 }
 
 /** Downloadable launcher formats, one per host platform. */
-export type LauncherId = "win-exe" | "win-vbs" | "macos" | "linux";
+export type LauncherId = "win-vbs" | "macos" | "linux";
 
 /**
  * Where the machine about to be audited belongs. Collected before a launcher
