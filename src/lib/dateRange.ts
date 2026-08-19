@@ -122,6 +122,16 @@ export const parseReportedDate = (raw: string): number | undefined => {
   if (packed)
     return dayStart(Number(packed[1]), Number(packed[2]), Number(packed[3]));
 
+  /* `1781004400` — a Unix timestamp in seconds. A handful of installers record
+     one instead of a date (Riot Vanguard is the one in this estate), and left
+     unread those rows drop out of every window as if they had no date at all.
+     Ten digits cannot collide with the packed form above, which is eight. */
+  const epoch = /^\d{10}$/.exec(value);
+  if (epoch) {
+    const at = new Date(Number(value) * 1000);
+    return dayStart(at.getFullYear(), at.getMonth() + 1, at.getDate());
+  }
+
   /* `2026-08-14`, with or without a time after it. */
   const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ].*)?$/.exec(value);
   if (iso) return dayStart(Number(iso[1]), Number(iso[2]), Number(iso[3]));
