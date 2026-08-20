@@ -54,6 +54,8 @@ export interface ReportPreview {
   category: ReportCategory;
   title: string;
   subtitle: string;
+  /** The system this report is about — names its rows in a combined export. */
+  subject: string;
   generatedOn: string;
   summary: ReportSummaryField[];
   sections: ReportSection[];

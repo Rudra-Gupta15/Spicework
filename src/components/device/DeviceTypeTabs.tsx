@@ -30,7 +30,6 @@ export const DeviceTypeTabs = ({ value, onChange }: DeviceTypeTabsProps) => (
           onClick={() => onChange(id)}
           className={cn(
             "flex shrink-0 items-center gap-2 border-b-2 pb-3 text-sm whitespace-nowrap transition-colors",
-            "focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
             isActive
               ? "border-brand font-semibold text-brand"
               : "border-transparent text-muted hover:text-heading",

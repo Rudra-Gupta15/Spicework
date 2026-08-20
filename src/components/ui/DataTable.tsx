@@ -4,7 +4,8 @@ import { cn } from "@/lib/cn";
 
 export interface Column<T> {
   key: string;
-  header: string;
+  /** Usually a label; a node when the header carries a control of its own. */
+  header: ReactNode;
   /** Defaults to `String(row[key])` when omitted. */
   render?: (row: T, index: number) => ReactNode;
   align?: "left" | "right" | "center";
@@ -113,8 +114,7 @@ export const DataTable = <T,>({
               }
               className={cn(
                 "group border-b border-line last:border-0 hover:bg-canvas/60",
-                onRowClick &&
-                  "cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand",
+                onRowClick && "cursor-pointer",
               )}
             >
               {columns.map((column) => (

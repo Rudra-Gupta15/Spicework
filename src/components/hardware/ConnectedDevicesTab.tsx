@@ -122,7 +122,6 @@ export const ConnectedDevicesTab = ({ devices }: ConnectedDevicesTabProps) => {
               onClick={() => setFilter(chip.key as ConnectedVia | typeof ALL)}
               className={cn(
                 "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                 isActive
                   ? "border-transparent bg-navy-900 text-white"
                   : "border-line bg-surface text-heading hover:bg-canvas",

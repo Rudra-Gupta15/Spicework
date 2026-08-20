@@ -10,6 +10,8 @@ interface CheckboxProps {
   disabled?: boolean;
   /** `row` tints the whole row when checked — used in pickers. */
   variant?: "plain" | "row";
+  /** Keeps `label` for screen readers only — for box-in-a-table-cell use. */
+  hideLabel?: boolean;
   className?: string;
 }
 
@@ -19,6 +21,7 @@ export const Checkbox = ({
   label,
   disabled = false,
   variant = "plain",
+  hideLabel = false,
   className,
 }: CheckboxProps) => {
   const id = useId();
@@ -27,7 +30,8 @@ export const Checkbox = ({
     <label
       htmlFor={id}
       className={cn(
-        "flex cursor-pointer items-center gap-2.5 text-sm transition-colors select-none",
+        "flex cursor-pointer items-center text-sm transition-colors select-none",
+        hideLabel ? "gap-0" : "gap-2.5",
         variant === "row" && "rounded-md px-3 py-2.5",
         variant === "row" &&
           (checked
@@ -59,7 +63,7 @@ export const Checkbox = ({
         {checked && <Check className="h-3 w-3" strokeWidth={3.4} />}
       </span>
 
-      <span className="truncate">{label}</span>
+      <span className={hideLabel ? "sr-only" : "truncate"}>{label}</span>
     </label>
   );
 };

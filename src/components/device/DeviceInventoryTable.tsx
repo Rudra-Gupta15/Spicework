@@ -41,7 +41,7 @@ export const DeviceInventoryTable = ({
           <button
             type="button"
             onClick={() => onViewHistory(device)}
-            className="inline-flex items-center gap-2 rounded-md text-[13px] font-semibold text-brand transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="inline-flex items-center gap-2 rounded-md text-[13px] font-semibold text-brand transition-colors hover:underline"
           >
             <Eye className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
             View History

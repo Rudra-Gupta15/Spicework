@@ -2,15 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { DetailTabs } from "@/components/common/DetailTabs";
 import { Navbar } from "@/components/layout/Navbar";
+import { ReportDownloadMenu } from "@/components/report/ReportDownloadMenu";
 import { ReportFilters } from "@/components/report/ReportFilters";
 import { ReportPreviewPanel } from "@/components/report/ReportPreviewPanel";
 import { ReportSystemTable } from "@/components/report/ReportSystemTable";
-import { Card, Loader, Pagination } from "@/components/ui";
+import { Button, Card, Loader, Pagination, Spinner } from "@/components/ui";
 import { useDeviceList } from "@/data/deviceApi";
 import {
   DEFAULT_REPORT_FILTERS,
   REPORT_CATEGORIES,
   buildReport,
+  buildReports,
   fetchRecordCounts,
   filterReportSystems,
   isReportFiltered,
@@ -19,8 +21,9 @@ import {
   reportSystems,
   setReportScope,
 } from "@/data/report";
+import { useToast } from "@/hooks/useToast";
 import { ApiError } from "@/lib/api";
-import { downloadReport } from "@/lib/reportExport";
+import { downloadReport, downloadReports } from "@/lib/reportExport";
 import type { HardwareDevice } from "@/types/hardware";
 import type {
   ReportCategory,
@@ -43,6 +46,7 @@ const errorMessage = (error: unknown, fallback: string) =>
  */
 const ReportPage = () => {
   const { devices: allDevices, isLoading: devicesLoading, error: devicesError } = useDeviceList();
+  const toast = useToast();
 
   const [category, setCategory] = useState<ReportCategory>("Hardware");
   const [selectedDevice, setSelectedDevice] = useState<HardwareDevice | null>(null);
@@ -57,11 +61,19 @@ const ReportPage = () => {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string>();
 
+  /* Systems ticked for a combined download. Held by id rather than by row so
+     the ticks survive paging, filtering and the record-count refresh — the
+     point of the feature is picking a few machines out of the whole estate,
+     which rarely sit on one page. */
+  const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+
   /* Switching tab re-runs the whole flow from its first step. */
   const handleCategoryChange = useCallback((next: ReportCategory) => {
     setCategory(next);
     setSelectedDevice(null);
     setFilters(DEFAULT_REPORT_FILTERS);
+    setCheckedIds(new Set());
     setPage(1);
   }, []);
 
@@ -142,6 +154,87 @@ const ReportPage = () => {
     [allDevices],
   );
 
+  /* --- picking several systems ------------------------------------- */
+
+  const checkSystem = useCallback((id: string, checked: boolean) => {
+    setCheckedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  /* The header box works on the page in view, so it never silently ticks
+     systems the filters have hidden. */
+  const checkPage = useCallback(
+    (checked: boolean) => {
+      setCheckedIds((current) => {
+        const next = new Set(current);
+        visible.forEach((system) => {
+          if (checked) next.add(system.id);
+          else next.delete(system.id);
+        });
+        return next;
+      });
+    },
+    [visible],
+  );
+
+  const clearChecked = useCallback(() => setCheckedIds(new Set()), []);
+
+  /* Drawn from `matches` rather than the raw ticks, so the count on the bar
+     is exactly what the file will contain: a system the filters have since
+     hidden is left out, and comes back the moment the filter is cleared.
+     Reading from the narrowed list also puts the file in table order rather
+     than the order the boxes happened to be ticked in. */
+  const checkedDevices = useMemo(
+    () =>
+      matches
+        .filter((system) => checkedIds.has(system.id))
+        .map((system) => allDevices.find((device) => device.id === system.id))
+        .filter((device): device is HardwareDevice => Boolean(device)),
+    [matches, checkedIds, allDevices],
+  );
+
+  const handleBulkDownload = useCallback(
+    async (format: ReportFormat) => {
+      if (checkedDevices.length === 0 || bulkLoading) return;
+
+      setBulkLoading(true);
+      try {
+        const { reports, failed } = await buildReports(category, checkedDevices);
+
+        if (reports.length === 0) {
+          toast({
+            tone: "danger",
+            title: "Could not generate that report.",
+            description: "None of the picked systems returned an audit.",
+          });
+          return;
+        }
+
+        downloadReports(reports, format);
+
+        toast({
+          tone: failed.length ? "info" : "success",
+          title: `${reports.length} ${reports.length === 1 ? "system" : "systems"} downloaded.`,
+          description: failed.length
+            ? `Left out — no audit available: ${failed.join(", ")}`
+            : undefined,
+        });
+      } catch (error: unknown) {
+        toast({
+          tone: "danger",
+          title: errorMessage(error, "Could not generate that report."),
+        });
+      } finally {
+        setBulkLoading(false);
+      }
+    },
+    [category, checkedDevices, bulkLoading, toast],
+  );
+
   useEffect(() => {
     // Nothing to build without a selected device — and the panel that would
     // show `report` is only rendered while one is selected anyway, so there's
@@ -218,8 +311,8 @@ const ReportPage = () => {
                   {category} Reports
                 </h2>
                 <p className="mt-1 text-[13px] text-muted">
-                  Select a system to preview its {category.toLowerCase()} report,
-                  then download it as PDF or Excel.
+                  Select a system to preview its {category.toLowerCase()} report —
+                  or tick several and download them together as PDF or Excel.
                 </p>
               </div>
 
@@ -244,6 +337,34 @@ const ReportPage = () => {
               <p className="mt-3 text-[13px] text-status-offline">{devicesError}</p>
             )}
 
+            {/* Only worth the room once something is ticked — an empty bar
+                above every list would be a permanent reminder of a feature
+                most visits never use. */}
+            {checkedDevices.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-100 bg-brand-50 px-4 py-3">
+                <p className="text-[13px] font-semibold text-heading">
+                  {checkedDevices.length}{" "}
+                  {checkedDevices.length === 1 ? "system" : "systems"} selected
+                  {bulkLoading && (
+                    <span className="ml-2 inline-flex items-center gap-2 font-normal text-muted">
+                      <Spinner size="sm" />
+                      Generating…
+                    </span>
+                  )}
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" onClick={clearChecked}>
+                    Clear
+                  </Button>
+                  <ReportDownloadMenu
+                    disabled={bulkLoading}
+                    onDownload={(format) => void handleBulkDownload(format)}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="mt-4">
               {devicesLoading ? (
                 <Loader label="Loading device inventory…" />
@@ -252,6 +373,9 @@ const ReportPage = () => {
                   systems={visibleWithCounts}
                   category={category}
                   onSelect={openReport}
+                  checkedIds={checkedIds}
+                  onCheck={checkSystem}
+                  onCheckAll={checkPage}
                 />
               )}
             </div>

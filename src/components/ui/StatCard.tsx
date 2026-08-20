@@ -60,7 +60,7 @@ export const StatCard = ({ metric }: { metric: StatMetric }) => {
         type="button"
         onClick={onClick}
         aria-label={`${label}: ${value}`}
-        className="block w-full rounded-xl text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        className="block w-full rounded-xl text-left"
       >
         {tile}
       </button>
@@ -73,7 +73,7 @@ export const StatCard = ({ metric }: { metric: StatMetric }) => {
     <Link
       to={to}
       aria-label={`${label}: ${value}`}
-      className="block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      className="block rounded-xl"
     >
       {tile}
     </Link>

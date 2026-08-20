@@ -31,7 +31,6 @@ export const DetailTabs = <T extends string>({
             onClick={() => onChange(tab)}
             className={cn(
               "shrink-0 border-b-2 pb-3 text-sm whitespace-nowrap transition-colors",
-              "focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
               isActive
                 ? "border-brand font-semibold text-heading"
                 : "border-transparent text-muted hover:text-heading",

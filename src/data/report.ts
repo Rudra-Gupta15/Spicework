@@ -203,6 +203,7 @@ const buildHardwareReport = (
     category: "Hardware",
     title: `Hardware Report — ${device.name}`,
     subtitle: `${device.manufacturer} · ${device.type}${assetTag ? ` · Asset ${assetTag}` : ""}`,
+    subject: device.name,
     generatedOn: generatedOn(),
     summary: [
       { label: "Device Name", value: device.name },
@@ -300,6 +301,7 @@ const buildSoftwareReport = (
     category: "Software",
     title: `Software Report — ${device.name}`,
     subtitle: `${apps.length} applications installed · ${publishers.length} publishers`,
+    subject: device.name,
     generatedOn: generatedOn(),
     summary: [
       { label: "Device Name", value: device.name },
@@ -364,4 +366,48 @@ export const buildReport = async (
   return category === "Software"
     ? buildSoftwareReport(device, detail)
     : buildHardwareReport(device, detail, asset?.asset_tag ?? "");
+};
+
+/* --- reporting on several systems at once --------------------------- */
+
+/** How many devices are audited at a time — each one is two fetches. */
+const BUILD_BATCH = 5;
+
+export interface BulkReportResult {
+  reports: ReportPreview[];
+  /** Names of the systems whose audit could not be read. */
+  failed: string[];
+}
+
+/**
+ * Builds one report per picked system. A device that cannot be reached is
+ * collected in `failed` rather than sinking the whole download — the rest
+ * of the selection is still worth having.
+ */
+export const buildReports = async (
+  category: ReportCategory,
+  devices: HardwareDevice[],
+): Promise<BulkReportResult> => {
+  const result: BulkReportResult = { reports: [], failed: [] };
+
+  for (let start = 0; start < devices.length; start += BUILD_BATCH) {
+    const batch = await Promise.all(
+      devices.slice(start, start + BUILD_BATCH).map(
+        async (device): Promise<{ report?: ReportPreview; failed?: string }> => {
+          try {
+            return { report: await buildReport(category, device) };
+          } catch {
+            return { failed: device.name };
+          }
+        },
+      ),
+    );
+
+    batch.forEach(({ report, failed }) => {
+      if (report) result.reports.push(report);
+      if (failed) result.failed.push(failed);
+    });
+  }
+
+  return result;
 };
