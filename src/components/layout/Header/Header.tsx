@@ -1,5 +1,6 @@
 import { Menu } from "lucide-react";
 
+import { APP_NAME } from "@/config/app";
 import { CURRENT_COMPANY } from "@/config/company";
 import { useLogout } from "@/hooks/useLogout";
 
@@ -23,6 +24,18 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
       >
         <Menu className="h-5 w-5" strokeWidth={2} />
       </button>
+
+      {/* The left of the bar was empty. The welcome is the one thing that
+          belongs there — the page's own title is rendered by `Navbar` inside
+          the content area, so repeating it here would only say the same thing
+          twice. The account is named on the right, so the welcome names the
+          product instead of repeating it. Held back on a phone, where the row
+          has just enough room for the menu button and the account. */}
+      <div className="hidden min-w-0 sm:block">
+        <p className="truncate text-sm leading-tight font-semibold text-heading">
+          Welcome to {APP_NAME}
+        </p>
+      </div>
 
       <div className="ml-auto">
         <ProfileMenu company={CURRENT_COMPANY} onLogout={logout} />

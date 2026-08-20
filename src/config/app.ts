@@ -1,3 +1,6 @@
+/** The product's own name — what the header welcomes you into. */
+export const APP_NAME = "Spicework";
+
 /** Footer shown at the bottom of the authenticated app. */
 export const APP_FOOTER = {
   copyright: `© ${new Date().getFullYear()} Spicework Technologies Inc. All rights reserved.`,
