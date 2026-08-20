@@ -40,6 +40,13 @@ export const NAVIGATION: NavItem[] = [
         path: "/inventory/software",
         subtitle: "Track installed software, licenses and renewals.",
       },
+      {
+        id: "device",
+        label: "Device",
+        path: "/inventory/device",
+        subtitle:
+          "Manage and monitor all registered devices across your network.",
+      },
     ],
   },
   {

@@ -22,6 +22,7 @@ import AdminUsersPage from "@/pages/AdminUsers";
 import AgentPage from "@/pages/Agent";
 import AuthComingSoon from "@/pages/AuthComingSoon";
 import DashboardPage from "@/pages/Dashboard";
+import DevicePage from "@/pages/Device";
 import HardwarePage from "@/pages/Hardware";
 import HardwareDetailPage from "@/pages/HardwareDetail";
 import LogPage from "@/pages/Log";
@@ -48,6 +49,7 @@ const PAGES: Record<string, ComponentType> = {
   "/dashboard": DashboardPage,
   "/inventory/hardware": HardwarePage,
   "/inventory/software": SoftwarePage,
+  "/inventory/device": DevicePage,
   "/reports": ReportPage,
   "/agent": AgentPage,
   "/saved-search": SavedSearchPage,
