@@ -6,8 +6,9 @@ import { AssignHistoryModal } from "@/components/device/AssignHistoryModal";
 import { DeviceInventoryTable } from "@/components/device/DeviceInventoryTable";
 import { DeviceTypeTabs } from "@/components/device/DeviceTypeTabs";
 import { Navbar } from "@/components/layout/Navbar";
-import { Button, Card, Pagination } from "@/components/ui";
+import { Button, Card, Pagination, Select } from "@/components/ui";
 import {
+  DEVICE_ASSIGNMENT_FILTERS,
   DEVICE_CATEGORIES,
   DEVICE_SEED,
   createDevice,
@@ -15,7 +16,12 @@ import {
 } from "@/data/deviceInventory";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import { useToast } from "@/hooks/useToast";
-import type { DeviceCategory, DeviceDraft, DeviceRecord } from "@/types/device";
+import type {
+  DeviceAssignmentFilter,
+  DeviceCategory,
+  DeviceDraft,
+  DeviceRecord,
+} from "@/types/device";
 
 const PAGE_SIZE = 6;
 
@@ -28,6 +34,8 @@ const DevicePage = () => {
   const toast = useToast();
   const [devices, setDevices] = useState<DeviceRecord[]>(DEVICE_SEED);
   const [category, setCategory] = useState<DeviceCategory>("Laptop");
+  /* Narrows the open tab to what is out with someone, or still in store. */
+  const [assignment, setAssignment] = useState<DeviceAssignmentFilter>("All");
   const [page, setPage] = useState(1);
   /* The row whose history is open — `null` while the dialog is closed. */
   const [historyFor, setHistoryFor] = useState<DeviceRecord | null>(null);
@@ -41,8 +49,8 @@ const DevicePage = () => {
   );
 
   const rows = useMemo(
-    () => devicesInCategory(devices, category),
-    [devices, category],
+    () => devicesInCategory(devices, category, assignment),
+    [devices, category, assignment],
   );
 
   const visible = useMemo(
@@ -54,6 +62,13 @@ const DevicePage = () => {
      a page number that only made sense for the previous one. */
   const handleCategoryChange = useCallback((next: DeviceCategory) => {
     setCategory(next);
+    setPage(1);
+  }, []);
+
+  /* The filter carries across tabs — narrowing to unassigned laptops and then
+     checking the desktops is the same question asked twice. */
+  const handleAssignmentChange = useCallback((next: string) => {
+    setAssignment(next as DeviceAssignmentFilter);
     setPage(1);
   }, []);
 
@@ -71,6 +86,9 @@ const DevicePage = () => {
 
       setDevices((current) => [device, ...current]);
       setCategory(device.category);
+      /* A narrowed list could hide the unit that was just registered, so the
+         filter is dropped rather than leaving the add looking like a no-op. */
+      setAssignment("All");
       setPage(1);
       addDevice.close();
 
@@ -93,25 +111,46 @@ const DevicePage = () => {
         <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3 border-b border-line">
           <DeviceTypeTabs value={category} onChange={handleCategoryChange} />
 
-          <Button
-            className="mb-2"
-            variant="outline"
-            size="sm"
-            leftIcon={<Plus className="h-4 w-4" strokeWidth={2.4} />}
-            onClick={addDevice.open}
-          >
-            Add
-          </Button>
+          <div className="mb-2 flex items-center gap-2">
+            <Select
+              label="Assignment:"
+              options={DEVICE_ASSIGNMENT_FILTERS}
+              value={assignment}
+              onChange={handleAssignmentChange}
+              align="right"
+              aria-label="Filter by assignment"
+            />
+
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Plus className="h-4 w-4" strokeWidth={2.4} />}
+              onClick={addDevice.open}
+            >
+              Add
+            </Button>
+          </div>
         </div>
 
         <Card className="p-5">
-          <h2 className="text-base font-bold text-heading">{meta.title}</h2>
+          <h2 className="text-base font-bold text-heading">
+            {meta.title}
+            {/* The heading carries the filter, so a short list never reads as
+                a missing estate. */}
+            {assignment !== "All" && (
+              <span className="font-semibold text-muted"> · {assignment}</span>
+            )}
+          </h2>
 
           <div className="mt-4">
             <DeviceInventoryTable
               devices={visible}
               onViewHistory={setHistoryFor}
-              emptyMessage={`No ${meta.plural} registered yet.`}
+              emptyMessage={
+                assignment === "All"
+                  ? `No ${meta.plural} registered yet.`
+                  : `No ${assignment.toLowerCase()} ${meta.plural}.`
+              }
             />
           </div>
 

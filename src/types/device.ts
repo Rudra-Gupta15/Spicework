@@ -13,6 +13,9 @@ export interface DeviceRecord {
   currentUser: string;
 }
 
+/** Narrows a tab to the units that are out with someone, or still in store. */
+export type DeviceAssignmentFilter = "All" | "Assigned" | "Unassigned";
+
 /** One spell of ownership. The open one is the row's current user. */
 export interface DeviceAssignment {
   id: string;

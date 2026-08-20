@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 
 import type {
   DeviceAssignment,
+  DeviceAssignmentFilter,
   DeviceCategory,
   DeviceDraft,
   DeviceRecord,
@@ -203,11 +204,29 @@ export const formatDeviceDate = (iso: string): string => {
   });
 };
 
-/** Rows of one tab, in the order they were registered. */
+/** The options the assignment filter offers, in the order they are listed. */
+export const DEVICE_ASSIGNMENT_FILTERS: readonly DeviceAssignmentFilter[] = [
+  "All",
+  "Assigned",
+  "Unassigned",
+];
+
+/**
+ * Rows of one tab, in the order they were registered, narrowed to the units
+ * that are out with someone or still in store. An empty `currentUser` is the
+ * only marker of an unissued unit — the same one the table reads.
+ */
 export const devicesInCategory = (
   devices: DeviceRecord[],
   category: DeviceCategory,
-): DeviceRecord[] => devices.filter((device) => device.category === category);
+  assignment: DeviceAssignmentFilter = "All",
+): DeviceRecord[] =>
+  devices.filter((device) => {
+    if (device.category !== category) return false;
+    if (assignment === "Assigned") return Boolean(device.currentUser);
+    if (assignment === "Unassigned") return !device.currentUser;
+    return true;
+  });
 
 /**
  * A device added from the dialog. The serial is the identity, so a repeat

@@ -54,7 +54,9 @@ export const DeviceInventoryTable = ({
         header: "Current User",
         /* An empty holder is a real state — the unit is in the store. */
         render: (device) =>
-          device.currentUser || <span className="text-muted">Unassigned</span>,
+          device.currentUser || (
+            <span className="font-medium text-status-maintenance">Unassigned</span>
+          ),
       },
     ],
     [onViewHistory],
