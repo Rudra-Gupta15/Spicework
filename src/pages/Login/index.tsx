@@ -2,7 +2,7 @@ import { useCallback, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Button, Card, Divider, Input, PasswordInput } from "@/components/ui";
-import { AUTH_ROUTES } from "@/config/auth";
+import { AUTH_ROUTES, DEMO_CREDENTIALS, SESSION_KEY } from "@/config/auth";
 import { DEFAULT_ROUTE } from "@/config/navigation";
 import { isValidEmail, type FieldErrors } from "@/lib/validation";
 
@@ -34,12 +34,16 @@ const LoginPage = () => {
   const [form, setForm] = useState<LoginForm>(INITIAL_FORM);
   const [errors, setErrors] = useState<FieldErrors<LoginForm>>({});
   const [isSubmitting, setSubmitting] = useState(false);
+  /* Wrong credentials are a fact about the pair, not about either field, so
+     the message sits above the form rather than under one of the inputs. */
+  const [rejected, setRejected] = useState(false);
 
   /** One handler for every field — keyed off the input's `name`. */
   const handleChange = useCallback(
     (event: FormEvent<HTMLInputElement>) => {
       const { name, value } = event.currentTarget;
       setForm((current) => ({ ...current, [name]: value }));
+      setRejected(false);
       setErrors((current) =>
         current[name as keyof LoginForm]
           ? { ...current, [name]: undefined }
@@ -57,8 +61,19 @@ const LoginPage = () => {
       setErrors(nextErrors);
       if (Object.keys(nextErrors).length > 0) return;
 
-      // TODO: replace with the real auth call.
+      /* Compared case-insensitively on the address, exactly on the password —
+         email is not case sensitive in practice and nobody expects it to be. */
+      const matches =
+        form.email.trim().toLowerCase() === DEMO_CREDENTIALS.email.toLowerCase() &&
+        form.password === DEMO_CREDENTIALS.password;
+
+      if (!matches) {
+        setRejected(true);
+        return;
+      }
+
       setSubmitting(true);
+      localStorage.setItem(SESSION_KEY, form.email.trim());
       navigate(DEFAULT_ROUTE, { replace: true });
     },
     [form, navigate],
@@ -72,6 +87,15 @@ const LoginPage = () => {
           Sign in with your organization credentials or Okta SSO.
         </p>
       </div>
+
+      {rejected && (
+        <p
+          role="alert"
+          className="mt-5 rounded-md border border-status-offline/30 bg-red-50 px-3 py-2 text-sm text-status-offline"
+        >
+          That email and password do not match an account.
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4">
         <Input
