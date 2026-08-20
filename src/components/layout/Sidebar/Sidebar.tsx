@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 
 import { Logo } from "@/components/common/Logo";
 import { NAVIGATION } from "@/config/navigation";
-import { CURRENT_COMPANY } from "@/config/company";
+import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import { useLogout } from "@/hooks/useLogout";
 import { cn } from "@/lib/cn";
 import type { NavItem } from "@/types/navigation";
@@ -36,6 +36,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const { pathname } = useLocation();
+  const company = useCurrentCompany();
   const logout = useLogout();
   const activeGroup = activeGroupId(pathname);
   const [expandedId, setExpandedId] = useState<string | null>(activeGroup);
@@ -114,7 +115,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           </ul>
         </nav>
 
-        <SidebarFooter company={CURRENT_COMPANY} onLogout={logout} />
+        <SidebarFooter company={company} onLogout={logout} />
       </aside>
     </>
   );

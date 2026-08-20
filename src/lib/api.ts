@@ -1,3 +1,6 @@
+import { AUTH_ROUTES } from "@/config/auth";
+import { clearSession, getToken } from "@/lib/authSession";
+
 /**
  * Base URL for the FastAPI backend. Overridable per-environment via
  * VITE_API_BASE_URL (.env / .env.local — see frontend/.env.development).
@@ -7,6 +10,35 @@
  * explicitly.
  */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
+
+/* Auth paths are the ones you call *without* a session, so a 401 from them is
+   the answer to the request ("those credentials are wrong"), not an expired
+   session — they must not trigger the sign-out below. */
+const AUTH_PATHS = ["/api/auth/login", "/api/auth/register"];
+
+const isAuthPath = (path: string) =>
+  AUTH_PATHS.some((p) => path.split("?")[0] === p);
+
+/** Bearer header for the stored token, or nothing when signed out. */
+const authHeaders = (): Record<string, string> => {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+/**
+ * A 401 on a normal request means the token is gone, expired or rejected.
+ * The session is dropped here — at the one place every request passes
+ * through — so a stale token can never leave the app sitting on a page it
+ * is no longer entitled to. The redirect is a full assignment rather than a
+ * router navigate because this module has no access to the router.
+ */
+const handleUnauthorized = (path: string) => {
+  if (isAuthPath(path)) return;
+  clearSession();
+  if (window.location.pathname !== AUTH_ROUTES.login) {
+    window.location.assign(AUTH_ROUTES.login);
+  }
+};
 
 export class ApiError extends Error {
   status: number;
@@ -33,9 +65,15 @@ async function throwForStatus(response: Response): Promise<never> {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+      ...init?.headers,
+    },
   });
+
+  if (response.status === 401) handleUnauthorized(path);
 
   if (!response.ok) await throwForStatus(response);
 
@@ -53,7 +91,9 @@ async function requestFile(
   path: string,
   fallbackFilename: string,
 ): Promise<{ blob: Blob; filename: string }> {
-  const response = await fetch(`${API_BASE_URL}${path}`);
+  const response = await fetch(`${API_BASE_URL}${path}`, { headers: authHeaders() });
+
+  if (response.status === 401) handleUnauthorized(path);
 
   if (!response.ok) await throwForStatus(response);
 

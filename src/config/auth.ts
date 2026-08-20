@@ -1,24 +1,18 @@
 /**
- * The single account the portal accepts while real authentication is not wired
- * up. Until now the login form let any address through, so this narrows access
- * rather than widening it — but it is a demo gate, not security: the values
- * ship in the JavaScript bundle and anyone can read them. Replace with a call
- * to the backend's user store before this is exposed to anyone outside the
- * team. The key on `localStorage` is what keeps a refresh from bouncing the
- * user back to the login screen.
+ * Auth wiring for the portal. Credentials are checked by the backend against
+ * the `users` table in PostgreSQL — nothing here decides who gets in, and no
+ * password ever lives in the bundle.
  */
-export const DEMO_CREDENTIALS = {
-  email: "ABCD@gmail.com",
-  password: "123456",
-} as const;
 
+/** Where the signed JWT and the user it belongs to are kept between reloads. */
+export const TOKEN_KEY = "spicework.token";
 export const SESSION_KEY = "spicework.session";
 
 /** Auth route paths, kept in one place so links never drift. */
 export const AUTH_ROUTES = {
   login: "/login",
-  forgotPassword: "/forgot-password",
   register: "/register",
+  forgotPassword: "/forgot-password",
 } as const;
 
 /** Marketing copy shown on the left panel of the auth screens. */

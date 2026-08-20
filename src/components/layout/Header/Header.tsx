@@ -1,7 +1,7 @@
 import { Menu } from "lucide-react";
 
 import { APP_NAME } from "@/config/app";
-import { CURRENT_COMPANY } from "@/config/company";
+import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import { useLogout } from "@/hooks/useLogout";
 
 import { ProfileMenu } from "./ProfileMenu";
@@ -12,6 +12,7 @@ interface HeaderProps {
 
 /** Sticky top bar of the authenticated app — holds the profile menu. */
 export const Header = ({ onMenuClick }: HeaderProps) => {
+  const company = useCurrentCompany();
   const logout = useLogout();
 
   return (
@@ -38,7 +39,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
       </div>
 
       <div className="ml-auto">
-        <ProfileMenu company={CURRENT_COMPANY} onLogout={logout} />
+        <ProfileMenu company={company} onLogout={logout} />
       </div>
     </header>
   );

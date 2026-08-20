@@ -1,9 +1,11 @@
 import { useCallback, useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { Button, Card, Divider, Input, PasswordInput } from "@/components/ui";
-import { AUTH_ROUTES, DEMO_CREDENTIALS, SESSION_KEY } from "@/config/auth";
+import { AUTH_ROUTES } from "@/config/auth";
 import { DEFAULT_ROUTE } from "@/config/navigation";
+import { login } from "@/data/auth";
+import { ApiError } from "@/lib/api";
 import { isValidEmail, type FieldErrors } from "@/lib/validation";
 
 interface LoginForm {
@@ -31,19 +33,24 @@ const linkClass =
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState<LoginForm>(INITIAL_FORM);
   const [errors, setErrors] = useState<FieldErrors<LoginForm>>({});
   const [isSubmitting, setSubmitting] = useState(false);
   /* Wrong credentials are a fact about the pair, not about either field, so
      the message sits above the form rather than under one of the inputs. */
-  const [rejected, setRejected] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  /* Set by ProtectedRoute when it turned someone away — logging in resumes
+     the trip rather than always landing on the dashboard. */
+  const from = (location.state as { from?: string } | null)?.from;
 
   /** One handler for every field — keyed off the input's `name`. */
   const handleChange = useCallback(
     (event: FormEvent<HTMLInputElement>) => {
       const { name, value } = event.currentTarget;
       setForm((current) => ({ ...current, [name]: value }));
-      setRejected(false);
+      setFailure(null);
       setErrors((current) =>
         current[name as keyof LoginForm]
           ? { ...current, [name]: undefined }
@@ -54,29 +61,30 @@ const LoginPage = () => {
   );
 
   const handleSubmit = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
+    async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
 
       const nextErrors = validate(form);
       setErrors(nextErrors);
       if (Object.keys(nextErrors).length > 0) return;
 
-      /* Compared case-insensitively on the address, exactly on the password —
-         email is not case sensitive in practice and nobody expects it to be. */
-      const matches =
-        form.email.trim().toLowerCase() === DEMO_CREDENTIALS.email.toLowerCase() &&
-        form.password === DEMO_CREDENTIALS.password;
-
-      if (!matches) {
-        setRejected(true);
-        return;
-      }
-
       setSubmitting(true);
-      localStorage.setItem(SESSION_KEY, form.email.trim());
-      navigate(DEFAULT_ROUTE, { replace: true });
+      setFailure(null);
+      try {
+        /* The backend checks the password against the bcrypt hash in
+           PostgreSQL and hands back a token; nothing is decided here. */
+        await login({ email: form.email.trim(), password: form.password });
+        navigate(from ?? DEFAULT_ROUTE, { replace: true });
+      } catch (error) {
+        setFailure(
+          error instanceof ApiError
+            ? error.message
+            : "Could not reach the server. Check your connection and try again.",
+        );
+        setSubmitting(false);
+      }
     },
-    [form, navigate],
+    [form, from, navigate],
   );
 
   return (
@@ -88,12 +96,12 @@ const LoginPage = () => {
         </p>
       </div>
 
-      {rejected && (
+      {failure && (
         <p
           role="alert"
           className="mt-5 rounded-md border border-status-offline/30 bg-red-50 px-3 py-2 text-sm text-status-offline"
         >
-          That email and password do not match an account.
+          {failure}
         </p>
       )}
 

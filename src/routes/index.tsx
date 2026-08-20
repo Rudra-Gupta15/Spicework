@@ -3,9 +3,11 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import { PagePlaceholder } from "@/components/common/PagePlaceholder";
 import { AUTH_ROUTES } from "@/config/auth";
-import { NAVIGATION } from "@/config/navigation";
+import { DEFAULT_ROUTE, NAVIGATION } from "@/config/navigation";
+import { isAuthenticated } from "@/lib/authSession";
 import AppLayout from "@/layout";
 import AuthLayout from "@/layout/AuthLayout";
+import { ProtectedRoute, PublicOnlyRoute } from "@/routes/ProtectedRoute";
 
 /**
  * Pages are imported eagerly. Code-splitting them meant the first visit to
@@ -28,6 +30,7 @@ import HardwareDetailPage from "@/pages/HardwareDetail";
 import LogPage from "@/pages/Log";
 import LoginPage from "@/pages/Login";
 import NotFoundPage from "@/pages/NotFound";
+import RegisterPage from "@/pages/Register";
 import ReportPage from "@/pages/Report";
 import SavedSearchPage from "@/pages/SavedSearch";
 import SavedSearchDetailPage from "@/pages/SavedSearchDetail";
@@ -67,94 +70,104 @@ const ROUTE_ENTRIES = NAVIGATION.flatMap((item) => [
 
 export const AppRoutes = () => (
   <Routes>
-    <Route index element={<Navigate to={AUTH_ROUTES.login} replace />} />
+    {/* Landing: straight to wherever this visitor actually belongs. */}
+    <Route
+      index
+      element={
+        <Navigate to={isAuthenticated() ? DEFAULT_ROUTE : AUTH_ROUTES.login} replace />
+      }
+    />
 
-    {/* Auth — split-screen shell, no sidebar */}
-    <Route element={<AuthLayout />}>
-      <Route path={AUTH_ROUTES.login} element={<LoginPage />} />
-      <Route
-        path={AUTH_ROUTES.forgotPassword}
-        element={<AuthComingSoon title="Reset your password" />}
-      />
-      <Route
-        path={AUTH_ROUTES.register}
-        element={<AuthComingSoon title="Create your account" />}
-      />
+    {/* Auth — split-screen shell, no sidebar. Behind PublicOnlyRoute so a
+        signed-in user landing here is sent on to the app instead of being
+        asked to log in again. */}
+    <Route element={<PublicOnlyRoute />}>
+      <Route element={<AuthLayout />}>
+        <Route path={AUTH_ROUTES.login} element={<LoginPage />} />
+        <Route path={AUTH_ROUTES.register} element={<RegisterPage />} />
+        <Route
+          path={AUTH_ROUTES.forgotPassword}
+          element={<AuthComingSoon title="Reset your password" />}
+        />
+      </Route>
     </Route>
 
-    {/* App — sidebar + page header shell */}
-    <Route element={<AppLayout />}>
-      {ROUTE_ENTRIES.map(({ path, label }) => {
-        const Page = PAGES[path];
-        return (
-          <Route
-            key={path}
-            path={path}
-            element={Page ? <Page /> : <PagePlaceholder name={label} />}
-          />
-        );
-      })}
+    {/* App — sidebar + page header shell. Every route below sits behind
+        ProtectedRoute, so adding one here cannot accidentally ship unguarded. */}
+    <Route element={<ProtectedRoute />}>
+      <Route element={<AppLayout />}>
+        {ROUTE_ENTRIES.map(({ path, label }) => {
+          const Page = PAGES[path];
+          return (
+            <Route
+              key={path}
+              path={path}
+              element={Page ? <Page /> : <PagePlaceholder name={label} />}
+            />
+          );
+        })}
 
-      {/* Detail screens hang off their list route, so the sidebar entry
-          stays active while they are open. */}
+        {/* Detail screens hang off their list route, so the sidebar entry
+            stays active while they are open. */}
 
-      {/* The admin area covers one organization, so nothing here is scoped
-          by a parent id — Organization → Site → Users, straight down. */}
-      <Route path="/dashboard/organization" element={<AdminOrganizationPage />} />
-      <Route
-        path="/dashboard/organization/edit"
-        element={<AdminOrganizationEditPage />}
-      />
+        {/* The admin area covers one organization, so nothing here is scoped
+            by a parent id — Organization → Site → Users, straight down. */}
+        <Route path="/dashboard/organization" element={<AdminOrganizationPage />} />
+        <Route
+          path="/dashboard/organization/edit"
+          element={<AdminOrganizationEditPage />}
+        />
 
-      <Route path="/dashboard/users" element={<AdminUsersPage />} />
+        <Route path="/dashboard/users" element={<AdminUsersPage />} />
 
-      {/* Cities are derived from the sites, so this is a rolled-up view of
-          the same set rather than a list of its own records. */}
-      <Route path="/dashboard/cities" element={<AdminCitiesPage />} />
+        {/* Cities are derived from the sites, so this is a rolled-up view of
+            the same set rather than a list of its own records. */}
+        <Route path="/dashboard/cities" element={<AdminCitiesPage />} />
 
-      {/* Static segment is ranked above `:siteId`, so it wins. */}
-      <Route path="/dashboard/sites" element={<AdminSitesPage />} />
-      <Route path="/dashboard/sites/new" element={<AdminSiteFormPage />} />
-      <Route path="/dashboard/sites/:siteId" element={<AdminSiteFormPage />} />
+        {/* Static segment is ranked above `:siteId`, so it wins. */}
+        <Route path="/dashboard/sites" element={<AdminSitesPage />} />
+        <Route path="/dashboard/sites/new" element={<AdminSiteFormPage />} />
+        <Route path="/dashboard/sites/:siteId" element={<AdminSiteFormPage />} />
 
-      <Route
-        path="/inventory/hardware/:deviceId"
-        element={<HardwareDetailPage />}
-      />
-      {/* Static segment is ranked above `:deviceId`, so it wins. */}
-      <Route
-        path="/inventory/software/assets"
-        element={<SoftwareAssetsPage />}
-      />
-      <Route
-        path="/inventory/software/:deviceId"
-        element={<SoftwareDetailPage />}
-      />
-      {/* Log is hidden from the sidebar nav, so its route is declared
-          explicitly here (rather than generated from the nav) — this keeps the
-          Dashboard's "View All" links to /log working. */}
-      <Route path="/log" element={<LogPage />} />
+        <Route
+          path="/inventory/hardware/:deviceId"
+          element={<HardwareDetailPage />}
+        />
+        {/* Static segment is ranked above `:deviceId`, so it wins. */}
+        <Route
+          path="/inventory/software/assets"
+          element={<SoftwareAssetsPage />}
+        />
+        <Route
+          path="/inventory/software/:deviceId"
+          element={<SoftwareDetailPage />}
+        />
+        {/* Log is hidden from the sidebar nav, so its route is declared
+            explicitly here (rather than generated from the nav) — this keeps the
+            Dashboard's "View All" links to /log working. */}
+        <Route path="/log" element={<LogPage />} />
 
-      {/* Ticket is hidden from the sidebar nav, so its list route is declared
-          explicitly here (rather than generated from the nav) — this keeps the
-          ticket pages and their "back to list" links working. */}
-      <Route path="/inventory/ticket" element={<TicketPage />} />
-      {/* Static segment is ranked above `:ticketId`, so it wins. */}
-      <Route path="/inventory/ticket/new" element={<TicketCreatePage />} />
-      <Route
-        path="/inventory/ticket/:ticketId/created"
-        element={<TicketCreatedPage />}
-      />
-      <Route
-        path="/inventory/ticket/:ticketId"
-        element={<TicketDetailPage />}
-      />
-      <Route
-        path="/saved-search/:searchId"
-        element={<SavedSearchDetailPage />}
-      />
+        {/* Ticket is hidden from the sidebar nav, so its list route is declared
+            explicitly here (rather than generated from the nav) — this keeps the
+            ticket pages and their "back to list" links working. */}
+        <Route path="/inventory/ticket" element={<TicketPage />} />
+        {/* Static segment is ranked above `:ticketId`, so it wins. */}
+        <Route path="/inventory/ticket/new" element={<TicketCreatePage />} />
+        <Route
+          path="/inventory/ticket/:ticketId/created"
+          element={<TicketCreatedPage />}
+        />
+        <Route
+          path="/inventory/ticket/:ticketId"
+          element={<TicketDetailPage />}
+        />
+        <Route
+          path="/saved-search/:searchId"
+          element={<SavedSearchDetailPage />}
+        />
 
-      <Route path="*" element={<NotFoundPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
     </Route>
   </Routes>
 );
