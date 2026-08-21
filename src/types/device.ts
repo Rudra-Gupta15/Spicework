@@ -19,6 +19,11 @@ export interface DeviceRecord {
   isDemo?: boolean;
 }
 
+/** The data columns Customize View can show or hide — "Assign" and the
+    trailing edit action are not here on purpose, the same way Hardware
+    Inventory's own Rescan column sits outside its customizable registry. */
+export type DeviceColumnKey = "name" | "serialNumber" | "buyDate" | "currentUser";
+
 /** Narrows a tab to the units that are out with someone, or still in store. */
 export type DeviceAssignmentFilter = "All" | "Assigned" | "Unassigned";
 

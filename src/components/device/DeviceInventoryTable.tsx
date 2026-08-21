@@ -7,12 +7,15 @@ import {
   formatDeviceDate,
   needsAdoption,
 } from "@/data/deviceInventory";
-import type { DeviceCategory, DeviceRecord } from "@/types/device";
+import type { DeviceCategory, DeviceColumnKey, DeviceRecord } from "@/types/device";
 
 interface DeviceInventoryTableProps {
   devices: DeviceRecord[];
   /** Which tab this is — decides whether Assign/Current User apply. */
   category: DeviceCategory;
+  /** Data columns to show, from Customize View — Assign and the trailing
+      edit action are not part of this and always show regardless. */
+  visibleColumns: DeviceColumnKey[];
   /** Opens the hand-off history for that row. */
   onViewHistory: (device: DeviceRecord) => void;
   /** Opens the edit form — a row nothing has registered yet instead adds it
@@ -25,6 +28,7 @@ interface DeviceInventoryTableProps {
 export const DeviceInventoryTable = ({
   devices,
   category,
+  visibleColumns,
   onViewHistory,
   onEdit,
   emptyMessage,
@@ -32,7 +36,7 @@ export const DeviceInventoryTable = ({
   const trackAssignment = categoryTracksAssignment(category);
 
   const columns = useMemo<Column<DeviceRecord>[]>(() => {
-    const base: Column<DeviceRecord>[] = [
+    const allBase: Column<DeviceRecord>[] = [
       /* Only the device name is emphasised — the same rule every other
          table in the app follows. */
       {
@@ -63,6 +67,10 @@ export const DeviceInventoryTable = ({
       },
     ];
 
+    const base = allBase.filter((column) =>
+      visibleColumns.includes(column.key as DeviceColumnKey),
+    );
+
     /* Printer and Projector are shared-space equipment with no one holder to
        show or hand off — see `categoryTracksAssignment`. */
     const assignment: Column<DeviceRecord>[] = trackAssignment
@@ -88,15 +96,19 @@ export const DeviceInventoryTable = ({
                 </button>
               ),
           },
-          {
-            key: "currentUser",
-            header: "Current User",
-            /* An empty holder is a real state — the unit is in the store. */
-            render: (device) =>
-              device.currentUser || (
-                <span className="font-medium text-status-maintenance">Unassigned</span>
-              ),
-          },
+          ...(visibleColumns.includes("currentUser")
+            ? [
+                {
+                  key: "currentUser",
+                  header: "Current User",
+                  /* An empty holder is a real state — the unit is in the store. */
+                  render: (device: DeviceRecord) =>
+                    device.currentUser || (
+                      <span className="font-medium text-status-maintenance">Unassigned</span>
+                    ),
+                } satisfies Column<DeviceRecord>,
+              ]
+            : []),
         ]
       : [];
 
@@ -122,7 +134,7 @@ export const DeviceInventoryTable = ({
     ];
 
     return [...base, ...assignment, ...edit];
-  }, [trackAssignment, onViewHistory, onEdit]);
+  }, [trackAssignment, visibleColumns, onViewHistory, onEdit]);
 
   return (
     <DataTable

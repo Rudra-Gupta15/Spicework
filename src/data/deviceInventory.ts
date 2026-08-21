@@ -5,6 +5,7 @@ import type { HardwareDevice } from "@/types/hardware";
 import type {
   DeviceAssignmentFilter,
   DeviceCategory,
+  DeviceColumnKey,
   DeviceRecord,
 } from "@/types/device";
 
@@ -35,6 +36,22 @@ export const DEVICE_CATEGORIES: DeviceCategoryMeta[] = [
   },
   { id: "Desktop", icon: Monitor, title: "Desktop Inventory", plural: "desktops" },
 ];
+
+/** Every column Customize View can show or hide, in display order. */
+export const DEVICE_COLUMNS: {
+  key: DeviceColumnKey;
+  label: string;
+  visibleByDefault: boolean;
+}[] = [
+  { key: "name", label: "Device", visibleByDefault: true },
+  { key: "serialNumber", label: "Serial Number", visibleByDefault: true },
+  { key: "buyDate", label: "Buy Date", visibleByDefault: true },
+  { key: "currentUser", label: "Current User", visibleByDefault: true },
+];
+
+export const DEFAULT_DEVICE_COLUMNS: DeviceColumnKey[] = DEVICE_COLUMNS.filter(
+  (column) => column.visibleByDefault,
+).map((column) => column.key);
 
 /** `2024-01-15` → `Jan 15, 2024`; anything unparseable is passed through. */
 export const formatDeviceDate = (iso: string): string => {

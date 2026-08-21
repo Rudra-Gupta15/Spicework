@@ -6,11 +6,14 @@ import { AssignHistoryModal } from "@/components/device/AssignHistoryModal";
 import { DeviceInventoryTable } from "@/components/device/DeviceInventoryTable";
 import { DeviceTypeTabs } from "@/components/device/DeviceTypeTabs";
 import { EditDeviceModal } from "@/components/device/EditDeviceModal";
+import { CustomizeColumnsModal } from "@/components/common/CustomizeColumnsModal";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button, Card, Loader, Pagination, Select } from "@/components/ui";
 import {
+  DEFAULT_DEVICE_COLUMNS,
   DEVICE_ASSIGNMENT_FILTERS,
   DEVICE_CATEGORIES,
+  DEVICE_COLUMNS,
   auditedLaptopRecords,
   categoryTracksAssignment,
   devicesInCategory,
@@ -18,11 +21,13 @@ import {
 } from "@/data/deviceInventory";
 import { useDeviceList } from "@/data/deviceApi";
 import { useRegisteredDevices } from "@/data/registeredDevices";
+import { useViewColumns } from "@/data/viewPreferences";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import { useToast } from "@/hooks/useToast";
 import type {
   DeviceAssignmentFilter,
   DeviceCategory,
+  DeviceColumnKey,
   DeviceDraft,
   DeviceRecord,
 } from "@/types/device";
@@ -59,6 +64,14 @@ const DevicePage = () => {
      the dialog is closed. */
   const [editingDevice, setEditingDevice] = useState<DeviceRecord | null>(null);
   const addDeviceModal = useDisclosure();
+  const customize = useDisclosure();
+  /* Shared across every tab — a customer picking columns for Laptop expects
+     the same picks on Desktop, the same way Hardware's one view applies to
+     its whole table. */
+  const { columns, save: saveColumns } = useViewColumns<DeviceColumnKey>(
+    "device",
+    DEFAULT_DEVICE_COLUMNS,
+  );
 
   const meta = useMemo(
     () =>
@@ -187,6 +200,10 @@ const DevicePage = () => {
           <DeviceTypeTabs value={category} onChange={handleCategoryChange} />
 
           <div className="mb-2 flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={customize.open}>
+              Customize View
+            </Button>
+
             {tracksAssignment && (
               <Select
                 label="Assignment:"
@@ -250,6 +267,7 @@ const DevicePage = () => {
                 <DeviceInventoryTable
                   devices={visible}
                   category={category}
+                  visibleColumns={columns}
                   onViewHistory={setHistoryFor}
                   onEdit={setEditingDevice}
                   emptyMessage={
@@ -291,6 +309,15 @@ const DevicePage = () => {
         onClose={() => setEditingDevice(null)}
         takenSerials={editTakenSerials}
         onSave={handleEditSave}
+      />
+
+      <CustomizeColumnsModal
+        isOpen={customize.isOpen}
+        onClose={customize.close}
+        columns={DEVICE_COLUMNS}
+        defaultColumns={DEFAULT_DEVICE_COLUMNS}
+        value={columns}
+        onApply={saveColumns}
       />
     </>
   );
