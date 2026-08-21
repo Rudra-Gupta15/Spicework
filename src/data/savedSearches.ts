@@ -242,14 +242,15 @@ export const useSavedSearches = (category: SavedSearchCategory) => {
 };
 
 /* ── Grouping repeat saves ────────────────────────────────────────────────
-   An unfiltered save is named "All <category> — <today>", so saving twice in
-   a day leaves two rows with nothing on screen to tell them apart. The list
-   shows one row per name and keeps the repeats behind it, newest first. */
+   An unfiltered save is named "All <category> — <today>", so saving twice in a
+   day leaves rows with the same name and the same date on screen. The list
+   shows one row per name; the repeats are reached from inside the search,
+   where SavedSearchVersionMenu lists them by the time each was saved. */
 
 export interface SavedSearchGroup {
   /** What the rows have in common — the name they were all saved under. */
   key: string;
-  /** The most recent save; what the row itself shows. */
+  /** The most recent save; what the row itself shows and what View opens. */
   latest: SavedSearch;
   /** Every save under this name, newest first. One entry when it is not a repeat. */
   saves: SavedSearch[];
@@ -276,7 +277,8 @@ export const groupSavedSearches = (searches: SavedSearch[]): SavedSearchGroup[] 
     .sort((a, b) => savedAtMs(b.latest) - savedAtMs(a.latest));
 };
 
-/** `6:34 PM` — how one save in a group is told apart from the others. */
+/** `6:34 PM` — what tells two saves made on the same day apart, since an
+    unfiltered save is auto-named "All <category> — <today>". */
 export const savedAtLabel = (search: SavedSearch): string => {
   const at = Date.parse(search.createdAt);
   return Number.isNaN(at)

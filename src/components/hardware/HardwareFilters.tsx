@@ -70,11 +70,14 @@ export const HardwareFilters = ({
     />
 
     {/* Devices are dated by when a scan last reached them, so that is what
-        a window here narrows — a machine nothing has scanned drops out. */}
+        a window here narrows — a machine nothing has scanned drops out. The
+        menu also lists the exact days the loaded devices were scanned on, so
+        a new scan day shows up here on its own. */}
     <DateRangeFilter
       label="Last Scan"
       value={filters.lastScan}
       onChange={(lastScan) => onChange({ lastScan })}
+      days={options.lastScanDays}
     />
 
     <div className="ml-auto flex items-center gap-2">

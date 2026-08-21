@@ -23,6 +23,10 @@ export interface ReportSystem {
   location: string;
   assignedTo: string;
   lastScan: string;
+  /** Every day this system was ever audited, newest first — see `HardwareDevice.scanDays`. */
+  scanDays: string[];
+  /** Pinned to the top of the list, the way a favorite would be. */
+  pinned: boolean;
   /** Hardware: components found. Software: applications installed. */
   records: number;
   /** Who may pull this system report. */

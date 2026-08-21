@@ -1,28 +1,55 @@
 import { useMemo } from "react";
-import { Eye } from "lucide-react";
+import { Eye, Pencil } from "lucide-react";
 
 import { DataTable, PRIMARY_CELL, type Column } from "@/components/ui";
-import { formatDeviceDate } from "@/data/deviceInventory";
-import type { DeviceRecord } from "@/types/device";
+import {
+  categoryTracksAssignment,
+  formatDeviceDate,
+  needsAdoption,
+} from "@/data/deviceInventory";
+import type { DeviceCategory, DeviceRecord } from "@/types/device";
 
 interface DeviceInventoryTableProps {
   devices: DeviceRecord[];
+  /** Which tab this is — decides whether Assign/Current User apply. */
+  category: DeviceCategory;
   /** Opens the hand-off history for that row. */
   onViewHistory: (device: DeviceRecord) => void;
+  /** Opens the edit form — a row nothing has registered yet instead adds it
+      to the registry. */
+  onEdit: (device: DeviceRecord) => void;
   emptyMessage: string;
 }
 
 /** The registered units of one category — name, serial, buy date, holder. */
 export const DeviceInventoryTable = ({
   devices,
+  category,
   onViewHistory,
+  onEdit,
   emptyMessage,
 }: DeviceInventoryTableProps) => {
-  const columns = useMemo<Column<DeviceRecord>[]>(
-    () => [
+  const trackAssignment = categoryTracksAssignment(category);
+
+  const columns = useMemo<Column<DeviceRecord>[]>(() => {
+    const base: Column<DeviceRecord>[] = [
       /* Only the device name is emphasised — the same rule every other
          table in the app follows. */
-      { key: "name", header: "Device", cellClassName: PRIMARY_CELL },
+      {
+        key: "name",
+        header: "Device",
+        cellClassName: PRIMARY_CELL,
+        render: (device) => (
+          <span className="inline-flex items-center gap-2">
+            {device.name}
+            {device.isDemo && (
+              <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[11px] font-semibold text-muted">
+                Demo
+              </span>
+            )}
+          </span>
+        ),
+      },
       {
         key: "serialNumber",
         header: "Serial Number",
@@ -34,33 +61,68 @@ export const DeviceInventoryTable = ({
         header: "Buy Date",
         render: (device) => formatDeviceDate(device.buyDate),
       },
+    ];
+
+    /* Printer and Projector are shared-space equipment with no one holder to
+       show or hand off — see `categoryTracksAssignment`. */
+    const assignment: Column<DeviceRecord>[] = trackAssignment
+      ? [
+          {
+            key: "assign",
+            header: "Assign",
+            render: (device) =>
+              /* A row nothing has registered yet has no id the server
+                 knows, so there is no real history to fetch — the button
+                 would only produce a confusing failed request. */
+              needsAdoption(device) ? (
+                <span className="text-[13px] text-muted">—</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onViewHistory(device)}
+                  className="inline-flex items-center gap-2 rounded-md text-[13px] font-semibold text-brand transition-colors hover:underline"
+                >
+                  <Eye className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+                  View History
+                  <span className="sr-only"> for {device.name}</span>
+                </button>
+              ),
+          },
+          {
+            key: "currentUser",
+            header: "Current User",
+            /* An empty holder is a real state — the unit is in the store. */
+            render: (device) =>
+              device.currentUser || (
+                <span className="font-medium text-status-maintenance">Unassigned</span>
+              ),
+          },
+        ]
+      : [];
+
+    const edit: Column<DeviceRecord>[] = [
       {
-        key: "assign",
-        header: "Assign",
+        key: "edit",
+        header: "",
+        align: "right",
         render: (device) => (
           <button
             type="button"
-            onClick={() => onViewHistory(device)}
-            className="inline-flex items-center gap-2 rounded-md text-[13px] font-semibold text-brand transition-colors hover:underline"
+            onClick={() => onEdit(device)}
+            title={needsAdoption(device) ? "Add to registry" : "Edit"}
+            className="inline-flex rounded-md p-1 text-brand transition-colors hover:bg-brand-50"
           >
-            <Eye className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
-            View History
-            <span className="sr-only"> for {device.name}</span>
+            <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+            <span className="sr-only">
+              {needsAdoption(device) ? "Add to registry" : "Edit"} {device.name}
+            </span>
           </button>
         ),
       },
-      {
-        key: "currentUser",
-        header: "Current User",
-        /* An empty holder is a real state — the unit is in the store. */
-        render: (device) =>
-          device.currentUser || (
-            <span className="font-medium text-status-maintenance">Unassigned</span>
-          ),
-      },
-    ],
-    [onViewHistory],
-  );
+    ];
+
+    return [...base, ...assignment, ...edit];
+  }, [trackAssignment, onViewHistory, onEdit]);
 
   return (
     <DataTable

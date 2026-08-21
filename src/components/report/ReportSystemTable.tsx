@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Star } from "lucide-react";
 
 import {
   Badge,
@@ -28,6 +28,8 @@ interface ReportSystemTableProps {
   onCheck: (id: string, checked: boolean) => void;
   /** Ticks or clears every system on the page in one go. */
   onCheckAll: (checked: boolean) => void;
+  /** Pins/unpins a system to the top of the list — see `useReportPins`. */
+  onTogglePin: (systemId: string, pinned: boolean) => void;
 }
 
 /**
@@ -45,12 +47,41 @@ export const ReportSystemTable = ({
   checkedIds,
   onCheck,
   onCheckAll,
+  onTogglePin,
 }: ReportSystemTableProps) => {
   const allChecked =
     systems.length > 0 && systems.every((system) => checkedIds.has(system.id));
 
   const columns = useMemo<Column<ReportSystem>[]>(
     () => [
+      {
+        key: "pin",
+        className: "w-8",
+        header: "",
+        render: (system) => (
+          <button
+            type="button"
+            onClick={(event) => {
+              swallow(event);
+              onTogglePin(system.id, !system.pinned);
+            }}
+            aria-pressed={system.pinned}
+            title={system.pinned ? `Unpin ${system.name}` : `Pin ${system.name} to the top`}
+            className={cn(
+              "inline-flex rounded-md p-1 transition-colors focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:outline-none",
+              system.pinned
+                ? "text-brand-600"
+                : "text-navy-300 hover:text-navy-500",
+            )}
+          >
+            <Star
+              className="h-4 w-4"
+              strokeWidth={2.2}
+              fill={system.pinned ? "currentColor" : "none"}
+            />
+          </button>
+        ),
+      },
       {
         key: "select",
         className: "w-10",
@@ -124,7 +155,7 @@ export const ReportSystemTable = ({
         ),
       },
     ],
-    [category, allChecked, checkedIds, onCheck, onCheckAll],
+    [category, allChecked, checkedIds, onCheck, onCheckAll, onTogglePin],
   );
 
   return (

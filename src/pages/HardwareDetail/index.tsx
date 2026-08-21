@@ -53,6 +53,7 @@ const HardwareDetailPage = () => {
       serialNumber: detail?.hardware_details?.serial_number || "Unknown",
       status: "ONLINE",
       lastScan: detail?.last_audit || "Unknown",
+      scanDays: [],
       ipAddress: detail?.network_details?.[0]?.ip_address || "—",
       osVersion: detail?.os_name || "Unknown",
       location: "Unknown",

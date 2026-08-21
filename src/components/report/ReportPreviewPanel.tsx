@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, CalendarClock, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CalendarClock, CheckCircle2, Pencil } from "lucide-react";
 
-import { Badge, Button, Card, DataTable, PRIMARY_CELL, Select, type Column } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  DataTable,
+  PRIMARY_CELL,
+  Select,
+  type Column,
+} from "@/components/ui";
 import type {
   ReportFormat,
   ReportPreview,
@@ -9,7 +18,36 @@ import type {
   ReportSection,
 } from "@/types/report";
 
+import {
+  EditHardwareSpecModal,
+  type HardwareSpecFields,
+} from "./EditHardwareSpecModal";
 import { ReportDownloadMenu } from "./ReportDownloadMenu";
+
+/** The "Hardware Specification" section's rows, in the exact order and
+    labels `mapHardwareFields` produces them in — how the edit form reads
+    the section's current values back out without needing the raw detail
+    object this panel otherwise has no reason to hold. */
+const SPEC_LABELS: Record<keyof HardwareSpecFields, string> = {
+  cpu: "Processor (CPU)",
+  ram: "Memory (RAM)",
+  disk: "Disk",
+  serialNumber: "Serial Number",
+  manufacturer: "Manufacturer",
+  model: "Model",
+};
+
+const specFieldsFrom = (section: ReportSection | undefined): HardwareSpecFields => {
+  const byLabel = new Map(section?.rows.map(([label, value]) => [label, value]));
+  return {
+    cpu: byLabel.get(SPEC_LABELS.cpu) ?? "",
+    ram: byLabel.get(SPEC_LABELS.ram) ?? "",
+    disk: byLabel.get(SPEC_LABELS.disk) ?? "",
+    serialNumber: byLabel.get(SPEC_LABELS.serialNumber) ?? "",
+    manufacturer: byLabel.get(SPEC_LABELS.manufacturer) ?? "",
+    model: byLabel.get(SPEC_LABELS.model) ?? "",
+  };
+};
 
 /** A preview stays skimmable; the download always carries every row. */
 const PREVIEW_ROWS = 10;
@@ -39,7 +77,12 @@ interface ReportPreviewPanelProps {
   onScopeChange: (scope: ReportScope) => void;
   /** Returns to the system list. */
   onBack: () => void;
-  onDownload: (format: ReportFormat) => void;
+  /** `sectionIds` is the picked subset — see `reportWithSections`. */
+  onDownload: (format: ReportFormat, sectionIds: string[]) => void;
+  /** Saves a Hardware Specification correction and refreshes the report so
+      it shows immediately. Absent on a Software report, which has no
+      specification section to correct. */
+  onEditSpecification?: (overrides: Partial<HardwareSpecFields>) => Promise<unknown>;
 }
 
 /** The generated report as it appears on screen, before it is downloaded. */
@@ -49,7 +92,9 @@ export const ReportPreviewPanel = ({
   onScopeChange,
   onBack,
   onDownload,
+  onEditSpecification,
 }: ReportPreviewPanelProps) => {
+  const [editingSpec, setEditingSpec] = useState(false);
   /* Tagged with the report it belongs to, so picking another system drops
      the confirmation without an effect resetting it. */
   const [receipt, setReceipt] = useState<{
@@ -64,8 +109,36 @@ export const ReportPreviewPanel = ({
 
   const downloaded = receipt?.reportId === report.id ? receipt.format : null;
 
+  /* Which sections come along on the next download — everything, until
+     someone unchecks one. Reset to "everything" whenever a different
+     system's report loads, the same way `receipt` is tagged rather than
+     cleared by an effect: derived during render so a stale selection from
+     the last system never paints for even one frame. */
+  const [selectedSections, setSelectedSections] = useState<Set<string>>(
+    () => new Set(report.sections.map((section) => section.id)),
+  );
+  const [selectedFor, setSelectedFor] = useState(report.id);
+  if (selectedFor !== report.id) {
+    setSelectedFor(report.id);
+    setSelectedSections(new Set(report.sections.map((section) => section.id)));
+  }
+
+  const toggleSection = (id: string, checked: boolean) => {
+    setSelectedSections((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const allSelected = selectedSections.size === report.sections.length;
+  const selectAll = () =>
+    setSelectedSections(new Set(report.sections.map((section) => section.id)));
+  const selectNone = () => setSelectedSections(new Set());
+
   const handleDownload = (format: ReportFormat) => {
-    onDownload(format);
+    onDownload(format, [...selectedSections]);
     setReceipt({ reportId: report.id, format });
 
     clearTimeout(timer.current);
@@ -118,7 +191,10 @@ export const ReportPreviewPanel = ({
               Back to list
             </Button>
 
-            <ReportDownloadMenu onDownload={handleDownload} />
+            <ReportDownloadMenu
+              onDownload={handleDownload}
+              disabled={selectedSections.size === 0}
+            />
           </div>
 
           <p
@@ -153,16 +229,69 @@ export const ReportPreviewPanel = ({
         </dl>
       </Card>
 
+      {/* Which parts the download will actually carry — Report Summary
+          always comes along (see `reportWithSections`), so the picker only
+          covers the sections below it. */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+        <p className="text-[13px] text-muted">
+          {selectedSections.size} of {report.sections.length} sections selected
+          for download
+        </p>
+        <div className="flex items-center gap-3 text-[13px] font-semibold text-brand">
+          <button
+            type="button"
+            onClick={selectAll}
+            disabled={allSelected}
+            className="rounded transition-colors hover:underline disabled:cursor-not-allowed disabled:text-muted disabled:no-underline"
+          >
+            Select all
+          </button>
+          <button
+            type="button"
+            onClick={selectNone}
+            disabled={selectedSections.size === 0}
+            className="rounded transition-colors hover:underline disabled:cursor-not-allowed disabled:text-muted disabled:no-underline"
+          >
+            Select none
+          </button>
+        </div>
+      </div>
+
       {report.sections.map((section) => {
         const hidden = section.rows.length - PREVIEW_ROWS;
+        const included = selectedSections.has(section.id);
 
         return (
-          <Card key={section.id} className="px-5 py-5">
+          <Card
+            key={section.id}
+            className={`px-5 py-5 transition-opacity ${included ? "" : "opacity-60"}`}
+          >
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-base font-bold text-heading">{section.title}</h3>
-              <span className="text-[13px] text-muted">
-                {section.rows.length} records
-              </span>
+              <div className="flex items-center gap-2.5">
+                <Checkbox
+                  checked={included}
+                  onChange={(checked) => toggleSection(section.id, checked)}
+                  label={`Include ${section.title} in the download`}
+                  hideLabel
+                />
+                <h3 className="text-base font-bold text-heading">{section.title}</h3>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[13px] text-muted">
+                  {section.rows.length} records
+                </span>
+                {section.id === "specification" && onEditSpecification && (
+                  <button
+                    type="button"
+                    onClick={() => setEditingSpec(true)}
+                    title="Correct a field the agent misread"
+                    className="inline-flex rounded-md p-1 text-navy-300 transition-colors hover:bg-brand-50 hover:text-brand-600"
+                  >
+                    <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+                    <span className="sr-only">Correct Hardware Specification</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <DataTable
@@ -183,6 +312,15 @@ export const ReportPreviewPanel = ({
           </Card>
         );
       })}
+
+      {onEditSpecification && (
+        <EditHardwareSpecModal
+          isOpen={editingSpec}
+          onClose={() => setEditingSpec(false)}
+          current={specFieldsFrom(report.sections.find((section) => section.id === "specification"))}
+          onSave={onEditSpecification}
+        />
+      )}
     </div>
   );
 };

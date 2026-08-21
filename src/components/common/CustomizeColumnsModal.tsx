@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { Download } from "lucide-react";
 
 import { Button, Checkbox, Modal } from "@/components/ui";
 
@@ -18,6 +19,14 @@ interface CustomizeColumnsModalProps<Key extends string> {
   /** Columns currently shown in the table. */
   value: Key[];
   onApply: (columns: Key[]) => void;
+  /**
+   * Adds an Export button beside Apply. It applies the checked columns the
+   * same way Apply does, and also hands them to this so the caller can write
+   * a file with exactly that set — never the view from before this dialog
+   * was opened. Omit to leave the dialog exactly as it was: Reset and Apply
+   * only.
+   */
+  onExport?: (columns: Key[]) => void;
 }
 
 /**
@@ -31,6 +40,7 @@ export const CustomizeColumnsModal = <Key extends string>({
   defaultColumns,
   value,
   onApply,
+  onExport,
 }: CustomizeColumnsModalProps<Key>) => {
   const [draft, setDraft] = useState<Key[]>(value);
 
@@ -47,15 +57,26 @@ export const CustomizeColumnsModal = <Key extends string>({
     );
   }, []);
 
+  /* Keep the registry's order rather than click order — both Apply and
+     Export read the draft through this. */
+  const orderedDraft = useCallback(
+    () => columns.filter((column) => draft.includes(column.key)).map((column) => column.key),
+    [columns, draft],
+  );
+
   const handleApply = useCallback(() => {
-    /* Keep the registry's order rather than click order. */
-    onApply(
-      columns
-        .filter((column) => draft.includes(column.key))
-        .map((column) => column.key),
-    );
+    onApply(orderedDraft());
     onClose();
-  }, [columns, draft, onApply, onClose]);
+  }, [orderedDraft, onApply, onClose]);
+
+  const handleExport = useCallback(() => {
+    const ordered = orderedDraft();
+    /* Applied first: the file and the table it came from should never
+       disagree about which columns this view means. */
+    onApply(ordered);
+    onExport?.(ordered);
+    onClose();
+  }, [orderedDraft, onApply, onExport, onClose]);
 
   return (
     <Modal
@@ -72,6 +93,17 @@ export const CustomizeColumnsModal = <Key extends string>({
           >
             Reset
           </Button>
+          {onExport && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={draft.length === 0}
+              leftIcon={<Download className="h-4 w-4" strokeWidth={2.2} />}
+            >
+              Export
+            </Button>
+          )}
           <Button
             variant="brand"
             size="sm"

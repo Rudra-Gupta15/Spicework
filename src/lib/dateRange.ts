@@ -23,14 +23,35 @@ export const DATE_RANGE_PRESETS = [
   "Custom Range",
 ] as const;
 
-export type DateRangePreset = (typeof DATE_RANGE_PRESETS)[number];
+/**
+ * One exact day picked from the dates the rows actually carry.
+ *
+ * Deliberately not a member of `DATE_RANGE_PRESETS`: the picker lists the days
+ * it finds in the data, which change as scans arrive, so they cannot be a fixed
+ * list. Keeping it out of the Custom Range case too means picking "19 Aug" and
+ * then opening Custom Range are distinguishable — overloading one on the other
+ * made the two-field editor vanish the moment someone typed matching dates.
+ */
+export const ON_DATE = "On Date";
 
-/** A chosen window. `from`/`to` are `yyyy-mm-dd` and only used by Custom. */
+export type DateRangePreset = (typeof DATE_RANGE_PRESETS)[number] | typeof ON_DATE;
+
+/**
+ * A chosen window. `from`/`to` are `yyyy-mm-dd`; Custom Range uses both, and
+ * `On Date` puts the single chosen day in both.
+ */
 export interface DateRange {
   preset: DateRangePreset;
   from: string;
   to: string;
 }
+
+/** The window covering exactly `day` (a `yyyy-mm-dd` string). */
+export const onDate = (day: string): DateRange => ({
+  preset: ON_DATE,
+  from: day,
+  to: day,
+});
 
 /** No window at all — what a filter bar starts on. */
 export const ALL_TIME: DateRange = { preset: "All Time", from: "", to: "" };
@@ -188,6 +209,13 @@ export const dateRangeBounds = (range: DateRange): DateBounds => {
         start: new Date(new Date().getFullYear(), 0, 1).getTime(),
         end: endOfToday,
       };
+    case ON_DATE: {
+      const day = parseReportedDate(range.from);
+
+      return day === undefined
+        ? {}
+        : { start: day, end: day + 86400000 - 1 };
+    }
     case "Custom Range": {
       const start = range.from ? parseReportedDate(range.from) : undefined;
       const to = range.to ? parseReportedDate(range.to) : undefined;
@@ -222,6 +250,7 @@ export const matchesDateRange = (raw: string, range: DateRange): boolean => {
 
 /** How the range reads on a filter chip or a saved search. */
 export const describeDateRange = (range: DateRange): string => {
+  if (range.preset === ON_DATE) return formatReportedDate(range.from);
   if (range.preset !== "Custom Range") return range.preset;
 
   const day = (value: string): string => {
@@ -236,9 +265,141 @@ export const describeDateRange = (range: DateRange): string => {
         });
   };
 
-  if (range.from && range.to) return `${day(range.from)} – ${day(range.to)}`;
+  /* A window whose two ends are the same day is one day, and saying it twice
+     reads like a mistake — "19 Aug 2026 – 19 Aug 2026". */
+  if (range.from && range.to)
+    return range.from === range.to
+      ? day(range.from)
+      : `${day(range.from)} – ${day(range.to)}`;
   if (range.from) return `From ${day(range.from)}`;
   if (range.to) return `Until ${day(range.to)}`;
 
   return "Custom Range";
+};
+
+/**
+ * A reported date written the way the rest of the app writes dates —
+ * `Aug 19, 2026`. The clock reading is dropped on purpose: a Last Scan
+ * column is read for how stale a row is, and a stack of
+ * `2026-07-29 13:46:36` is far harder to scan than a stack of days.
+ * A value that carries no date ("Unknown", "Never") is passed through as it
+ * stands, because that is what the row honestly says.
+ */
+export const formatReportedDate = (raw: string): string => {
+  const at = parseReportedDate(raw);
+  if (at === undefined) return raw.trim() || "—";
+
+  return new Date(at).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+/**
+ * Comparator putting the most recently dated row first, and rows whose date
+ * could not be read last. Undated rows sink rather than float: "Unknown" is
+ * the absence of a scan, not a very old one, and sorting it to the top would
+ * fill page one with the least informative rows in the estate.
+ *
+ * Sorting is on the parsed day, not the string, so the mixed formats these
+ * lists carry (`2026-07-29 13:46:36` beside `Jul 30 2026`) still order
+ * against each other correctly.
+ */
+export const byNewestReported =
+  <T,>(getDate: (row: T) => string) =>
+  (a: T, b: T): number => {
+    const left = parseReportedDate(getDate(a));
+    const right = parseReportedDate(getDate(b));
+
+    if (left === undefined) return right === undefined ? 0 : 1;
+    if (right === undefined) return -1;
+
+    return right - left;
+  };
+
+/** `yyyy-mm-dd` of a local date — the shape the custom-range fields hold. */
+const isoDay = (at: Date): string =>
+  [
+    at.getFullYear(),
+    String(at.getMonth() + 1).padStart(2, "0"),
+    String(at.getDate()).padStart(2, "0"),
+  ].join("-");
+
+/**
+ * The one-day window around `value` — a Custom Range whose two ends are the
+ * same day, which `dateRangeBounds` already reads as that whole day rather
+ * than the instant of midnight.
+ *
+ * A value carrying a clock reading is read as a real instant, so a timestamp
+ * written in UTC lands on the day it happened *here*; a bare `2026-08-19` is
+ * left to `parseReportedDate`, because `Date.parse` would call that UTC
+ * midnight and hand back the day before to anyone west of Greenwich.
+ *
+ * Undefined when there is no date in the value to build a window from.
+ */
+export const singleDayRange = (value: string): DateRange | undefined => {
+  const hasClock = /\d{1,2}:\d{2}/.test(value);
+  const parsed = hasClock ? Date.parse(value) : Number.NaN;
+
+  const at = Number.isNaN(parsed) ? parseReportedDate(value) : parsed;
+  if (at === undefined) return undefined;
+
+  const day = isoDay(new Date(at));
+
+  return { preset: "Custom Range", from: day, to: day };
+};
+
+/**
+ * The distinct days a column of reported dates falls on, newest first, as
+ * `yyyy-mm-dd`.
+ *
+ * This is what lets the picker offer the dates the estate actually holds
+ * rather than a fixed list: it is derived from the rows on every render, so a
+ * scan landing on a day nothing had been scanned on before puts that day in
+ * the menu with no further work, and a day whose last machine was rescanned
+ * drops out of it.
+ *
+ * Values carrying no readable date contribute nothing — there is no day to
+ * offer for a machine no scan has reached.
+ */
+export const reportedDays = (values: string[]): string[] => {
+  const days = new Set<string>();
+
+  values.forEach((value) => {
+    const at = parseReportedDate(value);
+    if (at !== undefined) days.add(isoDay(new Date(at)));
+  });
+
+  /* `yyyy-mm-dd` sorts chronologically as text, so newest first is the plain
+     descending sort — and it is the order a person scanning the menu wants,
+     since the recent days are the ones being asked about. */
+  return [...days].sort().reverse();
+};
+
+/**
+ * Whether ANY of a device's scanned days falls in the window — the history
+ * version of `matchesDateRange`.
+ *
+ * `lastScan` is a single snapshot: the most recent scan, and nothing before
+ * it. A device rescanned since a given day drops off that day the moment
+ * `matchesDateRange` is asked, even though the day genuinely happened. This
+ * instead asks the device's whole `scanDays` list, so "Last Scan: 17 Aug
+ * 2026" keeps finding a machine that was scanned on the 17th and has since
+ * been rescanned — the same honesty rule applies to the empty case: a device
+ * with no day on record is out as soon as a window is set.
+ */
+export const matchesDateRangeAny = (days: string[], range: DateRange): boolean => {
+  if (!isDateRangeActive(range)) return true;
+  if (days.length === 0) return false;
+
+  const { start, end } = dateRangeBounds(range);
+
+  return days.some((raw) => {
+    const at = parseReportedDate(raw);
+    if (at === undefined) return false;
+    if (start !== undefined && at < start) return false;
+    if (end !== undefined && at > end) return false;
+    return true;
+  });
 };

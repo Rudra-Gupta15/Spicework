@@ -29,6 +29,9 @@ import {
   useSavedSearches,
   type SavedSearchFilterState,
 } from "@/data/savedSearches";
+import { runSavedSearch, savedSearchFiltersLabel } from "@/data/savedSearchRun";
+import { useDeviceList } from "@/data/deviceApi";
+import { useSoftwareInventory } from "@/data/softwareInventory";
 import { ApiError } from "@/lib/api";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import type { SavedSearch, SavedSearchCategory } from "@/types/savedSearch";
@@ -65,18 +68,43 @@ const SavedSearchPage = () => {
     [searches, filters],
   );
 
-  /* Clamping beats resetting: narrowing the filters can never strand the
-     view on a page that no longer exists. */
   /* Grouped before paging: one row per name, so the page count reflects rows
      on screen rather than saves in the database. */
   const groups = useMemo(() => groupSavedSearches(matches), [matches]);
 
+  /* Clamping beats resetting: narrowing the filters can never strand the
+     view on a page that no longer exists. */
   const lastPage = Math.max(1, Math.ceil(groups.length / PAGE_SIZE));
   const currentPage = Math.min(page, lastPage);
 
   const visible = useMemo(
     () => groups.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [matches, currentPage],
+    [groups, currentPage],
+  );
+
+  /* The saved queries are re-run here for the same reason the search's own
+     page re-runs them: a stored count goes stale the moment a device is added
+     or rescanned. Only the page on screen is run, so the cost is a handful of
+     array passes over one estate fetch rather than one per saved search. */
+  const { devices: allDevices, isLoading: devicesLoading } = useDeviceList();
+  const { items: allSoftware, isLoading: softwareLoading } = useSoftwareInventory();
+
+  const estateLoading = devicesLoading || (tab === "Software" && softwareLoading);
+
+  const liveResults = useMemo(() => {
+    if (estateLoading) return undefined;
+
+    return new Map(
+      visible.map((group) => [
+        group.latest.id,
+        runSavedSearch(tab, group.latest, allDevices, allSoftware).length,
+      ]),
+    );
+  }, [visible, tab, allDevices, allSoftware, estateLoading]);
+
+  const filtersLabelFor = useCallback(
+    (search: SavedSearch) => savedSearchFiltersLabel(tab, search),
+    [tab],
   );
 
   const changeFilters = useCallback(
@@ -186,6 +214,8 @@ const SavedSearchPage = () => {
               onView={openSearch}
               onEdit={openSearch}
               onDelete={setPendingDelete}
+              liveResults={liveResults}
+              filtersLabelFor={filtersLabelFor}
               emptyMessage={
                 isSavedSearchFiltered(filters)
                   ? "No Filter Search match your search."

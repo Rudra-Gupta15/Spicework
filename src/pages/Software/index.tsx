@@ -163,19 +163,26 @@ const SoftwarePage = () => {
     }
   }, [filters, matches.length, navigate, toast]);
 
+  /* Not memoized on `columns`: the Customize Columns dialog's own Export
+     button needs this run against the selection it is holding right now,
+     which for one render is ahead of the `columns` state Apply is about to
+     set — reading the state instead would export the view from before the
+     dialog was opened. */
+  const toExportColumns = useCallback(
+    (keys: SoftwareColumnKey[]): ExportColumn<SoftwareInventoryItem>[] =>
+      SOFTWARE_INVENTORY_COLUMNS.filter((column) => keys.includes(column.key)).map(
+        (column) => ({
+          key: column.key,
+          label: column.label,
+          value: (item) => String(item[column.key] ?? ""),
+        }),
+      ),
+    [],
+  );
+
   /* Exports carry the columns the table is currently showing, so a
      customised view exports as it reads. */
-  const exportColumns = useMemo<ExportColumn<SoftwareInventoryItem>[]>(
-    () =>
-      SOFTWARE_INVENTORY_COLUMNS.filter((column) =>
-        columns.includes(column.key),
-      ).map((column) => ({
-        key: column.key,
-        label: column.label,
-        value: (item) => String(item[column.key] ?? ""),
-      })),
-    [columns],
-  );
+  const exportColumns = useMemo(() => toExportColumns(columns), [toExportColumns, columns]);
 
   /* Every match, not just the page on screen. */
   const handleExport = useCallback(
@@ -196,6 +203,29 @@ const SoftwarePage = () => {
       });
     },
     [exportColumns, matches, toast],
+  );
+
+  /* The Customize Columns dialog's own Export button — writes the file with
+     exactly the columns just checked there, as CSV, the format someone
+     expects to double-click straight into a spreadsheet. */
+  const handleCustomizeExport = useCallback(
+    (keys: SoftwareColumnKey[]) => {
+      const filename = exportRows(
+        "software-inventory",
+        "csv",
+        toExportColumns(keys),
+        matches,
+      );
+
+      toast({
+        tone: "success",
+        title: `Exported ${matches.length.toLocaleString()} ${
+          matches.length === 1 ? "application" : "applications"
+        } as CSV`,
+        description: filename,
+      });
+    },
+    [toExportColumns, matches, toast],
   );
 
   return (
@@ -272,6 +302,7 @@ const SoftwarePage = () => {
         defaultColumns={DEFAULT_SOFTWARE_INVENTORY_COLUMNS}
         value={columns}
         onApply={saveColumns}
+        onExport={handleCustomizeExport}
       />
     </>
   );

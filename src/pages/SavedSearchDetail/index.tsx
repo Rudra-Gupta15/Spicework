@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, History } from "lucide-react";
 
 import { Badge, Button, Card, ConfirmDialog, DataTable, Loader, PRIMARY_CELL, Pagination, type Column } from "@/components/ui";
+import { DeviceScanHistoryModal } from "@/components/common/DeviceScanHistoryModal";
 import { SearchResultFilters } from "@/components/savedSearch/SearchResultFilters";
-import { deleteSavedSearch, fetchSavedSearchById } from "@/data/savedSearches";
+import { SavedSearchVersionMenu } from "@/components/savedSearch/SavedSearchVersionMenu";
+import {
+  deleteSavedSearch,
+  fetchSavedSearchById,
+  savedAtLabel,
+  useSavedSearches,
+} from "@/data/savedSearches";
 import {
   DEFAULT_RESULT_FILTERS,
   filterResults,
@@ -12,7 +19,7 @@ import {
   resultFilterOptions,
   type SearchResultFilterState,
 } from "@/data/savedSearchResults";
-import { runSavedSearch } from "@/data/savedSearchRun";
+import { hardwareSavedQuery, runSavedSearch } from "@/data/savedSearchRun";
 import { useDeviceList } from "@/data/deviceApi";
 import { useSoftwareInventory } from "@/data/softwareInventory";
 import { ApiError } from "@/lib/api";
@@ -28,11 +35,30 @@ const SavedSearchDetailPage = () => {
   const deletePrompt = useDisclosure();
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<SearchResultFilterState>(DEFAULT_RESULT_FILTERS);
+  /* Computer name of the row whose scan trail is open — `null` while closed. */
+  const [scanHistoryFor, setScanHistoryFor] = useState<string | null>(null);
 
   const [found, setFound] = useState<{ category: SavedSearchCategory; search: SavedSearch } | null>(null);
   const [isLoading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string>();
+
+  /* Switching to another save under the same name changes only the id in the
+     route, so without this the previous save's results would sit under the new
+     one's heading until the fetch lands. Filters and the page reset with it —
+     a different save is a different result set. Derived during render rather
+     than in the effect below, so the stale view never paints. */
+  const [loadedId, setLoadedId] = useState(searchId);
+  if (searchId && loadedId !== searchId) {
+    setLoadedId(searchId);
+    setFound(null);
+    setNotFound(false);
+    setError(undefined);
+    setLoading(true);
+    setPage(1);
+    setFilters(DEFAULT_RESULT_FILTERS);
+    setScanHistoryFor(null);
+  }
 
   useEffect(() => {
     if (!searchId) return;
@@ -55,6 +81,19 @@ const SavedSearchDetailPage = () => {
       cancelled = true;
     };
   }, [searchId]);
+
+  /* Every save made under this name. They are auto-named "All <category> —
+     <today>", so five saves in one day carry the same title and the heading
+     alone cannot say which is open — this is what the switcher lists. */
+  const { searches: categorySaves } = useSavedSearches(found?.category ?? "Hardware");
+
+  const siblings = useMemo(() => {
+    if (!found) return [];
+    const name = found.search.name.trim().toLowerCase();
+    return categorySaves
+      .filter((entry) => entry.name.trim().toLowerCase() === name)
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  }, [found, categorySaves]);
 
   /* The saved query is re-run against current data rather than replaying the
      row count stored the day it was saved — a saved search exists to be asked
@@ -130,7 +169,19 @@ const SavedSearchDetailPage = () => {
   }
 
   const { search } = found;
-  const chips = search.appliedFilters ?? search.filters.split(",").map((f) => f.trim());
+  const stored = (
+    search.appliedFilters ?? search.filters.split(",").map((f) => f.trim())
+  ).filter(Boolean);
+
+  /* A hardware save with no filters of its own runs pinned to the day it was
+     made — see `hardwareSavedQuery`. That window is derived at run time
+     rather than stored, so its chip is derived here too: without it the bar
+     would claim no filter at all while the table below is narrowed to one
+     day. */
+  const pinnedChip =
+    found.category === "Hardware" ? hardwareSavedQuery(search).pinnedChip : undefined;
+
+  const chips = pinnedChip ? [...stored, pinnedChip] : stored;
 
   const columns: Column<SearchResultDevice>[] = [
     { key: "name", header: "Device Name", cellClassName: PRIMARY_CELL },
@@ -153,6 +204,25 @@ const SavedSearchDetailPage = () => {
     { key: "manufacturer", header: "Manufacturer", cellClassName: "text-muted" },
     { key: "serial", header: "Serial Number", cellClassName: PRIMARY_CELL },
     { key: "lastScan", header: "Last Scan", cellClassName: "text-muted" },
+    {
+      key: "history",
+      header: "History",
+      className: "w-[150px]",
+      /* Every machine has a trail worth opening, not only the ones that
+         appeared twice above — a device scanned nightly for a month shows one
+         row here and thirty entries behind it. */
+      render: (device) => (
+        <button
+          type="button"
+          onClick={() => setScanHistoryFor(device.name)}
+          className="inline-flex items-center gap-2 rounded-md text-[13px] font-semibold text-brand transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:outline-none"
+        >
+          <History className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+          View Scans
+          <span className="sr-only"> for {device.name}</span>
+        </button>
+      ),
+    },
   ];
 
   const handleDelete = () => {
@@ -162,14 +232,27 @@ const SavedSearchDetailPage = () => {
   return (
     <>
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <h1 className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[22px] leading-tight font-bold break-words text-heading sm:text-[26px]">
-          {search.name}
-          <Badge tone={search.scope === "Public" ? "success" : "neutral"}>
-            {search.scope}
-          </Badge>
-        </h1>
+        <div className="min-w-0">
+          <h1 className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[22px] leading-tight font-bold break-words text-heading sm:text-[26px]">
+            {search.name}
+            <Badge tone={search.scope === "Public" ? "success" : "neutral"}>
+              {search.scope}
+            </Badge>
+          </h1>
+
+          {/* The time, because the name repeats across every save made on the
+              same day — it is the only thing that identifies this one. */}
+          <p className="mt-1 text-[13px] text-muted">
+            Saved {search.created} at {savedAtLabel(search)}
+          </p>
+        </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2 sm:gap-3">
+          <SavedSearchVersionMenu
+            saves={siblings}
+            currentId={search.id}
+            onSelect={(next) => navigate(`${SAVED_ROUTE}/${next.id}`)}
+          />
           <Button variant="outline">Edit Search</Button>
           <Button
             variant="outline"
@@ -211,6 +294,17 @@ const SavedSearchDetailPage = () => {
                   results.length === search.results ? "" : ` (was ${search.results} when saved)`
                 }`}
           </span>
+
+          {/* Said outright rather than left to be inferred from a shrinking
+              count: this search was saved with nothing filtered, so it
+              answers for the day it was made, and a machine scanned again
+              since carries a newer date and falls outside it for good. */}
+          {pinnedChip && (
+            <p className="w-full text-[12px] leading-relaxed text-muted">
+              Saved with no filters, so it answers for the day it was made.
+              Devices scanned since then carry a newer date and fall outside it.
+            </p>
+          )}
         </Card>
 
         <Card className="px-5 py-5">
@@ -257,6 +351,11 @@ const SavedSearchDetailPage = () => {
           />
         </Card>
       </div>
+
+      <DeviceScanHistoryModal
+        device={scanHistoryFor}
+        onClose={() => setScanHistoryFor(null)}
+      />
 
       <ConfirmDialog
         isOpen={deletePrompt.isOpen}

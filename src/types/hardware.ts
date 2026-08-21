@@ -12,6 +12,14 @@ export interface HardwareDevice {
   serialNumber: string;
   status: DeviceStatus;
   lastScan: string;
+  /**
+   * Every day this device was ever audited, newest first — not just the day
+   * of its current `lastScan`. A rescan moves `lastScan` forward but a day
+   * already in here stays; that is what lets "Last Scan: 17 Aug 2026" still
+   * find a machine rescanned since the 17th. Empty for mock rows and for a
+   * device no scan has reached.
+   */
+  scanDays: string[];
   ipAddress: string;
   osVersion: string;
   location: string;

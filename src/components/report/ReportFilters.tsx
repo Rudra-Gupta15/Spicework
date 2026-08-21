@@ -81,6 +81,7 @@ export const ReportFilters = ({
       label="Last Scan"
       value={filters.lastScan}
       onChange={(lastScan) => onChange({ lastScan })}
+      days={options.lastScanDays}
     />
 
     {isFiltered && (

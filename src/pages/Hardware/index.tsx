@@ -176,19 +176,26 @@ const HardwarePage = () => {
     }
   }, [filters, devices.length, navigate, toast]);
 
-  /* Exports carry the columns the table is currently showing, so a
-     customised view exports as it reads. */
-  const exportColumns = useMemo<ExportColumn<HardwareDevice>[]>(
-    () =>
-      HARDWARE_COLUMNS.filter((column) => columns.includes(column.key)).map(
+  /* Not memoized on `columns`: the Customize Columns dialog's own Export
+     button needs this run against the selection it is holding right now,
+     which for one render is ahead of the `columns` state Apply is about to
+     set — reading the state instead would export the view from before the
+     dialog was opened. */
+  const toExportColumns = useCallback(
+    (keys: HardwareColumnKey[]): ExportColumn<HardwareDevice>[] =>
+      HARDWARE_COLUMNS.filter((column) => keys.includes(column.key)).map(
         (column) => ({
           key: column.key,
           label: column.label,
           value: (device) => String(device[column.key] ?? ""),
         }),
       ),
-    [columns],
+    [],
   );
+
+  /* Exports carry the columns the table is currently showing, so a
+     customised view exports as it reads. */
+  const exportColumns = useMemo(() => toExportColumns(columns), [toExportColumns, columns]);
 
   /* Every matched device, not just the page on screen — the filter is what
      is being exported, and it rarely fits in six rows. */
@@ -210,6 +217,29 @@ const HardwarePage = () => {
       });
     },
     [exportColumns, devices, toast],
+  );
+
+  /* The Customize Columns dialog's own Export button — writes the file with
+     exactly the columns just checked there, as CSV, the format someone
+     expects to double-click straight into a spreadsheet. */
+  const handleCustomizeExport = useCallback(
+    (keys: HardwareColumnKey[]) => {
+      const filename = exportRows(
+        "hardware-inventory",
+        "csv",
+        toExportColumns(keys),
+        devices,
+      );
+
+      toast({
+        tone: "success",
+        title: `Exported ${devices.length.toLocaleString()} ${
+          devices.length === 1 ? "device" : "devices"
+        } as CSV`,
+        description: filename,
+      });
+    },
+    [toExportColumns, devices, toast],
   );
 
   return (
@@ -283,6 +313,7 @@ const HardwarePage = () => {
         defaultColumns={DEFAULT_COLUMNS}
         value={columns}
         onApply={saveColumns}
+        onExport={handleCustomizeExport}
       />
     </>
   );

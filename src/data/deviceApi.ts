@@ -30,6 +30,8 @@ interface RawDeviceListItem {
   ip_address?: string;
   device_type?: string;
   location?: string;
+  /** Every day this device was ever audited, newest first — see `scanDays`. */
+  scan_days?: string[];
 }
 
 interface RawSoftwareEntry {
@@ -159,6 +161,19 @@ export interface RawAssetMetadata {
   life_cycle_stage: string;
   vendor: string;
   notes: string;
+  /**
+   * A human correction of a Hardware Specification field the agent misread.
+   * Empty means nothing to correct. Applied server-side (list + detail
+   * endpoints in devices.py) on top of the scanned value, so `hardware_details`
+   * already carries the correction by the time it reaches here — nothing on
+   * this side has to merge these in itself.
+   */
+  cpu_override: string;
+  ram_override: string;
+  disk_override: string;
+  serial_number_override: string;
+  manufacturer_override: string;
+  device_model_override: string;
   last_updated: string;
 }
 
@@ -202,6 +217,7 @@ const toHardwareDevice = (raw: RawDeviceListItem): HardwareDevice => {
     serialNumber: firstReal(raw.serial_number) ?? `${name} (D)`,
     status: raw.last_seen ? deriveStatus(raw.last_seen) : "OFFLINE",
     lastScan: raw.last_seen || "Unknown",
+    scanDays: raw.scan_days ?? [],
     ipAddress: firstReal(raw.ip_address) ?? "—",
     osVersion: firstReal(raw.os_name) ?? "—",
     location: firstReal(raw.location) ?? "Unknown",
@@ -320,6 +336,57 @@ export const fetchAssetMetadata = async (deviceId: string): Promise<RawAssetMeta
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;
   }
+};
+
+/** Every field `PUT /api/asset-metadata/{id}` accepts, blank until set. */
+const BLANK_ASSET_METADATA: Omit<RawAssetMetadata, "device_id" | "last_updated"> = {
+  asset_tag: "",
+  owner: "",
+  department: "",
+  location: "",
+  purchase_date: "",
+  purchase_price: "",
+  warranty_expiry: "",
+  life_cycle_stage: "Active",
+  vendor: "",
+  notes: "",
+  cpu_override: "",
+  ram_override: "",
+  disk_override: "",
+  serial_number_override: "",
+  manufacturer_override: "",
+  device_model_override: "",
+};
+
+/**
+ * Saves a Hardware Specification correction. The write endpoint replaces the
+ * whole record rather than patching one field, so this reads whatever is on
+ * file first and layers the correction on top of it — a device with no
+ * record yet starts from blanks. Without this, saving a CPU correction would
+ * silently wipe out this device's asset tag, owner, location and every other
+ * field someone had already filled in through Asset Metadata.
+ */
+export const saveHardwareOverrides = async (
+  deviceId: string,
+  overrides: Partial<
+    Pick<
+      RawAssetMetadata,
+      | "cpu_override"
+      | "ram_override"
+      | "disk_override"
+      | "serial_number_override"
+      | "manufacturer_override"
+      | "device_model_override"
+    >
+  >,
+): Promise<RawAssetMetadata> => {
+  const current = await fetchAssetMetadata(deviceId);
+  const merged = { ...BLANK_ASSET_METADATA, ...current, ...overrides };
+
+  return api.put<RawAssetMetadata>(
+    `/api/asset-metadata/${encodeURIComponent(deviceId)}`,
+    merged,
+  );
 };
 
 /** Used by both the Hardware detail and Software detail pages. */
@@ -629,3 +696,64 @@ export interface RescanResult {
 
 export const requestRescan = (deviceId: string) =>
   api.post<RescanResult>(`/api/trigger-scan/${encodeURIComponent(deviceId)}`);
+
+/* ── Scan history ─────────────────────────────────────────────────────────
+   The device list collapses a machine's audits into one row per (name, OS
+   family), so a dual-booted box shows twice and every earlier scan sits
+   behind whichever was latest. This is the trail behind that row. */
+
+export interface DeviceScan {
+  id: string;
+  osName: string;
+  osVersion: string;
+  username: string;
+  ipAddress: string;
+  /** What the machine's own clock said when it ran. */
+  scannedAt: string;
+  /** When the server filed it — the order the list is sorted by. */
+  recordedAt: string;
+}
+
+export interface DeviceScanHistory {
+  device: string;
+  /** Full count, which can exceed `scans.length` when the page is capped. */
+  total: number;
+  scans: DeviceScan[];
+}
+
+interface RawDeviceScan {
+  id: string;
+  os_name?: string;
+  os_version?: string;
+  current_username?: string;
+  ip_address?: string | null;
+  execution_datetime?: string;
+  created_at: string;
+}
+
+/** Every audit one machine has filed, newest first. `identifier` is its
+    computer name (or MAC). */
+export const fetchDeviceScans = async (
+  identifier: string,
+  limit = 100,
+): Promise<DeviceScanHistory> => {
+  const data = await api.get<{
+    device: string;
+    total: number;
+    scans: RawDeviceScan[];
+  }>(`/api/devices/${encodeURIComponent(identifier)}/scans?limit=${limit}`);
+
+  return {
+    device: data.device,
+    total: data.total,
+    scans: (data.scans ?? []).map((raw) => ({
+      id: raw.id,
+      osName: raw.os_name || "Unknown",
+      osVersion: raw.os_version || "",
+      username: raw.current_username || "Unknown",
+      ipAddress: raw.ip_address || "—",
+      scannedAt: raw.execution_datetime || raw.created_at,
+      recordedAt: raw.created_at,
+    })),
+  };
+};

@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import {
   fetchAssetMetadata,
   fetchDeviceDetail,
@@ -5,11 +7,19 @@ import {
   mapHardwareFields,
   mapNetworkAdapters,
   mapPeripherals,
+  mapPrinters,
   mapStorage,
   mapUsers,
+  mapVideoControllers,
   type RawDeviceDetail,
 } from "./deviceApi";
-import { ALL_TIME, isDateRangeActive, matchesDateRange } from "@/lib/dateRange";
+import {
+  ALL_TIME,
+  isDateRangeActive,
+  matchesDateRangeAny,
+  reportedDays,
+} from "@/lib/dateRange";
+import { api } from "@/lib/api";
 import type { HardwareDevice } from "@/types/hardware";
 import type {
   ReportCategory,
@@ -61,7 +71,10 @@ export const setReportScope = (systemId: string, scope: ReportScope): void => {
 };
 
 /** The picker table's rows, before per-row record counts are known. */
-export const reportSystems = (devices: HardwareDevice[]): ReportSystem[] =>
+export const reportSystems = (
+  devices: HardwareDevice[],
+  pinnedIds: ReadonlySet<string> = new Set(),
+): ReportSystem[] =>
   devices.map((device) => ({
     id: device.id,
     name: device.name,
@@ -72,9 +85,97 @@ export const reportSystems = (devices: HardwareDevice[]): ReportSystem[] =>
     location: device.location,
     assignedTo: device.assignedTo,
     lastScan: device.lastScan,
+    scanDays: device.scanDays,
+    pinned: pinnedIds.has(device.id),
     records: 0,
     scope: reportScope(device.id),
   }));
+
+/* --- pinning a system to the top of the list ------------------------ */
+
+/**
+ * App-wide, not per-user — the same reach `reportScope` already has. "Show
+ * this one above everyone else" reads oddly as something only you can see;
+ * a pin is meant to be found by whoever opens Reports next.
+ */
+const fetchPinnedIds = (category: ReportCategory) =>
+  api
+    .get<{ system_ids: string[] }>(`/api/report-pins/${encodeURIComponent(category)}`)
+    .then((data) => data.system_ids);
+
+const setSystemPinned = (
+  category: ReportCategory,
+  systemId: string,
+  pinned: boolean,
+): Promise<unknown> =>
+  pinned
+    ? api.put(`/api/report-pins/${encodeURIComponent(category)}/${encodeURIComponent(systemId)}`)
+    : api.delete(`/api/report-pins/${encodeURIComponent(category)}/${encodeURIComponent(systemId)}`);
+
+/**
+ * The pinned ids for one Reports category, and a toggle that updates the
+ * server and the local set together.
+ *
+ * The set is applied optimistically — flipped in state before the request
+ * resolves — so the star responds the instant it's clicked rather than
+ * waiting on a round trip; a failed request reverts it and surfaces the
+ * error rather than leaving the UI claiming a pin that never saved.
+ */
+export const useReportPins = (category: ReportCategory) => {
+  const [pinnedIds, setPinnedIds] = useState<ReadonlySet<string>>(new Set());
+  const [isLoading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Resetting for a fresh fetch on category change, not a render-time
+    // update — the rule can't tell the two apart.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
+    /* Cleared up front rather than left to the fetch: Hardware and Software
+       both build their rows from the same device ids, so without this a
+       switch between tabs would show the old tab's pins on the new one
+       until the request resolves. */
+    setPinnedIds(new Set());
+    fetchPinnedIds(category)
+      .then((ids) => {
+        if (!cancelled) setPinnedIds(new Set(ids));
+      })
+      .catch(() => {
+        /* Falls back to nothing pinned rather than an error banner — pins
+           are a convenience, not core data the page depends on. */
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [category]);
+
+  const togglePin = async (systemId: string, pinned: boolean) => {
+    setPinnedIds((current) => {
+      const next = new Set(current);
+      if (pinned) next.add(systemId);
+      else next.delete(systemId);
+      return next;
+    });
+
+    try {
+      await setSystemPinned(category, systemId, pinned);
+    } catch (error) {
+      /* Revert: the server never confirmed it, so the star should not either. */
+      setPinnedIds((current) => {
+        const next = new Set(current);
+        if (pinned) next.delete(systemId);
+        else next.add(systemId);
+        return next;
+      });
+      throw error;
+    }
+  };
+
+  return { pinnedIds, isLoading, togglePin };
+};
 
 /* --- narrowing the list -------------------------------------------- */
 
@@ -93,6 +194,8 @@ export interface ReportFilterOptions {
   type: string[];
   status: string[];
   manufacturer: string[];
+  /** Every day a loaded system was last scanned on, newest first. */
+  lastScanDays: string[];
 }
 
 /**
@@ -111,6 +214,7 @@ export const reportFilterOptions = (
     type: distinct((system) => system.type),
     status: distinct((system) => system.status),
     manufacturer: distinct((system) => system.manufacturer),
+    lastScanDays: reportedDays(systems.flatMap((system) => system.scanDays)),
   };
 };
 
@@ -130,18 +234,23 @@ export const filterReportSystems = (
 ): ReportSystem[] => {
   const term = search.trim().toLowerCase();
 
-  return systems.filter(
+  const matched = systems.filter(
     (system) =>
       (type === ALL || system.type === type) &&
       (status === ALL || system.status === status) &&
       (manufacturer === ALL || system.manufacturer === manufacturer) &&
       (scope === ALL_SCOPES || system.scope === scope) &&
-      matchesDateRange(system.lastScan, lastScan) &&
+      matchesDateRangeAny(system.scanDays, lastScan) &&
       (term === "" ||
         `${system.name} ${system.type} ${system.manufacturer} ${system.serialNumber} ${system.assignedTo}`
           .toLowerCase()
           .includes(term)),
   );
+
+  /* A stable sort (guaranteed by the spec since ES2019), so this only moves
+     pinned rows to the front — it never reorders within either group, which
+     would otherwise fight whatever order the rows already carried. */
+  return matched.sort((a, b) => Number(b.pinned) - Number(a.pinned));
 };
 
 /**
@@ -163,7 +272,9 @@ export const fetchRecordCounts = async (
             : (detail.peripherals?.length ?? 0) +
               (detail.network_adapters?.length ?? 0) +
               (detail.disk_partitions?.length ?? 0) +
-              (detail.user_accounts?.length ?? 0);
+              (detail.user_accounts?.length ?? 0) +
+              (detail.printers?.length ?? 0) +
+              (detail.gpus?.length ?? 0);
         return [device.id, count];
       } catch {
         return [device.id, 0];
@@ -196,6 +307,8 @@ const buildHardwareReport = (
   const storage = mapStorage(detail);
   const adapters = mapNetworkAdapters(detail);
   const peripherals = mapPeripherals(detail);
+  const printers = mapPrinters(detail);
+  const video = mapVideoControllers(detail);
   const users = mapUsers(detail);
 
   return {
@@ -266,6 +379,31 @@ const buildHardwareReport = (
         ]),
       },
       {
+        id: "printers",
+        title: "Printers",
+        columns: ["#", "Name", "System Name", "Port", "Status", "Bidirectional"],
+        rows: printers.map((printer, index) => [
+          (index + 1).toString(),
+          printer.name,
+          printer.systemName,
+          printer.portName,
+          printer.status,
+          printer.bidirectional,
+        ]),
+      },
+      {
+        id: "video",
+        title: "Video Controllers",
+        columns: ["#", "Name", "Adapter", "Video Processor", "Driver Version"],
+        rows: video.map((controller, index) => [
+          (index + 1).toString(),
+          controller.name,
+          controller.adapterName,
+          controller.videoProcessor,
+          controller.driverVersion,
+        ]),
+      },
+      {
         id: "users",
         title: "User Accounts",
         columns: ["#", "Username", "Home Directory", "Last Login", "User Type"],
@@ -286,6 +424,7 @@ const buildSoftwareReport = (
   detail: RawDeviceDetail,
 ): ReportPreview => {
   const apps = mapApps(detail);
+  const users = mapUsers(detail);
 
   const byPublisher = new Map<string, number>();
   apps.forEach((app) => {
@@ -349,9 +488,48 @@ const buildSoftwareReport = (
           apps.length ? `${Math.round((count / apps.length) * 100)}%` : "0%",
         ]),
       },
+      {
+        id: "users",
+        title: "User Accounts",
+        /* Licensed and Current User are the two fields this side of the app
+           actually cares about — see `UserAccount` — so they lead the
+           columns the hardware-side Users section doesn't carry. */
+        columns: ["#", "Username", "Licensed", "Current User", "Last Login", "User Type"],
+        rows: users.map((user, index) => [
+          (index + 1).toString(),
+          user.username,
+          user.licensed,
+          user.currentUser,
+          user.lastLogin,
+          user.userType,
+        ]),
+      },
     ]),
   };
 };
+
+/**
+ * A copy of the report holding only the picked sections — what "select which
+ * parts to download" produces. The overview strip (title, subtitle, Report
+ * Summary) always comes along regardless of the selection: it is the minimum
+ * context that says what the file even is, not one of the parts being
+ * chosen between.
+ *
+ * An empty `sectionIds` is read as "everything" rather than "nothing" — the
+ * one caller of this with an empty list is a report that has not looked at
+ * the picker yet, and a report that downloads as blank sections the moment
+ * the screen opens would be a worse default than just not filtering.
+ */
+export const reportWithSections = (
+  report: ReportPreview,
+  sectionIds: string[],
+): ReportPreview =>
+  sectionIds.length === 0
+    ? report
+    : {
+        ...report,
+        sections: report.sections.filter((section) => sectionIds.includes(section.id)),
+      };
 
 /** Fetches the device's latest audit (and asset tag) and builds the report it previews/exports. */
 export const buildReport = async (

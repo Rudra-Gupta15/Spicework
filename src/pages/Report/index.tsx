@@ -4,10 +4,11 @@ import { DetailTabs } from "@/components/common/DetailTabs";
 import { Navbar } from "@/components/layout/Navbar";
 import { ReportDownloadMenu } from "@/components/report/ReportDownloadMenu";
 import { ReportFilters } from "@/components/report/ReportFilters";
+import type { HardwareSpecFields } from "@/components/report/EditHardwareSpecModal";
 import { ReportPreviewPanel } from "@/components/report/ReportPreviewPanel";
 import { ReportSystemTable } from "@/components/report/ReportSystemTable";
 import { Button, Card, Loader, Pagination, Spinner } from "@/components/ui";
-import { useDeviceList } from "@/data/deviceApi";
+import { saveHardwareOverrides, useDeviceList } from "@/data/deviceApi";
 import {
   DEFAULT_REPORT_FILTERS,
   REPORT_CATEGORIES,
@@ -19,7 +20,9 @@ import {
   reportFilterOptions,
   reportScope,
   reportSystems,
+  reportWithSections,
   setReportScope,
+  useReportPins,
 } from "@/data/report";
 import { useToast } from "@/hooks/useToast";
 import { ApiError } from "@/lib/api";
@@ -87,10 +90,24 @@ const ReportPage = () => {
     setPage(1);
   }, []);
 
+  const { pinnedIds, togglePin } = useReportPins(category);
+
   const systems = useMemo(
-    () => reportSystems(allDevices),
+    () => reportSystems(allDevices, pinnedIds),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- scopeVersion is the signal that a scope changed
-    [allDevices, scopeVersion],
+    [allDevices, pinnedIds, scopeVersion],
+  );
+
+  const handleTogglePin = useCallback(
+    (systemId: string, pinned: boolean) => {
+      togglePin(systemId, pinned).catch(() => {
+        toast({
+          tone: "danger",
+          title: pinned ? "Could not pin this system." : "Could not unpin this system.",
+        });
+      });
+    },
+    [togglePin, toast],
   );
 
   const changeScope = useCallback(
@@ -235,6 +252,12 @@ const ReportPage = () => {
     [category, checkedDevices, bulkLoading, toast],
   );
 
+  /* Bumped after a Hardware Specification correction saves, so the effect
+     below rebuilds the report the same way `scopeVersion` forces the system
+     list to — `selectedDevice` itself does not change, so nothing else would
+     tell this effect the correction happened. */
+  const [reportVersion, setReportVersion] = useState(0);
+
   useEffect(() => {
     // Nothing to build without a selected device — and the panel that would
     // show `report` is only rendered while one is selected anyway, so there's
@@ -260,13 +283,40 @@ const ReportPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [category, selectedDevice]);
+  }, [category, selectedDevice, reportVersion]);
 
   const handleDownload = useCallback(
-    (format: ReportFormat) => {
-      if (report) downloadReport(report, format);
+    (format: ReportFormat, sectionIds: string[]) => {
+      if (report) downloadReport(reportWithSections(report, sectionIds), format);
     },
     [report],
+  );
+
+  /* Saves a Hardware Specification correction and rebuilds the report so the
+     fix is visible immediately, rather than only on the next visit. Thrown
+     errors reach `EditHardwareSpecModal`, which is what keeps the dialog open
+     and shows why the save failed. */
+  const handleEditSpecification = useCallback(
+    async (overrides: Partial<HardwareSpecFields>) => {
+      if (!selectedDevice) return;
+
+      await saveHardwareOverrides(selectedDevice.id, {
+        cpu_override: overrides.cpu,
+        ram_override: overrides.ram,
+        disk_override: overrides.disk,
+        serial_number_override: overrides.serialNumber,
+        manufacturer_override: overrides.manufacturer,
+        device_model_override: overrides.model,
+      });
+
+      setReportVersion((version) => version + 1);
+      toast({
+        tone: "success",
+        title: "Correction saved",
+        description: "Hardware Detail and future reports now reflect it too.",
+      });
+    },
+    [selectedDevice, toast],
   );
 
   return (
@@ -299,6 +349,7 @@ const ReportPage = () => {
               onScopeChange={changeScope}
               onBack={() => setSelectedDevice(null)}
               onDownload={handleDownload}
+              onEditSpecification={handleEditSpecification}
             />
           )}
         </div>
@@ -376,6 +427,7 @@ const ReportPage = () => {
                   checkedIds={checkedIds}
                   onCheck={checkSystem}
                   onCheckAll={checkPage}
+                  onTogglePin={handleTogglePin}
                 />
               )}
             </div>

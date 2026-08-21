@@ -1,18 +1,27 @@
 import { Badge, DataTable, PRIMARY_CELL, type Column } from "@/components/ui";
-import { SavedSearchHistoryMenu } from "./SavedSearchHistoryMenu";
 import { type SavedSearchGroup } from "@/data/savedSearches";
 import { cn } from "@/lib/cn";
 import type { SavedSearch } from "@/types/savedSearch";
 
 interface SavedSearchTableProps {
-  /** Already grouped and paginated by the page — grouping a single page would
-      split a group whose saves straddle a page boundary. */
+  /** One row per name, already grouped and paginated by the page — grouping a
+      single page would split a group whose saves straddle a page boundary.
+      Repeat saves are not listed here; they are reached from inside the
+      search, where the version switcher tells them apart by time. */
   groups: SavedSearchGroup[];
   onView: (search: SavedSearch) => void;
   onEdit: (search: SavedSearch) => void;
   onDelete: (search: SavedSearch) => void;
   /** "Nothing saved yet" and "nothing matched" are different problems. */
   emptyMessage?: string;
+  /**
+   * Live re-run of each listed search, keyed by the id of the save shown, so
+   * this column agrees with the one on the search's own page. Absent while the
+   * estate is still loading.
+   */
+  liveResults?: Map<string, number>;
+  /** The Filters column as the search actually runs — see `savedSearchFiltersLabel`. */
+  filtersLabelFor?: (search: SavedSearch) => string;
 }
 
 const actionBtn =
@@ -24,6 +33,8 @@ export const SavedSearchTable = ({
   onEdit,
   onDelete,
   emptyMessage = "No Filter Search in this category yet.",
+  liveResults,
+  filtersLabelFor,
 }: SavedSearchTableProps) => {
   const columns: Column<SavedSearchGroup>[] = [
     {
@@ -45,19 +56,46 @@ export const SavedSearchTable = ({
       key: "filters",
       header: "Filters",
       cellClassName: "text-muted",
-      render: (group) => group.latest.filters,
+      render: (group) =>
+        filtersLabelFor?.(group.latest) ?? group.latest.filters,
     },
     {
       key: "results",
       header: "Results",
       cellClassName: "font-semibold",
-      render: (group) => group.latest.results,
+      /* The live count, not the one stored the day this was saved. The two
+         drift apart the moment a device is added or rescanned, and a list
+         quoting the stored figure beside a page quoting the live one reads as
+         a bug in whichever the reader checked second. An em dash while the
+         estate loads, rather than the stale number flashing to a new one. */
+      render: (group) => {
+        if (!liveResults) return <span className="text-muted">—</span>;
+
+        const live = liveResults.get(group.latest.id);
+        return live ?? group.latest.results;
+      },
     },
     {
       key: "created",
       header: "Created",
       cellClassName: "text-muted",
+      /* Just the date. The row stands for the name, not for one save, so a
+         time here would claim to identify a single save it does not. How many
+         saves sit behind it is said in the next column instead. */
       render: (group) => group.latest.created,
+    },
+    {
+      key: "saves",
+      header: "Saves",
+      cellClassName: "text-muted",
+      /* Silent when there is only one, so the column reads as an exception
+         rather than as a "1" repeated down every row. */
+      render: (group) =>
+        group.saves.length > 1 ? (
+          <span className="font-semibold text-heading">{group.saves.length}</span>
+        ) : (
+          <span className="text-muted">—</span>
+        ),
     },
     {
       key: "actions",
@@ -65,7 +103,7 @@ export const SavedSearchTable = ({
       /* Reserve the hover width so the row does not jump on hover. */
       className: "w-[230px]",
       /* The row itself opens the search, so the actions keep the click. */
-      render: ({ latest: search, saves }) => (
+      render: ({ latest: search }) => (
         <div
           className="flex items-center gap-2"
           onClick={(event) => event.stopPropagation()}
@@ -100,11 +138,6 @@ export const SavedSearchTable = ({
           >
             Delete
           </button>
-          <SavedSearchHistoryMenu
-            saves={saves}
-            onView={onView}
-            onDelete={onDelete}
-          />
         </div>
       ),
     },

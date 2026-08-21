@@ -11,6 +11,12 @@ export interface DeviceRecord {
   buyDate: string;
   /** Empty while the unit sits in the store — shown as "Unassigned". */
   currentUser: string;
+  /**
+   * True for a placeholder row shown while a category has no real registered
+   * units — see `DEMO_DEVICES`. Never true for anything the org actually
+   * entered, and never sent to the server.
+   */
+  isDemo?: boolean;
 }
 
 /** Narrows a tab to the units that are out with someone, or still in store. */

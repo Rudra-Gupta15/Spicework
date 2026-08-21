@@ -1,7 +1,8 @@
 import {
   ALL_TIME,
   isDateRangeActive,
-  matchesDateRange,
+  matchesDateRangeAny,
+  reportedDays,
   type DateRange,
 } from "@/lib/dateRange";
 import type { SearchResultDevice } from "@/types/savedSearch";
@@ -43,6 +44,8 @@ export interface SearchResultFilterOptions {
   status: string[];
   type: string[];
   manufacturer: string[];
+  /** Every day a result row was last scanned on, newest first. */
+  lastScanDays: string[];
 }
 
 /** Choices drawn from the result set itself, so no option matches nothing. */
@@ -58,6 +61,7 @@ export const resultFilterOptions = (
     status: distinct((device) => device.status),
     type: distinct((device) => device.type),
     manufacturer: distinct((device) => device.manufacturer),
+    lastScanDays: reportedDays(results.flatMap((device) => device.scanDays)),
   };
 };
 
@@ -80,7 +84,7 @@ export const filterResults = (
       (status === ALL || device.status === status) &&
       (type === ALL || device.type === type) &&
       (manufacturer === ALL || device.manufacturer === manufacturer) &&
-      matchesDateRange(device.lastScan, lastScan) &&
+      matchesDateRangeAny(device.scanDays, lastScan) &&
       (term === "" ||
         `${device.name} ${device.type} ${device.manufacturer} ${device.serial}`
           .toLowerCase()

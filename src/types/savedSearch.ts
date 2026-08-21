@@ -38,4 +38,6 @@ export interface SearchResultDevice {
   serial: string;
   /** Last audit time, already formatted for display. */
   lastScan: string;
+  /** Every day this device was ever audited, newest first — see `HardwareDevice.scanDays`. */
+  scanDays: string[];
 }

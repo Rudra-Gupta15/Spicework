@@ -18,7 +18,6 @@ import {
   fetchAuditStatus,
   fetchServerInfo,
   generateClientId,
-  localSnippets,
   remoteSnippets,
 } from "@/data/agent";
 import { useDisclosure } from "@/hooks/useDisclosure";
@@ -215,7 +214,6 @@ const AgentPage = () => {
   }, [isWaiting, clientId]);
 
   /* Commands preview the draft, so edits show before they are saved. */
-  const local = useMemo(() => localSnippets(draft, clientId), [draft, clientId]);
   const remote = useMemo(() => remoteSnippets(draft, clientId), [draft, clientId]);
   const daemon = useMemo(() => daemonSnippets(draft), [draft]);
 
@@ -293,21 +291,14 @@ const AgentPage = () => {
           )}
         </section>
 
-        <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <DeploymentCard
-            title="1. Self Laptop (Local Host)"
-            subtitle="Runs on your own machine / 127.0.0.1"
-            snippets={local}
-          />
-          <DeploymentCard
-            title="2. Another Laptop (Network / Remote)"
-            subtitle={`Runs from remote device / ${draft.serverIp} Offline`}
-            snippets={remote}
-          />
-        </section>
+        <DeploymentCard
+          title="1. One-Time Running Script"
+          subtitle={`Runs from remote device / ${draft.serverIp} Offline`}
+          snippets={remote}
+        />
 
         <DeploymentCard
-          title="3. Run-Once Continuous 2-Hour Auto-Audit Daemon"
+          title="2. Periodic Self-Running Script"
           subtitle="Runs continuously in the background every 2 hours - fire and forget."
           snippets={daemon}
           columns

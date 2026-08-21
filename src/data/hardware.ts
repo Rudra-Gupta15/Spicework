@@ -1,4 +1,10 @@
-import { ALL_TIME, isDateRangeActive, matchesDateRange } from "@/lib/dateRange";
+import {
+  ALL_TIME,
+  byNewestReported,
+  isDateRangeActive,
+  matchesDateRangeAny,
+  reportedDays,
+} from "@/lib/dateRange";
 import type {
   HardwareColumnKey,
   HardwareDevice,
@@ -61,6 +67,7 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     serialNumber: "SN-G14-2024-0847",
     status: "ONLINE",
     lastScan: "Jul 30 2026",
+    scanDays: ["Jul 30 2026"],
     ipAddress: "192.168.1.22",
     osVersion: "Windows 11 Pro",
     location: siteName(0),
@@ -74,6 +81,7 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     serialNumber: "SN-DL5420-3891",
     status: "OFFLINE",
     lastScan: "Jul 28 2026",
+    scanDays: ["Jul 28 2026"],
     ipAddress: "192.168.1.45",
     osVersion: "Windows 10 Pro",
     location: siteName(1),
@@ -87,6 +95,7 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     serialNumber: "SN-MBP-M3-7742",
     status: "ONLINE",
     lastScan: "Jul 29 2026",
+    scanDays: ["Jul 29 2026"],
     ipAddress: "192.168.1.62",
     osVersion: "macOS 14.5",
     location: siteName(0),
@@ -100,6 +109,7 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     serialNumber: "SN-HP-LJ-5523",
     status: "ONLINE",
     lastScan: "Jul 25 2026",
+    scanDays: ["Jul 25 2026"],
     ipAddress: "192.168.1.90",
     osVersion: "Firmware 4.2.1",
     location: siteName(2),
@@ -113,6 +123,7 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     serialNumber: "SN-CC9200-1104",
     status: "MAINTENANCE",
     lastScan: "Jul 20 2026",
+    scanDays: ["Jul 20 2026"],
     ipAddress: "10.0.1.4",
     osVersion: "IOS XE 17.9",
     location: siteName(3),
@@ -126,6 +137,7 @@ export const HARDWARE_DEVICES: HardwareDevice[] = [
     serialNumber: "NHQ97SI0011211CD8E3400",
     status: "ONLINE",
     lastScan: "Jul 30 2026",
+    scanDays: ["Jul 30 2026"],
     ipAddress: "192.168.1.118",
     osVersion: "Windows 11 Home",
     location: siteName(4),
@@ -139,6 +151,8 @@ export interface HardwareFilterOptions {
   type: string[];
   status: string[];
   manufacturer: string[];
+  /** Every day a loaded device was last scanned on, newest first. */
+  lastScanDays: string[];
 }
 
 /**
@@ -158,6 +172,12 @@ export const hardwareFilterOptions = (
     type: distinct((device) => device.type),
     status: distinct((device) => device.status),
     manufacturer: distinct((device) => device.manufacturer),
+    /* Not run through `distinct`: these are days rather than labels, they are
+       ordered newest-first rather than alphabetically, and "All" belongs to
+       the preset list the picker already carries. Drawn from every device's
+       whole scan history, not just its current `lastScan` — a day a machine
+       was scanned on does not stop being offerable once it is rescanned. */
+    lastScanDays: reportedDays(devices.flatMap((device) => device.scanDays)),
   };
 };
 
@@ -183,24 +203,35 @@ export const isFiltered = (filters: HardwareFilterState): boolean =>
   filters.manufacturer !== ALL ||
   isDateRangeActive(filters.lastScan);
 
-/** Applies the filter bar to the device list. */
+/**
+ * Applies the filter bar to the device list, most recently scanned first.
+ *
+ * The order is set here rather than on the page so that the table, the row
+ * count, the pagination and an export all read the same list — the API
+ * returns devices in no particular order, and paging an unordered list is
+ * how the same machine shows up on two pages.
+ */
 export const filterDevices = (
   devices: HardwareDevice[],
   { search, type, status, manufacturer, lastScan }: HardwareFilterState,
 ): HardwareDevice[] => {
   const term = search.trim().toLowerCase();
 
-  return devices.filter(
-    (device) =>
-      (type === ALL || device.type === type) &&
-      (status === ALL || device.status === status) &&
-      (manufacturer === ALL || device.manufacturer === manufacturer) &&
-      matchesDateRange(device.lastScan, lastScan) &&
-      (term === "" ||
-        `${device.name} ${device.manufacturer} ${device.serialNumber} ${device.osVersion}`
-          .toLowerCase()
-          .includes(term)),
-  );
+  return devices
+    .filter(
+      (device) =>
+        (type === ALL || device.type === type) &&
+        (status === ALL || device.status === status) &&
+        (manufacturer === ALL || device.manufacturer === manufacturer) &&
+        matchesDateRangeAny(device.scanDays, lastScan) &&
+        (term === "" ||
+          `${device.name} ${device.manufacturer} ${device.serialNumber} ${device.osVersion}`
+            .toLowerCase()
+            .includes(term)),
+    )
+    /* `filter` already returned a fresh array, so this sorts that and not
+       the caller's list. */
+    .sort(byNewestReported((device) => device.lastScan));
 };
 
 
@@ -266,6 +297,7 @@ export const addDevice = (draft: NewDevice): HardwareDevice => {
     id: deviceIdFor(draft.serialNumber),
     status: "OFFLINE",
     lastScan: "Never",
+    scanDays: [],
     ipAddress: UNKNOWN,
     osVersion: UNKNOWN,
   };

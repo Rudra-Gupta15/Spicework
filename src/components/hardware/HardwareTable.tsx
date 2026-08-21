@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { RescanButton } from "@/components/common/RescanButton";
 import { DataTable, PRIMARY_CELL, type Column } from "@/components/ui";
 import { HARDWARE_COLUMNS } from "@/data/hardware";
+import { formatReportedDate } from "@/lib/dateRange";
 import type { HardwareColumnKey, HardwareDevice } from "@/types/hardware";
 
 /**
@@ -17,6 +18,13 @@ const COLUMN_STYLES: Partial<
   serialNumber: {
     wrap: true,
     cellClassName: "max-w-[150px] break-all",
+  },
+  /* The agent reports this as `2026-07-29 13:46:36`. Shown as the day alone
+     it reads like every other date in the app, and a column of them can be
+     compared at a glance; a device no scan has reached still says
+     "Unknown", which is the truth about it. */
+  lastScan: {
+    render: (device: HardwareDevice) => formatReportedDate(device.lastScan),
   },
 };
 
