@@ -1,3 +1,4 @@
+import { ManualBadge } from "@/components/common/ManualBadge";
 import {
   Card,
   DataTable,
@@ -14,6 +15,12 @@ const USER_COLUMNS: Column<UserAccount>[] = [
     header: "Username",
     wrap: true,
     cellClassName: `max-w-[200px] ${PRIMARY_CELL}`,
+    render: (user) => (
+      <span className="inline-flex items-center">
+        {user.username}
+        {user.manuallyCorrected && <ManualBadge />}
+      </span>
+    ),
   },
   {
     key: "homeDirectory",

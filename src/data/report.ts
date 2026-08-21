@@ -12,6 +12,7 @@ import {
   mapStorage,
   mapUsers,
   mapVideoControllers,
+  type RawAssetMetadata,
   type RawDeviceDetail,
   type SectionRowOverrides,
 } from "./deviceApi";
@@ -300,12 +301,23 @@ const generatedOn = (): string =>
 const withRows = (sections: ReportSection[]): ReportSection[] =>
   sections.filter((section) => section.rows.length > 0);
 
+/** `RawAssetMetadata` column -> the Hardware Specification label it corrects. */
+const SPEC_OVERRIDE_LABELS: [keyof RawAssetMetadata, string][] = [
+  ["cpu_override", "Processor (CPU)"],
+  ["ram_override", "Memory (RAM)"],
+  ["disk_override", "Disk"],
+  ["serial_number_override", "Serial Number"],
+  ["manufacturer_override", "Manufacturer"],
+  ["device_model_override", "Model"],
+];
+
 const buildHardwareReport = (
   device: HardwareDevice,
   detail: RawDeviceDetail,
-  assetTag: string,
+  asset: RawAssetMetadata | null,
   rowOverrides: Record<string, SectionRowOverrides> = {},
 ): ReportPreview => {
+  const assetTag = asset?.asset_tag ?? "";
   const specification = mapHardwareFields(detail);
   const storage = mapStorage(detail, rowOverrides.storage);
   const adapters = mapNetworkAdapters(detail, rowOverrides.network);
@@ -313,6 +325,13 @@ const buildHardwareReport = (
   const printers = mapPrinters(detail, rowOverrides.printers);
   const video = mapVideoControllers(detail, rowOverrides.video);
   const users = mapUsers(detail, rowOverrides.users);
+
+  /* Labels of the Specification fields with a saved correction — the
+     mechanism behind them (`asset_metadata`) is different from the list
+     sections' row overrides, but the badge they both feed is the same. */
+  const correctedSpecLabels = SPEC_OVERRIDE_LABELS.filter(
+    ([column]) => (asset?.[column] || "").trim(),
+  ).map(([, label]) => label);
 
   return {
     id: `hardware-${device.id}`,
@@ -341,6 +360,7 @@ const buildHardwareReport = (
         title: "Hardware Specification",
         columns: ["Specification", "Value"],
         rows: specification.map((field) => [field.label, field.value]),
+        correctedRowKeys: correctedSpecLabels,
       },
       {
         id: "storage",
@@ -354,6 +374,9 @@ const buildHardwareReport = (
           partition.freeSpace,
           partition.bootable,
         ]),
+        correctedRowKeys: storage.partitions
+          .filter((partition) => partition.manuallyCorrected)
+          .map((partition) => partition.name),
       },
       {
         id: "network",
@@ -368,6 +391,9 @@ const buildHardwareReport = (
           adapter.speed,
           adapter.type,
         ]),
+        correctedRowKeys: adapters
+          .filter((adapter) => adapter.manuallyCorrected)
+          .map((adapter) => adapter.macAddress),
       },
       {
         id: "peripherals",
@@ -380,6 +406,9 @@ const buildHardwareReport = (
           peripheral.manufacturer,
           peripheral.version,
         ]),
+        correctedRowKeys: peripherals
+          .filter((peripheral) => peripheral.manuallyCorrected)
+          .map((peripheral) => peripheral.name),
       },
       {
         id: "printers",
@@ -393,6 +422,9 @@ const buildHardwareReport = (
           printer.status,
           printer.bidirectional,
         ]),
+        correctedRowKeys: printers
+          .filter((printer) => printer.manuallyCorrected)
+          .map((printer) => printer.name),
       },
       {
         id: "video",
@@ -405,6 +437,9 @@ const buildHardwareReport = (
           controller.videoProcessor,
           controller.driverVersion,
         ]),
+        correctedRowKeys: video
+          .filter((controller) => controller.manuallyCorrected)
+          .map((controller) => controller.name),
       },
       {
         id: "users",
@@ -417,6 +452,9 @@ const buildHardwareReport = (
           user.lastLogin,
           user.userType,
         ]),
+        correctedRowKeys: users
+          .filter((user) => user.manuallyCorrected)
+          .map((user) => user.username),
       },
     ]),
   };
@@ -600,6 +638,23 @@ export const HARDWARE_SECTION_EDIT_CONFIG: Record<string, SectionEditConfig> = {
   },
 };
 
+/**
+ * Which column of each section carries a row's identity — the one the
+ * "manually corrected" badge attaches to. Specification has no row-edit
+ * config of its own (it uses `EditHardwareSpecModal`, not
+ * `EditSectionRowsModal`), so it is listed here on its own rather than
+ * folded into `HARDWARE_SECTION_EDIT_CONFIG` above.
+ */
+export const SECTION_IDENTITY_COLUMN: Record<string, string> = {
+  specification: "Specification",
+  storage: "Name",
+  network: "MAC Address",
+  peripherals: "Name",
+  printers: "Name",
+  video: "Name",
+  users: "Username",
+};
+
 export const reportWithSections = (
   report: ReportPreview,
   sectionIds: string[],
@@ -624,7 +679,7 @@ export const buildReport = async (
 
   return category === "Software"
     ? buildSoftwareReport(device, detail)
-    : buildHardwareReport(device, detail, asset?.asset_tag ?? "", rowOverrides);
+    : buildHardwareReport(device, detail, asset, rowOverrides);
 };
 
 /* --- reporting on several systems at once --------------------------- */

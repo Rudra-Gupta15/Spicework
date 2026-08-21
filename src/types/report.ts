@@ -49,6 +49,12 @@ export interface ReportSection {
   title: string;
   columns: string[];
   rows: string[][];
+  /**
+   * The identity-column value (see `SECTION_IDENTITY_COLUMN`) of every row
+   * that carries a saved correction — how the preview knows which rows to
+   * badge without needing the raw override data itself.
+   */
+  correctedRowKeys?: string[];
 }
 
 /** A generated report, independent of the format it is rendered into. */

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 
+import { ManualBadge } from "@/components/common/ManualBadge";
 import {
   Card,
   DataTable,
@@ -17,7 +18,17 @@ import type {
 
 const PARTITION_COLUMNS: Column<DiskPartition>[] = [
   indexColumn(),
-  { key: "name", header: "Name", cellClassName: PRIMARY_CELL },
+  {
+    key: "name",
+    header: "Name",
+    cellClassName: PRIMARY_CELL,
+    render: (partition) => (
+      <span className="inline-flex items-center">
+        {partition.name}
+        {partition.manuallyCorrected && <ManualBadge />}
+      </span>
+    ),
+  },
   { key: "totalSize", header: "Total Size" },
   { key: "used", header: "Used" },
   { key: "freeSpace", header: "Free Space" },

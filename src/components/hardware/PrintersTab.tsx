@@ -1,3 +1,4 @@
+import { ManualBadge } from "@/components/common/ManualBadge";
 import {
   Badge,
   DataTable,
@@ -15,6 +16,12 @@ const PRINTER_COLUMNS: Column<Printer>[] = [
     header: "Printer Name",
     wrap: true,
     cellClassName: `max-w-[220px] ${PRIMARY_CELL}`,
+    render: (printer) => (
+      <span className="inline-flex items-center">
+        {printer.name}
+        {printer.manuallyCorrected && <ManualBadge />}
+      </span>
+    ),
   },
   { key: "systemName", header: "System Name" },
   { key: "portName", header: "Port Name" },

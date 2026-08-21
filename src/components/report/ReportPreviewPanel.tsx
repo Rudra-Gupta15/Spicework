@@ -11,7 +11,8 @@ import {
   Select,
   type Column,
 } from "@/components/ui";
-import { HARDWARE_SECTION_EDIT_CONFIG } from "@/data/report";
+import { ManualBadge } from "@/components/common/ManualBadge";
+import { HARDWARE_SECTION_EDIT_CONFIG, SECTION_IDENTITY_COLUMN } from "@/data/report";
 import type {
   ReportFormat,
   ReportPreview,
@@ -59,15 +60,37 @@ const FORMAT_LABEL: Record<ReportFormat, string> = {
   excel: "Excel workbook",
 };
 
-/** Columns for a section's `string[]` rows, keyed by position. */
-const sectionColumns = (section: ReportSection): Column<string[]>[] =>
-  section.columns.map((header, index) => ({
+/**
+ * Columns for a section's `string[]` rows, keyed by position. The identity
+ * column (see `SECTION_IDENTITY_COLUMN`) gets a `ManualBadge` on any row
+ * whose key appears in `section.correctedRowKeys` — everywhere else just
+ * prints the cell.
+ */
+const sectionColumns = (section: ReportSection): Column<string[]>[] => {
+  const identityColumn = SECTION_IDENTITY_COLUMN[section.id];
+  const identityIndex = identityColumn ? section.columns.indexOf(identityColumn) : -1;
+
+  return section.columns.map((header, index) => ({
     key: `${section.id}-${index}`,
     header,
     wrap: header === "Value" || header === "Specification",
     cellClassName: index === 0 ? PRIMARY_CELL : "text-muted",
-    render: (row) => row[index] ?? "—",
+    render: (row) => {
+      const value = row[index] ?? "—";
+      if (index !== identityIndex) return value;
+
+      const corrected = section.correctedRowKeys?.includes(row[identityIndex]);
+      return corrected ? (
+        <span className="inline-flex items-center">
+          {value}
+          <ManualBadge />
+        </span>
+      ) : (
+        value
+      );
+    },
   }));
+};
 
 /** The two things a report can be, as the picker lists them. */
 const SCOPE_OPTIONS: readonly string[] = ["Public", "Private"];
@@ -233,7 +256,7 @@ export const ReportPreviewPanel = ({
               <dt className="text-[10px] font-semibold tracking-[0.06em] text-muted uppercase">
                 {field.label}
               </dt>
-              <dd className="mt-1.5 text-[13px] leading-relaxed break-words text-heading">
+              <dd className="mt-1.5 text-[13px] leading-relaxed wrap-break-word text-heading">
                 {field.value}
               </dd>
             </div>

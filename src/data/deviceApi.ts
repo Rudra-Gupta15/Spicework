@@ -621,7 +621,7 @@ const applyRowOverrides = <T extends Record<string, unknown>>(
 
   return rows.map((row) => {
     const correction = overrides[String(row[rowKeyField])];
-    return correction ? { ...row, ...correction } : row;
+    return correction ? { ...row, ...correction, manuallyCorrected: true } : row;
   });
 };
 

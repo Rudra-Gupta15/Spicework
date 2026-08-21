@@ -1,3 +1,4 @@
+import { ManualBadge } from "@/components/common/ManualBadge";
 import {
   Badge,
   Card,
@@ -20,6 +21,12 @@ const PERIPHERAL_COLUMNS: Column<Peripheral>[] = [
     header: "Name",
     wrap: true,
     cellClassName: `max-w-[220px] ${PRIMARY_CELL}`,
+    render: (peripheral) => (
+      <span className="inline-flex items-center">
+        {peripheral.name}
+        {peripheral.manuallyCorrected && <ManualBadge />}
+      </span>
+    ),
   },
   {
     key: "description",

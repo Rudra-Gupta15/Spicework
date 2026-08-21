@@ -119,6 +119,8 @@ export interface DiskPartition {
   freeSpace: string;
   fileSystem: string;
   bootable: string;
+  /** True when this row carries a saved correction — see `applyRowOverrides`. */
+  manuallyCorrected?: boolean;
 }
 
 export interface DeviceStorage {
@@ -143,6 +145,8 @@ export interface NetworkAdapter {
   mtu: string;
   speed: string;
   type: string;
+  /** True when this row carries a saved correction — see `applyRowOverrides`. */
+  manuallyCorrected?: boolean;
 }
 
 /** One peripheral the scan reported as attached. */
@@ -156,6 +160,8 @@ export interface Peripheral {
   description: string;
   manufacturer: string;
   version: string;
+  /** True when this row carries a saved correction — see `applyRowOverrides`. */
+  manuallyCorrected?: boolean;
 }
 
 /** One printer the scan found attached to the device. */
@@ -167,6 +173,8 @@ export interface Printer {
   portName: string;
   status: string;
   bidirectional: string;
+  /** True when this row carries a saved correction — see `applyRowOverrides`. */
+  manuallyCorrected?: boolean;
 }
 
 /** How a device is physically attached — drives the filter chips. */
@@ -202,6 +210,8 @@ export interface VideoController {
   adapterName: string;
   videoProcessor: string;
   driverVersion: string;
+  /** True when this row carries a saved correction — see `applyRowOverrides`. */
+  manuallyCorrected?: boolean;
 }
 
 /**
@@ -217,6 +227,8 @@ export interface UserAccount {
   userType: string;
   licensed: string;
   currentUser: string;
+  /** True when this row carries a saved correction — see `applyRowOverrides`. */
+  manuallyCorrected?: boolean;
 }
 
 /** One sign-in event reported by the scan. */

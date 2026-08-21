@@ -1,3 +1,4 @@
+import { ManualBadge } from "@/components/common/ManualBadge";
 import {
   Card,
   DataTable,
@@ -16,6 +17,12 @@ const ADAPTER_COLUMNS: Column<NetworkAdapter>[] = [
     wrap: true,
     className: "min-w-[160px] max-w-[160px]",
     cellClassName: PRIMARY_CELL,
+    render: (adapter) => (
+      <span className="inline-flex items-center">
+        {adapter.name}
+        {adapter.manuallyCorrected && <ManualBadge />}
+      </span>
+    ),
   },
   {
     key: "description",

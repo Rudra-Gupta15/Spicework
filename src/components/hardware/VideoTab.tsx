@@ -1,3 +1,4 @@
+import { ManualBadge } from "@/components/common/ManualBadge";
 import {
   Card,
   DataTable,
@@ -14,6 +15,12 @@ const VIDEO_COLUMNS: Column<VideoController>[] = [
     header: "Device Name",
     wrap: true,
     cellClassName: `max-w-[220px] ${PRIMARY_CELL}`,
+    render: (controller) => (
+      <span className="inline-flex items-center">
+        {controller.name}
+        {controller.manuallyCorrected && <ManualBadge />}
+      </span>
+    ),
   },
   {
     key: "adapterName",

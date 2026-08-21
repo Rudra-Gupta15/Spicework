@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Eye, Pencil } from "lucide-react";
 
+import { ManualBadge } from "@/components/common/ManualBadge";
 import { DataTable, PRIMARY_CELL, type Column } from "@/components/ui";
 import {
   categoryTracksAssignment,
@@ -45,7 +46,13 @@ export const DeviceInventoryTable = ({
         cellClassName: PRIMARY_CELL,
         render: (device) => (
           <span className="inline-flex items-center gap-2">
-            {device.name}
+            <span className="inline-flex items-center">
+              {device.name}
+              {/* A row nothing here fabricated and no scan reported —
+                  someone typed this name into Add or the adoption form
+                  themselves. */}
+              {!needsAdoption(device) && <ManualBadge />}
+            </span>
             {device.isDemo && (
               <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[11px] font-semibold text-muted">
                 Demo
