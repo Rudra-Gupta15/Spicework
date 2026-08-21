@@ -37,7 +37,7 @@ const HardwareDetailPage = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<DeviceTab>("Overview");
 
-  const { detail, asset, isLoading, error } = useDeviceDetail(deviceId ?? "");
+  const { detail, asset, rowOverrides, isLoading, error } = useDeviceDetail(deviceId ?? "");
 
   /* "Connected Devices" has no backing data in the single-tenant audit
      flow — it's specific to the newer multi-tenant network-scan feature —
@@ -70,12 +70,24 @@ const HardwareDetailPage = () => {
     () => (detail ? mapHardwareFields(detail) : []),
     [detail],
   );
-  const users = useMemo(() => mapUsers(detail), [detail]);
-  const storage = useMemo(() => mapStorage(detail), [detail]);
-  const adapters = useMemo(() => mapNetworkAdapters(detail), [detail]);
-  const peripherals = useMemo(() => mapPeripherals(detail), [detail]);
-  const printers = useMemo(() => mapPrinters(detail), [detail]);
-  const controllers = useMemo(() => mapVideoControllers(detail), [detail]);
+  const users = useMemo(() => mapUsers(detail, rowOverrides.users), [detail, rowOverrides.users]);
+  const storage = useMemo(() => mapStorage(detail, rowOverrides.storage), [detail, rowOverrides.storage]);
+  const adapters = useMemo(
+    () => mapNetworkAdapters(detail, rowOverrides.network),
+    [detail, rowOverrides.network],
+  );
+  const peripherals = useMemo(
+    () => mapPeripherals(detail, rowOverrides.peripherals),
+    [detail, rowOverrides.peripherals],
+  );
+  const printers = useMemo(
+    () => mapPrinters(detail, rowOverrides.printers),
+    [detail, rowOverrides.printers],
+  );
+  const controllers = useMemo(
+    () => mapVideoControllers(detail, rowOverrides.video),
+    [detail, rowOverrides.video],
+  );
   const connected = useMemo(() => getConnectedDevices(legacyDeviceStub), [legacyDeviceStub]);
 
   /* No device id in the URL at all. */

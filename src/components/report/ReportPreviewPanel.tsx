@@ -11,6 +11,7 @@ import {
   Select,
   type Column,
 } from "@/components/ui";
+import { HARDWARE_SECTION_EDIT_CONFIG } from "@/data/report";
 import type {
   ReportFormat,
   ReportPreview,
@@ -22,6 +23,7 @@ import {
   EditHardwareSpecModal,
   type HardwareSpecFields,
 } from "./EditHardwareSpecModal";
+import { EditSectionRowsModal } from "./EditSectionRowsModal";
 import { ReportDownloadMenu } from "./ReportDownloadMenu";
 
 /** The "Hardware Specification" section's rows, in the exact order and
@@ -83,6 +85,13 @@ interface ReportPreviewPanelProps {
       it shows immediately. Absent on a Software report, which has no
       specification section to correct. */
   onEditSpecification?: (overrides: Partial<HardwareSpecFields>) => Promise<unknown>;
+  /** Saves corrected rows for a list section (`section.id`) and refreshes
+      the report. Absent on a Software report — none of its sections have a
+      row-edit config, so the pencil never renders regardless. */
+  onEditSection?: (
+    sectionId: string,
+    updates: { rowKey: string; fields: Record<string, string> }[],
+  ) => Promise<unknown>;
 }
 
 /** The generated report as it appears on screen, before it is downloaded. */
@@ -93,8 +102,11 @@ export const ReportPreviewPanel = ({
   onBack,
   onDownload,
   onEditSpecification,
+  onEditSection,
 }: ReportPreviewPanelProps) => {
   const [editingSpec, setEditingSpec] = useState(false);
+  /* The row section currently open for correction — `null` while closed. */
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   /* Tagged with the report it belongs to, so picking another system drops
      the confirmation without an effect resetting it. */
   const [receipt, setReceipt] = useState<{
@@ -291,6 +303,19 @@ export const ReportPreviewPanel = ({
                     <span className="sr-only">Correct Hardware Specification</span>
                   </button>
                 )}
+                {section.id !== "specification" &&
+                  onEditSection &&
+                  HARDWARE_SECTION_EDIT_CONFIG[section.id] && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingSectionId(section.id)}
+                      title={`Correct a row the agent misread in ${section.title}`}
+                      className="inline-flex rounded-md p-1 text-navy-300 transition-colors hover:bg-brand-50 hover:text-brand-600"
+                    >
+                      <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+                      <span className="sr-only">Correct {section.title}</span>
+                    </button>
+                  )}
               </div>
             </div>
 
@@ -319,6 +344,16 @@ export const ReportPreviewPanel = ({
           onClose={() => setEditingSpec(false)}
           current={specFieldsFrom(report.sections.find((section) => section.id === "specification"))}
           onSave={onEditSpecification}
+        />
+      )}
+
+      {onEditSection && (
+        <EditSectionRowsModal
+          isOpen={editingSectionId !== null}
+          onClose={() => setEditingSectionId(null)}
+          section={report.sections.find((section) => section.id === editingSectionId)}
+          config={editingSectionId ? HARDWARE_SECTION_EDIT_CONFIG[editingSectionId] : undefined}
+          onSave={(updates) => onEditSection(editingSectionId ?? "", updates)}
         />
       )}
     </div>

@@ -8,7 +8,7 @@ import type { HardwareSpecFields } from "@/components/report/EditHardwareSpecMod
 import { ReportPreviewPanel } from "@/components/report/ReportPreviewPanel";
 import { ReportSystemTable } from "@/components/report/ReportSystemTable";
 import { Button, Card, Loader, Pagination, Spinner } from "@/components/ui";
-import { saveHardwareOverrides, useDeviceList } from "@/data/deviceApi";
+import { saveHardwareOverrides, saveRowCorrections, useDeviceList } from "@/data/deviceApi";
 import {
   DEFAULT_REPORT_FILTERS,
   REPORT_CATEGORIES,
@@ -319,6 +319,25 @@ const ReportPage = () => {
     [selectedDevice, toast],
   );
 
+  /* Saves corrected rows for one list section — Disk Partitions, Network
+     Adapters, Peripherals, Printers, Video Controllers, User Accounts — and
+     rebuilds the report the same way a specification fix does. */
+  const handleEditSection = useCallback(
+    async (sectionId: string, updates: { rowKey: string; fields: Record<string, string> }[]) => {
+      if (!selectedDevice) return;
+
+      await saveRowCorrections(selectedDevice.id, sectionId, updates);
+
+      setReportVersion((version) => version + 1);
+      toast({
+        tone: "success",
+        title: `${updates.length} ${updates.length === 1 ? "row" : "rows"} corrected`,
+        description: "Hardware Detail and future reports now reflect it too.",
+      });
+    },
+    [selectedDevice, toast],
+  );
+
   return (
     <>
       <Navbar />
@@ -350,6 +369,7 @@ const ReportPage = () => {
               onBack={() => setSelectedDevice(null)}
               onDownload={handleDownload}
               onEditSpecification={handleEditSpecification}
+              onEditSection={handleEditSection}
             />
           )}
         </div>

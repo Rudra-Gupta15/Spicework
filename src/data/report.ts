@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   fetchAssetMetadata,
   fetchDeviceDetail,
+  fetchRowOverrides,
   mapApps,
   mapHardwareFields,
   mapNetworkAdapters,
@@ -12,6 +13,7 @@ import {
   mapUsers,
   mapVideoControllers,
   type RawDeviceDetail,
+  type SectionRowOverrides,
 } from "./deviceApi";
 import {
   ALL_TIME,
@@ -302,14 +304,15 @@ const buildHardwareReport = (
   device: HardwareDevice,
   detail: RawDeviceDetail,
   assetTag: string,
+  rowOverrides: Record<string, SectionRowOverrides> = {},
 ): ReportPreview => {
   const specification = mapHardwareFields(detail);
-  const storage = mapStorage(detail);
-  const adapters = mapNetworkAdapters(detail);
-  const peripherals = mapPeripherals(detail);
-  const printers = mapPrinters(detail);
-  const video = mapVideoControllers(detail);
-  const users = mapUsers(detail);
+  const storage = mapStorage(detail, rowOverrides.storage);
+  const adapters = mapNetworkAdapters(detail, rowOverrides.network);
+  const peripherals = mapPeripherals(detail, rowOverrides.peripherals);
+  const printers = mapPrinters(detail, rowOverrides.printers);
+  const video = mapVideoControllers(detail, rowOverrides.video);
+  const users = mapUsers(detail, rowOverrides.users);
 
   return {
     id: `hardware-${device.id}`,
@@ -520,6 +523,83 @@ const buildSoftwareReport = (
  * the picker yet, and a report that downloads as blank sections the moment
  * the screen opens would be a worse default than just not filtering.
  */
+/**
+ * How one Hardware Report list section's columns map onto the typed field a
+ * correction actually has to set — see `applyRowOverrides` in deviceApi.ts.
+ * `rowKeyColumn` names which column is that row's stable identity: the one
+ * value a correction is filed under so it keeps finding the same row after
+ * the agent regenerates this list on the next scan.
+ *
+ * Not every displayed column is here on purpose. "#" is a position, not a
+ * field, and correcting it would mean nothing next time the list reorders.
+ */
+export interface SectionEditConfig {
+  rowKeyColumn: string;
+  /** Column header -> typed field name used for override storage. */
+  fieldForColumn: Record<string, string>;
+}
+
+export const HARDWARE_SECTION_EDIT_CONFIG: Record<string, SectionEditConfig> = {
+  storage: {
+    rowKeyColumn: "Name",
+    fieldForColumn: {
+      Name: "name",
+      "File System": "fileSystem",
+      Size: "totalSize",
+      "Free Space": "freeSpace",
+      Bootable: "bootable",
+    },
+  },
+  network: {
+    rowKeyColumn: "MAC Address",
+    fieldForColumn: {
+      Adapter: "name",
+      "MAC Address": "macAddress",
+      IPv4: "ipv4",
+      Gateway: "gateway",
+      Speed: "speed",
+      Type: "type",
+    },
+  },
+  peripherals: {
+    rowKeyColumn: "Name",
+    fieldForColumn: {
+      Type: "type",
+      Name: "name",
+      Manufacturer: "manufacturer",
+      Version: "version",
+    },
+  },
+  printers: {
+    rowKeyColumn: "Name",
+    fieldForColumn: {
+      Name: "name",
+      "System Name": "systemName",
+      Port: "portName",
+      Status: "status",
+      Bidirectional: "bidirectional",
+    },
+  },
+  video: {
+    rowKeyColumn: "Name",
+    fieldForColumn: {
+      Name: "name",
+      Adapter: "adapterName",
+      "Video Processor": "videoProcessor",
+      "Driver Version": "driverVersion",
+    },
+  },
+  users: {
+    rowKeyColumn: "Username",
+    fieldForColumn: {
+      Username: "username",
+      "Home Directory": "homeDirectory",
+      "Last Login": "lastLogin",
+      "User Type": "userType",
+    },
+  },
+};
+
 export const reportWithSections = (
   report: ReportPreview,
   sectionIds: string[],
@@ -536,14 +616,15 @@ export const buildReport = async (
   category: ReportCategory,
   device: HardwareDevice,
 ): Promise<ReportPreview> => {
-  const [detail, asset] = await Promise.all([
+  const [detail, asset, rowOverrides] = await Promise.all([
     fetchDeviceDetail(device.id),
     fetchAssetMetadata(device.id),
+    fetchRowOverrides(device.id),
   ]);
 
   return category === "Software"
     ? buildSoftwareReport(device, detail)
-    : buildHardwareReport(device, detail, asset?.asset_tag ?? "");
+    : buildHardwareReport(device, detail, asset?.asset_tag ?? "", rowOverrides);
 };
 
 /* --- reporting on several systems at once --------------------------- */

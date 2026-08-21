@@ -389,20 +389,44 @@ export const saveHardwareOverrides = async (
   );
 };
 
+/* ── Row corrections — Disk Partitions, Network Adapters, Peripherals,
+   Printers, Video Controllers, User Accounts ────────────────────────────── */
+
+/** Every saved correction for one device, nested `{section: {rowKey: {field: value}}}`. */
+export const fetchRowOverrides = (deviceId: string): Promise<Record<string, SectionRowOverrides>> =>
+  api.get(`/api/devices/${encodeURIComponent(deviceId)}/row-overrides`);
+
+/**
+ * Saves one or several rows' corrections in one call. A row sent with an
+ * empty `fields` object clears whatever correction that row had — that is
+ * how a field goes back to following the agent's own reading.
+ */
+export const saveRowCorrections = (
+  deviceId: string,
+  section: string,
+  updates: { rowKey: string; fields: Record<string, string> }[],
+): Promise<unknown> =>
+  api.put(
+    `/api/devices/${encodeURIComponent(deviceId)}/row-overrides/${encodeURIComponent(section)}`,
+    { updates: updates.map((u) => ({ row_key: u.rowKey, fields: u.fields })) },
+  );
+
 /** Used by both the Hardware detail and Software detail pages. */
 export const useDeviceDetail = (deviceId: string) => {
   const [detail, setDetail] = useState<RawDeviceDetail | null>(null);
   const [asset, setAsset] = useState<RawAssetMetadata | null>(null);
+  const [rowOverrides, setRowOverrides] = useState<Record<string, SectionRowOverrides>>({});
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([fetchDeviceDetail(deviceId), fetchAssetMetadata(deviceId)])
-      .then(([deviceDetail, assetMetadata]) => {
+    Promise.all([fetchDeviceDetail(deviceId), fetchAssetMetadata(deviceId), fetchRowOverrides(deviceId)])
+      .then(([deviceDetail, assetMetadata, overrides]) => {
         if (cancelled) return;
         setDetail(deviceDetail);
         setAsset(assetMetadata);
+        setRowOverrides(overrides);
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(errorMessage(err, "Could not load this device's details."));
@@ -415,7 +439,7 @@ export const useDeviceDetail = (deviceId: string) => {
     };
   }, [deviceId]);
 
-  return { detail, asset, isLoading, error };
+  return { detail, asset, rowOverrides, isLoading, error };
 };
 
 /* ── Change log (device-diff): the last two scans compared ───────────────── */
@@ -568,8 +592,45 @@ export const mapLogins = (detail: RawDeviceDetail | null): LoginRecord[] =>
     timestamp: entry.logged_in_at || entry.timestamp || "Unknown",
   }));
 
-export const mapUsers = (detail: RawDeviceDetail | null): UserAccount[] =>
-  (detail?.user_accounts ?? []).map((entry, index) => ({
+/**
+ * One section's saved corrections, keyed by each row's natural identity — a
+ * MAC address, a drive letter, a username. See `backend/row_overrides_db.py`.
+ * Fetched once per device (`fetchRowOverrides`) and sliced by section before
+ * being handed to the mapper for that section.
+ */
+export type SectionRowOverrides = Record<string, Record<string, string>>;
+
+/**
+ * Lays a device's saved corrections over the rows a section mapper already
+ * built — the same precedence Hardware Specification's overrides use, just
+ * per list row instead of per fixed field. Nothing here assumes what a
+ * "field" means; a correction can supply a value for something the agent
+ * never reports at all (Peripherals' Manufacturer, for one, which is always
+ * "Unknown" — there is no raw column behind it for an agent to misread).
+ *
+ * Both call sites that build these rows — Hardware Detail's tabs and the
+ * Hardware Report — run every row through this, so a correction saved from
+ * either one shows up in both.
+ */
+const applyRowOverrides = <T extends Record<string, unknown>>(
+  rows: T[],
+  rowKeyField: keyof T,
+  overrides: SectionRowOverrides | undefined,
+): T[] => {
+  if (!overrides) return rows;
+
+  return rows.map((row) => {
+    const correction = overrides[String(row[rowKeyField])];
+    return correction ? { ...row, ...correction } : row;
+  });
+};
+
+export const mapUsers = (
+  detail: RawDeviceDetail | null,
+  overrides?: SectionRowOverrides,
+): UserAccount[] =>
+  applyRowOverrides(
+    (detail?.user_accounts ?? []).map((entry, index) => ({
     id: entry.username || `${index + 1}`,
     sequence: index + 1,
     username: entry.username || "Unknown",
@@ -578,20 +639,30 @@ export const mapUsers = (detail: RawDeviceDetail | null): UserAccount[] =>
     userType: entry.user_type || "Unknown",
     licensed: "Unknown",
     currentUser: entry.username && entry.username === detail?.current_user ? "Yes" : "No",
-  }));
+    })),
+    "username",
+    overrides,
+  );
 
 /** Video/GPU tab. The audit only reports one name per controller, so
     Adapter Name mirrors it and Video Processor is left "Unknown" rather
     than guessed. */
-export const mapVideoControllers = (detail: RawDeviceDetail | null): VideoController[] =>
-  (detail?.gpus ?? []).map((entry, index) => ({
-    id: `${index + 1}`,
-    sequence: index + 1,
-    name: entry.name || "Unknown",
-    adapterName: entry.name || "Unknown",
-    videoProcessor: "Unknown",
-    driverVersion: entry.driver_version || "Unknown",
-  }));
+export const mapVideoControllers = (
+  detail: RawDeviceDetail | null,
+  overrides?: SectionRowOverrides,
+): VideoController[] =>
+  applyRowOverrides(
+    (detail?.gpus ?? []).map((entry, index) => ({
+      id: `${index + 1}`,
+      sequence: index + 1,
+      name: entry.name || "Unknown",
+      adapterName: entry.name || "Unknown",
+      videoProcessor: "Unknown",
+      driverVersion: entry.driver_version || "Unknown",
+    })),
+    "name",
+    overrides,
+  );
 
 /** `"952.83 GB"` -> `952.83`; anything unparsable counts as 0 toward the totals. */
 const parseGb = (value: string | undefined): number => {
@@ -606,7 +677,10 @@ const formatGb = (value: number): string => `${value.toFixed(2)} GB`;
  * disks, so `disks` is left empty rather than fabricated — the summary and
  * partition table below carry the real data.
  */
-export const mapStorage = (detail: RawDeviceDetail | null): DeviceStorage => {
+export const mapStorage = (
+  detail: RawDeviceDetail | null,
+  overrides?: SectionRowOverrides,
+): DeviceStorage => {
   const partitions = detail?.disk_partitions ?? [];
   const disks: Disk[] = [];
 
@@ -627,59 +701,84 @@ export const mapStorage = (detail: RawDeviceDetail | null): DeviceStorage => {
       physicalDisks: partitions.length,
     },
     disks,
-    partitions: partitions.map((entry, index) => ({
-      id: `${index + 1}`,
-      name: entry.name || "Unknown",
-      totalSize: entry.size_gb || "Unknown",
-      used: entry.size_gb && entry.free_gb
-        ? formatGb(parseGb(entry.size_gb) - parseGb(entry.free_gb))
-        : "Unknown",
-      freeSpace: entry.free_gb || "Unknown",
-      fileSystem: entry.type || "Unknown",
-      bootable: entry.bootable || "Unknown",
-    })),
+    partitions: applyRowOverrides(
+      partitions.map((entry, index) => ({
+        id: `${index + 1}`,
+        name: entry.name || "Unknown",
+        totalSize: entry.size_gb || "Unknown",
+        used: entry.size_gb && entry.free_gb
+          ? formatGb(parseGb(entry.size_gb) - parseGb(entry.free_gb))
+          : "Unknown",
+        freeSpace: entry.free_gb || "Unknown",
+        fileSystem: entry.type || "Unknown",
+        bootable: entry.bootable || "Unknown",
+      })),
+      "name",
+      overrides,
+    ),
   };
 };
 
-export const mapNetworkAdapters = (detail: RawDeviceDetail | null): NetworkAdapter[] =>
-  (detail?.network_adapters ?? []).map((entry, index) => ({
-    id: `${index + 1}`,
-    name: entry.name || "Unknown",
-    description: entry.name || "Unknown",
-    macAddress: entry.mac_address || "Unknown",
-    ipv4: entry.ipv4 || "Unknown",
-    ipv6: entry.ipv6 || "Unknown",
-    subnetMask: entry.subnet_mask || "Unknown",
-    gateway: entry.gateway || "Unknown",
-    dnsDomain: "Unknown",
-    dnsServers: entry.dns_servers || "Unknown",
-    dhcpServer: "Unknown",
-    mtu: "Unknown",
-    speed: entry.speed || "Unknown",
-    type: entry.adapter_type || "Unknown",
-  }));
+export const mapNetworkAdapters = (
+  detail: RawDeviceDetail | null,
+  overrides?: SectionRowOverrides,
+): NetworkAdapter[] =>
+  applyRowOverrides(
+    (detail?.network_adapters ?? []).map((entry, index) => ({
+      id: `${index + 1}`,
+      name: entry.name || "Unknown",
+      description: entry.name || "Unknown",
+      macAddress: entry.mac_address || "Unknown",
+      ipv4: entry.ipv4 || "Unknown",
+      ipv6: entry.ipv6 || "Unknown",
+      subnetMask: entry.subnet_mask || "Unknown",
+      gateway: entry.gateway || "Unknown",
+      dnsDomain: "Unknown",
+      dnsServers: entry.dns_servers || "Unknown",
+      dhcpServer: "Unknown",
+      mtu: "Unknown",
+      speed: entry.speed || "Unknown",
+      type: entry.adapter_type || "Unknown",
+    })),
+    "macAddress",
+    overrides,
+  );
 
-export const mapPeripherals = (detail: RawDeviceDetail | null): Peripheral[] =>
-  (detail?.peripherals ?? []).map((entry, index) => ({
-    id: `${index + 1}`,
-    sequence: index + 1,
-    type: entry.type || "Unknown",
-    name: entry.name || "Unknown",
-    description: entry.name || "Unknown",
-    manufacturer: "Unknown",
-    version: "Unknown",
-  }));
+export const mapPeripherals = (
+  detail: RawDeviceDetail | null,
+  overrides?: SectionRowOverrides,
+): Peripheral[] =>
+  applyRowOverrides(
+    (detail?.peripherals ?? []).map((entry, index) => ({
+      id: `${index + 1}`,
+      sequence: index + 1,
+      type: entry.type || "Unknown",
+      name: entry.name || "Unknown",
+      description: entry.name || "Unknown",
+      manufacturer: "Unknown",
+      version: "Unknown",
+    })),
+    "name",
+    overrides,
+  );
 
-export const mapPrinters = (detail: RawDeviceDetail | null): Printer[] =>
-  (detail?.printers ?? []).map((entry, index) => ({
-    id: `${index + 1}`,
-    sequence: index + 1,
-    name: entry.name || "Unknown",
-    systemName: entry.system_name || "Unknown",
-    portName: entry.port_name || "Unknown",
-    status: entry.extended_printer_status || "Unknown",
-    bidirectional: entry.enable_bidi || "Unknown",
-  }));
+export const mapPrinters = (
+  detail: RawDeviceDetail | null,
+  overrides?: SectionRowOverrides,
+): Printer[] =>
+  applyRowOverrides(
+    (detail?.printers ?? []).map((entry, index) => ({
+      id: `${index + 1}`,
+      sequence: index + 1,
+      name: entry.name || "Unknown",
+      systemName: entry.system_name || "Unknown",
+      portName: entry.port_name || "Unknown",
+      status: entry.extended_printer_status || "Unknown",
+      bidirectional: entry.enable_bidi || "Unknown",
+    })),
+    "name",
+    overrides,
+  );
 
 /* ── On-demand rescan ─────────────────────────────────────────────────────
    Agents are not reachable inbound — each sits behind its office's NAT — so
